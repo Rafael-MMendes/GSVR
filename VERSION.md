@@ -8,6 +8,7 @@ Documento dedicado ao acompanhamento de todas as atualizações, novas configura
 
 ### Mudanças:
 - **Correção de Loop Infinito**: Resolvida a falha no `FinanceiroDashboard.jsx` que causava travamento na tela de carregamento (percebido como loop) devido à falta de tratamento de erro em chamadas de API paralelas e estado inicial de loading.
+- **Correção de Tela Branca na Importação**: Resolvido o crash (Runtime Error) no módulo `EfetivoImport.jsx` ao clicar em "Iniciar Importação", causado pela ausência das estatísticas esperadas (`stats`) na resposta do backend e uso incorreto de placeholders SQL.
 - **Backend - Rotas Financeiras**: Implementada a rota `/api/financeiro/detalhado` (que estava faltando) e corrigida a rota `/api/financeiro/resumo` para retornar todos os campos esperados pelo frontend (verba, saldo, percentual, etc).
 - **Correção de Placeholders SQL**: Corrigidos erros de sintaxe SQL em consultas brutas (`db.query`) que utilizavam o placeholder `?` (SQLite) em vez de `$1` (PostgreSQL) na rota de voluntários e financeira.
 - **Robustez UI/UX**: Adicionado tratamento de erro visual no Dashboard Financeiro para informar ao usuário sobre falhas na comunicação com o servidor, em vez de exibir um spinner infinito.

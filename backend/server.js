@@ -64,22 +64,66 @@ app.delete('/api/volunteers/:id', async (req, res) => { await db.run('DELETE FRO
 app.get('/api/efetivo', async (req, res) => { res.json(await db.all('SELECT * FROM EFETIVO ORDER BY nome_completo ASC')); });
 
 app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file" });
-  const data = XLSX.utils.sheet_to_json(XLSX.read(req.file.buffer, { type: 'buffer' }).Sheets[XLSX.read(req.file.buffer, { type: 'buffer' }).SheetNames[0]]);
-  for (const row of data) {
-    const m = String(row['MATRICULA'] || row['Matricula'] || '').trim();
-    const c = String(row['CPF'] || row['Cpf'] || '').trim();
-    const n = row['NOME COMPLETO'] || row['Nome'] || '';
-    if (m && c && n) {
-      const check = await db.get('SELECT 1 FROM EFETIVO WHERE matricula = ?', [m]);
-      if (!check) {
-        await db.run('INSERT INTO EFETIVO (nome_completo, posto_graduacao, matricula, cpf) VALUES (?, ?, ?, ?)', [n, row['POSTO/GRAD'] || 'Militar', m, c]);
-        await db.run('INSERT INTO users (numero_ordem, password) VALUES (?, ?) ON CONFLICT (numero_ordem) DO NOTHING', [m, c]);
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    
+    let stats = { imported: 0, existing: 0, errors: 0 };
+    let errorDetails = [];
+
+    for (const row of data) {
+      try {
+        const matricula = String(row['MATRÍCULA'] || row['Matrícula'] || row['MATRICULA'] || row['Matricula'] || '').trim();
+        const cpf = String(row['CPF'] || row['Cpf'] || '').replace(/\D/g, '').trim();
+        const nome = row['NOME COMPLETO'] || row['Nome'] || row['Nome Completo'] || '';
+        const posto = row['POSTO/GRAD'] || row['Posto'] || row['Graduação'] || 'Militar';
+
+        if (!matricula || !cpf || !nome) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || 'Desconhecido', error: "Dados obrigatórios ausentes (Matrícula, CPF ou Nome)." });
+          continue;
+        }
+
+        const check = await db.get('SELECT 1 FROM EFETIVO WHERE matricula = $1', [matricula]);
+        if (check) {
+          stats.existing++;
+          continue;
+        }
+
+        await db.run(
+          'INSERT INTO EFETIVO (nome_completo, posto_graduacao, matricula, cpf, nome_guerra) VALUES ($1, $2, $3, $4, $1)', 
+          [nome, posto, matricula, cpf]
+        );
+        
+        // Criar usuário se não existir
+        await db.run(
+          'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING', 
+          [matricula, cpf]
+        );
+
+        stats.imported++;
+      } catch (err) {
+        console.error('Erro na linha do Excel:', err);
+        stats.errors++;
+        errorDetails.push({ militar: row['NOME COMPLETO'] || 'Indefinido', error: err.message });
       }
     }
+
+    res.json({ 
+      success: true, 
+      message: `${stats.imported} militares importados com sucesso.`,
+      stats,
+      errorDetails
+    });
+  } catch (e) {
+    console.error('Erro ao ler Excel:', e);
+    res.status(500).json({ error: "Falha ao ler o arquivo Excel." });
   }
-  res.json({ success: true });
 });
+
 
 function processMarksLine(line, shiftCode, data) {
   let cleanLine = line.trim();
