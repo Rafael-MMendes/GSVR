@@ -41,7 +41,7 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/volunteers', async (req, res) => {
   const month = req.query.month || getCurrentMonthKey();
-  const q = `SELECT r.id_requerimento as id, e.matricula as numero_ordem, e.nome_guerra as name, e.posto_graduacao as rank, e.telefone as phone, c.referencia_mes_ano as month_key, (SELECT json_object_agg(dia_mes, turnos) FROM (SELECT dia_mes, json_agg(horario_turno) as turnos FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento GROUP BY dia_mes) d) as availability_json FROM REQUERIMENTOS r JOIN EFETIVO e ON r.id_militar = e.id_militar JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE c.referencia_mes_ano = ? ORDER BY r.data_solicitacao DESC`;
+  const q = `SELECT r.id_requerimento as id, e.matricula as numero_ordem, e.nome_guerra as name, e.posto_graduacao as rank, e.telefone as phone, c.referencia_mes_ano as month_key, (SELECT json_object_agg(dia_mes, turnos) FROM (SELECT dia_mes, json_agg(horario_turno) as turnos FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento GROUP BY dia_mes) d) as availability_json FROM REQUERIMENTOS r JOIN EFETIVO e ON r.id_militar = e.id_militar JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE c.referencia_mes_ano = $1 ORDER BY r.data_solicitacao DESC`;
   const { rows } = await db.query(q, [month]);
   res.json(rows.map(v => ({ ...v, availability: v.availability_json || {} })));
 });
@@ -127,8 +127,103 @@ app.get('/api/opms', async (req, res) => { res.json(await db.all('SELECT * FROM 
 app.post('/api/opms', async (req, res) => { const { descricao, sigla } = req.body; if (!descricao || !sigla) return res.status(400).json({ error: "Required" }); const r = await db.run('INSERT INTO OPM (descricao, sigla) VALUES (?, ?)', [descricao, sigla]); res.status(201).json({ success: true, id_opm: r.lastID }); });
 
 app.get('/api/financeiro/resumo', async (req, res) => {
-  const month = req.query.month || getCurrentMonthKey();
-  const { rows } = await db.query(`SELECT horario_servico, count(*) as total FROM ESCALA_PLANEJAMENTO ep JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo WHERE c.referencia_mes_ano = ? GROUP BY horario_servico`, [month]);
-  let t6 = 0, t8 = 0; rows.forEach(r => { if (r.horario_servico?.includes('8h')) t8 += parseInt(r.total); else t6 += parseInt(r.total); });
-  res.json({ total_gasto: (t6 * 192.03) + (t8 * 250), total_servicos_6h: t6, total_servicos_8h: t8, mes_selecionado: month });
+  try {
+    const month = req.query.month || getCurrentMonthKey();
+    const q = `
+      SELECT 
+        COUNT(*) FILTER (WHERE horario_servico LIKE '%6h%') as t6,
+        COUNT(*) FILTER (WHERE horario_servico LIKE '%8h%') as t8,
+        COUNT(DISTINCT id_militar) as militares_unicos,
+        COUNT(*) as total_militar_servicos
+      FROM ESCALA_PLANEJAMENTO ep 
+      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo 
+      WHERE c.referencia_mes_ano = $1
+    `;
+    const { rows } = await db.query(q, [month]);
+    const stats = rows[0] || { t6: 0, t8: 0, militares_unicos: 0, total_militar_servicos: 0 };
+    
+    const v6 = 192.03;
+    const v8 = 250.00;
+    const total_gasto = (parseInt(stats.t6) * v6) + (parseInt(stats.t8) * v8);
+    const verba_ciclo = 35000.00; // Valor padrão ou configurável
+
+    res.json({
+      verba_ciclo,
+      total_gasto,
+      saldo_restante: verba_ciclo - total_gasto,
+      percentual_utilizado: (total_gasto / verba_ciclo) * 100,
+      total_servicos_6h: parseInt(stats.t6),
+      total_servicos_8h: parseInt(stats.t8),
+      valor_6h: v6,
+      valor_8h: v8,
+      total_militar_servicos: parseInt(stats.total_militar_servicos),
+      total_militares_unicos: parseInt(stats.militares_unicos),
+      mes_selecionado: month
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/financeiro/detalhado', async (req, res) => {
+  try {
+    const month = req.query.month || getCurrentMonthKey();
+    
+    // Gastos diários
+    const qDiario = `
+      SELECT 
+        TO_CHAR(data_servico, 'DD/MM') as data, 
+        COUNT(*) as servicos, 
+        SUM(CASE WHEN horario_servico LIKE '%8h%' THEN 250.00 ELSE 192.03 END) as gasto
+      FROM ESCALA_PLANEJAMENTO ep
+      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+      WHERE c.referencia_mes_ano = $1
+      GROUP BY data_servico
+      ORDER BY data_servico ASC
+    `;
+    const resDiario = await db.query(qDiario, [month]);
+    
+    // Calcular acumulado
+    let acumuladoTotal = 0;
+    const detalhes_diarios = resDiario.rows.map(row => {
+      const gasto = parseFloat(row.gasto);
+      acumuladoTotal += gasto;
+      return {
+        data: row.data,
+        servicos: parseInt(row.servicos),
+        gasto: gasto,
+        acumulado: acumuladoTotal
+      };
+    });
+
+    // Top militares
+    const qTop = `
+      SELECT 
+        e.matricula as id, 
+        e.nome_guerra as name, 
+        COUNT(*) as servicos,
+        SUM(CASE WHEN ep.horario_servico LIKE '%8h%' THEN 250.00 ELSE 192.03 END) as gasto
+      FROM ESCALA_PLANEJAMENTO ep
+      JOIN EFETIVO e ON ep.id_militar = e.id_militar
+      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+      WHERE c.referencia_mes_ano = $1
+      GROUP BY e.matricula, e.nome_guerra
+      ORDER BY servicos DESC
+      LIMIT 10
+    `;
+    const resTop = await db.query(qTop, [month]);
+
+    res.json({
+      detalhes_diarios,
+      top_militares: resTop.rows.map(r => ({
+        ...r,
+        servicos: parseInt(r.servicos),
+        gasto: parseFloat(r.gasto)
+      }))
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
 });

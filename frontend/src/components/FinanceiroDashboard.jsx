@@ -17,19 +17,26 @@ export function FinanceiroDashboard() {
   const [detalhado, setDetalhado] = useState(null);
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visao geral');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadMonths = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
         if (monthsRes.data.length > 0) {
           setSelectedMonth(monthsRes.data[0].referencia_mes_ano);
+        } else {
+          setLoading(false);
         }
       } catch (e) {
         console.error('Erro ao carregar meses:', e);
+        setError('Ocorreu um erro ao carregar os ciclos/meses.');
+        setLoading(false);
       }
     };
     loadMonths();
@@ -38,6 +45,7 @@ export function FinanceiroDashboard() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const params = selectedMonth ? { month: selectedMonth } : {};
         const [resumoRes, detalhadoRes] = await Promise.all([
@@ -48,14 +56,32 @@ export function FinanceiroDashboard() {
         setDetalhado(detalhadoRes.data);
       } catch (e) {
         console.error('Erro ao carregar dados financeiros:', e);
+        setError('Erro ao carregar dados financeiros. Verifique o servidor.');
       } finally {
         setLoading(false);
       }
     };
-    if (selectedMonth !== '') {
+    
+    // Se temos selectedMonth ou se a lista de meses já foi carregada (mesmo vazia)
+    if (selectedMonth !== '' || (months.length === 0 && !loading)) {
       loadData();
     }
   }, [selectedMonth]);
+
+  if (error) {
+    return (
+      <div className="container" style={{ paddingTop: '2rem', textAlign: 'center' }}>
+        <div style={{ padding: '2rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', color: '#dc2626' }}>
+          <AlertTriangle size={48} style={{ marginBottom: '1rem' }} />
+          <h3>Erro de Carregamento</h3>
+          <p>{error}</p>
+          <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => window.location.reload()}>
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !resumo) {
     return (

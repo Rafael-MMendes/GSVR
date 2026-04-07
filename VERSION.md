@@ -2,6 +2,18 @@
 
 Documento dedicado ao acompanhamento de todas as atualizações, novas configurações e resoluções de problemas (bugfixes) implementados no projeto.
 
+## v1.11.2 — 2026-04-07
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Correção de Loop Infinito**: Resolvida a falha no `FinanceiroDashboard.jsx` que causava travamento na tela de carregamento (percebido como loop) devido à falta de tratamento de erro em chamadas de API paralelas e estado inicial de loading.
+- **Backend - Rotas Financeiras**: Implementada a rota `/api/financeiro/detalhado` (que estava faltando) e corrigida a rota `/api/financeiro/resumo` para retornar todos os campos esperados pelo frontend (verba, saldo, percentual, etc).
+- **Correção de Placeholders SQL**: Corrigidos erros de sintaxe SQL em consultas brutas (`db.query`) que utilizavam o placeholder `?` (SQLite) em vez de `$1` (PostgreSQL) na rota de voluntários e financeira.
+- **Robustez UI/UX**: Adicionado tratamento de erro visual no Dashboard Financeiro para informar ao usuário sobre falhas na comunicação com o servidor, em vez de exibir um spinner infinito.
+
+---
+
 ## [v1.11.1] - 2026-04-07 (Limpeza de Tabelas Legacy e SQLite) - [Desenvolvedor: Sistema]
 ### Modificado (Changed)
 - **Limpeza de Arquivos**: Banco de dados legado `backend/escalas.sqlite` removido definitivamente do projeto.
