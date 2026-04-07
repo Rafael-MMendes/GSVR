@@ -1,0 +1,4 @@
+🖥️ Acesso ao Painéis Admin (Interface)
+URL: http://localhost:5050
+Email: admin@mil.br
+Senha: admin

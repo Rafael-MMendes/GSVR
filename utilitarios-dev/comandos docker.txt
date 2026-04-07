@@ -1,0 +1,4 @@
+Docker-compose up -d
+Docker-composse up -d --build
+docker exec -it ft-backend npm run import
+docker exec -it ft-backend npm run users

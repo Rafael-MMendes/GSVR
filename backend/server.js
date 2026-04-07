@@ -1,0 +1,134 @@
+process.env.FORCE_COLOR = '0';
+process.env.NO_COLOR = '1';
+process.env.TERM = 'dumb';
+
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const XLSX = require('xlsx');
+
+let pdfParser;
+try { pdfParser = require('pdf-parse'); } catch (e) { console.warn('pdf-parse nao disponivel'); }
+
+const { setupDB } = require('./db');
+const upload = multer({ storage: multer.memoryStorage() });
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+const monthNames = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function getCurrentMonthKey() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; }
+function getMonthName(monthKey) { const [year, month] = monthKey.split('-'); return `${monthNames[parseInt(month) - 1]} / ${year}`; }
+
+const rankMap = { 'Asp Of': 'Aspirante PM', 'Sd': 'Soldado PM', 'Cb': 'Cabo PM', '3º Sgt': '3º Sargento PM', '2º Sgt': '2º Sargento PM', '1º Sgt': '1º Sargento PM', 'Subten': 'Subtenente PM', '2º Ten': '2º Tenente PM', '1º Ten': '1º Tenente PM', 'Cap': 'Capitão PM', 'Maj': 'Major PM', 'Ten Cel': 'Tenente Coronel PM', 'Cel': 'Coronel PM' };
+function normalizeRank(rank) { return rankMap[rank] || rank || 'Soldado PM'; }
+
+app.use(cors());
+app.use(express.json());
+
+let db;
+setupDB().then(database => { db = database; app.listen(PORT, () => console.log(`Backend on http://localhost:${PORT}`)); }).catch(err => console.error("DB error:", err));
+
+app.post('/api/login', async (req, res) => {
+  const { numero_ordem, cpf } = req.body;
+  try {
+    const user = await db.get('SELECT * FROM users WHERE numero_ordem = ?', [numero_ordem]);
+    if (!user || user.password !== cpf) return res.status(401).json({ error: "Credenciais invalidas" });
+    const military = await db.get('SELECT posto_graduacao, nome_guerra, telefone FROM EFETIVO WHERE matricula = ?', [numero_ordem]);
+    res.json({ success: true, is_admin: user.is_admin === 1, user: { id: user.id, numero_ordem, rank: normalizeRank(military?.posto_graduacao), nome_guerra: military?.nome_guerra || '', phone: military?.telefone || '' } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/volunteers', async (req, res) => {
+  const month = req.query.month || getCurrentMonthKey();
+  const q = `SELECT r.id_requerimento as id, e.matricula as numero_ordem, e.nome_guerra as name, e.posto_graduacao as rank, e.telefone as phone, c.referencia_mes_ano as month_key, (SELECT json_object_agg(dia_mes, turnos) FROM (SELECT dia_mes, json_agg(horario_turno) as turnos FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento GROUP BY dia_mes) d) as availability_json FROM REQUERIMENTOS r JOIN EFETIVO e ON r.id_militar = e.id_militar JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE c.referencia_mes_ano = ? ORDER BY r.data_solicitacao DESC`;
+  const { rows } = await db.query(q, [month]);
+  res.json(rows.map(v => ({ ...v, availability: v.availability_json || {} })));
+});
+
+app.get('/api/months', async (req, res) => { res.json(await db.all('SELECT month_key, month_name FROM months ORDER BY month_key DESC')); });
+
+app.post('/api/volunteers', async (req, res) => {
+  const { numero_ordem, name, availability } = req.body;
+  if (!numero_ordem || !availability) return res.status(400).json({ error: "Required fields missing" });
+  const military = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = ?', [numero_ordem]);
+  const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = ?', [getCurrentMonthKey()]);
+  if (!military || !cycle) return res.status(400).json({ error: "Militar or Ciclo not found" });
+  const reqResult = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES (?, ?)', [military.id_militar, cycle.id_ciclo]);
+  for (const [day, shifts] of Object.entries(availability)) { for (const shift of shifts) await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES (?, ?, ?, TRUE)', [reqResult.lastID, parseInt(day), shift]); }
+  res.status(201).json({ id: reqResult.lastID });
+});
+
+app.delete('/api/volunteers/:id', async (req, res) => { await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = ?', [req.params.id]); res.json({ success: true }); });
+
+app.get('/api/efetivo', async (req, res) => { res.json(await db.all('SELECT * FROM EFETIVO ORDER BY nome_completo ASC')); });
+
+app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file" });
+  const data = XLSX.utils.sheet_to_json(XLSX.read(req.file.buffer, { type: 'buffer' }).Sheets[XLSX.read(req.file.buffer, { type: 'buffer' }).SheetNames[0]]);
+  for (const row of data) {
+    const m = String(row['MATRICULA'] || row['Matricula'] || '').trim();
+    const c = String(row['CPF'] || row['Cpf'] || '').trim();
+    const n = row['NOME COMPLETO'] || row['Nome'] || '';
+    if (m && c && n) {
+      const check = await db.get('SELECT 1 FROM EFETIVO WHERE matricula = ?', [m]);
+      if (!check) {
+        await db.run('INSERT INTO EFETIVO (nome_completo, posto_graduacao, matricula, cpf) VALUES (?, ?, ?, ?)', [n, row['POSTO/GRAD'] || 'Militar', m, c]);
+        await db.run('INSERT INTO users (numero_ordem, password) VALUES (?, ?) ON CONFLICT (numero_ordem) DO NOTHING', [m, c]);
+      }
+    }
+  }
+  res.json({ success: true });
+});
+
+function processMarksLine(line, shiftCode, data) {
+  let cleanLine = line.trim();
+  if (!cleanLine) return;
+  let visual = '';
+  for (let i = 0; i < cleanLine.length; i++) visual += (cleanLine[i] === ' ') ? 'V' : cleanLine[i].toUpperCase();
+  console.log(`  LINHA: "${cleanLine}"`);
+  console.log(`  VISUAL: "${visual}"`);
+  let dayCounter = 0;
+  for (let i = 0; i < cleanLine.length; i++) {
+    const char = cleanLine[i];
+    if (char === ' ') { console.log(`  [${i}] V = espaco`); continue; }
+    if (dayCounter === 0) { data.motorist = (char.toUpperCase() === 'X') ? 'Sim' : 'Nao'; console.log(`  [${i}] MOTORISTA = ${char} (${data.motorist})`); dayCounter++; }
+    else { const dayStr = String(dayCounter).padStart(2, '0'); if (char.toUpperCase() === 'X') { if (!data.availability[dayStr]) data.availability[dayStr] = []; if (!data.availability[dayStr].includes(shiftCode)) data.availability[dayStr].push(shiftCode); console.log(`  [${i}] Dia ${dayStr} = X`); } else if (char.toUpperCase() === 'S') console.log(`  [${i}] Dia ${dayStr} = S`); dayCounter++; if (dayCounter > 31) break; }
+  }
+}
+
+async function parseRequerimentoPDF(text, db) {
+  const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '' };
+  const match = text.match(/N\.ORD\.\s*(\d{5,6})/);
+  if (match) data.numero_ordem = match[1];
+  if (data.numero_ordem && db) { try { const r = await db.query('SELECT posto_graduacao, nome_guerra, telefone FROM EFETIVO WHERE matricula = $1', [data.numero_ordem]); if (r.rows.length) { data.rank = r.rows[0].posto_graduacao; data.name = r.rows[0].nome_guerra; data.phone = r.rows[0].telefone || ''; } } catch (e) { console.error(e); } }
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) { const l = lines[i].trim(); const nl = (i + 1 < lines.length) ? lines[i + 1].trim() : ''; if (l.includes('07:00') && nl === '13:00') processMarksLine(lines[i + 2]?.trim() || '', '07:00 ÀS 13:00', data); if (l.includes('13:00') && nl === '19:00') processMarksLine(lines[i + 2]?.trim() || '', '13:00 ÀS 19:00', data); if (l.includes('19:00') && nl === '01:00') processMarksLine(lines[i + 2]?.trim() || '', '19:00 ÀS 01:00', data); if (l.includes('01:00') && nl === '07:00') processMarksLine(lines[i + 2]?.trim() || '', '01:00 ÀS 07:00', data); }
+  return data;
+}
+
+app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
+  const { month_key } = req.body;
+  if (!req.files || !month_key) return res.status(400).json({ error: "Invalid request" });
+  try {
+    const volunteers = [], errors = [];
+    for (const file of req.files) {
+      try { const pdf = await pdfParser(file.buffer); const parsed = await parseRequerimentoPDF(pdf.text, db); parsed.month_key = month_key; if (parsed.numero_ordem) volunteers.push(parsed); else errors.push({ file: file.originalname, error: "Nao encontrou numero" }); } catch (e) { errors.push({ file: file.originalname, error: e.message }); }
+    }
+    const results = [];
+    for (const item of volunteers) {
+      try { const m = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = ?', [item.numero_ordem]); if (!m) { results.push({ numero_ordem: item.numero_ordem, success: false, error: "Militar nao encontrado" }); continue; } const c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = ?', [item.month_key]); if (!c) { results.push({ numero_ordem: item.numero_ordem, success: false, error: "Ciclo nao encontrado" }); continue; } const existing = await db.get('SELECT id_requerimento FROM REQUERIMENTOS r JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE r.id_militar = ? AND c.referencia_mes_ano = ?', [m.id_militar, item.month_key]); let id_req; if (existing) { id_req = existing.id_requerimento; await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = ?', [id_req]); } else { const r = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES (?, ?)', [m.id_militar, c.id_ciclo]); id_req = r.lastID; } for (const [day, shifts] of Object.entries(item.availability)) { for (const shift of shifts) await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES (?, ?, ?, TRUE)', [id_req, parseInt(day), shift]); } results.push({ numero_ordem: item.numero_ordem, success: true }); } catch (e) { results.push({ numero_ordem: item.numero_ordem, success: false, error: e.message }); } }
+    res.json({ success: true, processed: volunteers.length, results, errors: errors.slice(0, 20) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/ciclos', async (req, res) => { res.json(await db.all('SELECT * FROM vw_detalhes_ciclos ORDER BY referencia_mes_ano DESC')); });
+app.get('/api/opms', async (req, res) => { res.json(await db.all('SELECT * FROM OPM ORDER BY sigla ASC')); });
+app.post('/api/opms', async (req, res) => { const { descricao, sigla } = req.body; if (!descricao || !sigla) return res.status(400).json({ error: "Required" }); const r = await db.run('INSERT INTO OPM (descricao, sigla) VALUES (?, ?)', [descricao, sigla]); res.status(201).json({ success: true, id_opm: r.lastID }); });
+
+app.get('/api/financeiro/resumo', async (req, res) => {
+  const month = req.query.month || getCurrentMonthKey();
+  const { rows } = await db.query(`SELECT horario_servico, count(*) as total FROM ESCALA_PLANEJAMENTO ep JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo WHERE c.referencia_mes_ano = ? GROUP BY horario_servico`, [month]);
+  let t6 = 0, t8 = 0; rows.forEach(r => { if (r.horario_servico?.includes('8h')) t8 += parseInt(r.total); else t6 += parseInt(r.total); });
+  res.json({ total_gasto: (t6 * 192.03) + (t8 * 250), total_servicos_6h: t6, total_servicos_8h: t8, mes_selecionado: month });
+});

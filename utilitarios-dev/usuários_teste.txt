@@ -1,0 +1,10 @@
+Dados de Teste (Usuários Seed):
+Após rodar o seed, você poderá logar com os seguintes militares (todos como Admin):
+
+Usuário (Matrícula): 999999
+Senha (CPF): 00000000000 (11 zeros)
+
+Cap Alan: Matrícula 151197 | Senha (CPF): 5626561463
+Sgt Silva: Matrícula 97037 | Senha (CPF): 7712466416
+Cb Souza: Matrícula 140787 | Senha (CPF): 2715243405
+Sd Oliveira: Matrícula 142423 | Senha (CPF): 4512828419

@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Base Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: ft-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-escala_ft}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - ft-network
+
+  # Database Admin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ft-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@mil.br
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - ft-network
+
+  # Container Admin
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: ft-portainer
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data:/data
+    ports:
+      - "9000:9000"
+    networks:
+      - ft-network
+
+  # API Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ft-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-escala_ft}
+      DB_PORT: 5432
+      PORT: 3001
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+    networks:
+      - ft-network
+
+  # Web Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ft-frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - ft-network
+
+networks:
+  ft-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+  portainer_data:

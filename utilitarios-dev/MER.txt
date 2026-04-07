@@ -1,0 +1,92 @@
+site para gerar MER: https://mermaid.live/
+
+erDiagram
+    OPM ||--o{ CICLOS : "gerencia"
+    CICLOS ||--o{ REQUERIMENTOS : "possui"
+    CICLOS ||--o{ ESCALA_PLANEJAMENTO : "organiza"
+    CICLOS ||--o{ SERVICOS_EXECUTADOS : "controla"
+    
+    EFETIVO ||--o{ REQUERIMENTOS : "solicita"
+    EFETIVO ||--o{ ESCALA_PLANEJAMENTO : "escalado_em"
+    EFETIVO ||--o{ SERVICOS_EXECUTADOS : "realiza"
+    
+    REQUERIMENTOS ||--|{ DISPONIBILIDADE_REQUERIMENTO : "detalha_horarios"
+    DISPONIBILIDADE_REQUERIMENTO ||--o{ ESCALA_PLANEJAMENTO : "gera_escala"
+    
+    ESCALA_PLANEJAMENTO ||--o| SERVICOS_EXECUTADOS : "base_para"
+
+    OPM {
+        int id_opm PK
+        varchar descricao
+        varchar sigla
+        varchar endereco
+        varchar telefone
+        varchar email
+    }
+
+    CICLOS {
+        int id_ciclo PK
+        int id_opm FK
+        varchar referencia_mes_ano
+        date data_inicio
+        date data_fim
+        varchar status
+    }
+
+    EFETIVO {
+        int id_militar PK
+        varchar nome_completo
+        varchar posto_graduacao
+        varchar matricula
+        varchar cpf
+        varchar rgpm
+        varchar opm
+        varchar telefone
+        boolean status_ativo
+    }
+
+    REQUERIMENTOS {
+        int id_requerimento PK
+        int id_militar FK
+        int id_ciclo FK
+        varchar numero_requerimento
+        datetime data_solicitacao
+    }
+
+    DISPONIBILIDADE_REQUERIMENTO {
+        int id_disponibilidade PK
+        int id_requerimento FK
+        int dia_mes
+        varchar horario_turno
+        boolean marcado_disponivel
+        boolean marcado_servico_ordinario
+        boolean ativo
+        text observacoes
+    }
+
+    ESCALA_PLANEJAMENTO {
+        int id_escala PK
+        int id_ciclo FK
+        int id_militar FK
+        int id_disponibilidade FK
+        date data_servico
+        varchar horario_servico
+        varchar horario_embarque
+        varchar local_embarque
+        varchar cartao_viatura
+        varchar funcao
+        text observacoes
+    }
+
+    SERVICOS_EXECUTADOS {
+        int id_execucao PK
+        int id_ciclo FK
+        int id_militar FK
+        int id_escala FK
+        date data_execucao
+        int dia_semana
+        boolean eh_feriado
+        int carga_horaria
+        decimal valor_remuneracao
+        varchar status_presenca
+    }

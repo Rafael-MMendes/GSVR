@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Base Database (Isolated)
+  postgres:
+    image: postgres:16-alpine
+    container_name: ft-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-escala_ft}
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - ft-backend-net
+
+  # Database Admin
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ft-pgadmin-prod
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@mil.al.gov.br}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS:-admin123}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - ft-backend-net
+
+  # Container Admin
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: ft-portainer-prod
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer_data_prod:/data
+    ports:
+      - "9000:9000"
+    networks:
+      - ft-frontend-net
+
+  # API Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ft-backend-prod
+    restart: always
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-escala_ft}
+      DB_PORT: 5432
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      - postgres
+    networks:
+      - ft-backend-net
+      - ft-frontend-net
+
+  # Web Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: ft-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - ft-frontend-net
+
+networks:
+  ft-frontend-net:
+    driver: bridge
+  ft-backend-net:
+    internal: true
+
+volumes:
+  pgdata_prod:
+  portainer_data_prod:
