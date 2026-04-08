@@ -23,7 +23,68 @@ async function setupDB() {
       console.log("Connected to PostgreSQL.");
       
       try {
-        // Initialize Core Tables (Old and New for migration support)
+        // ---------------------------------------------------------------
+        // DIAGNÓSTICO: logar estrutura real da tabela users
+        // ---------------------------------------------------------------
+        const userColsRes = await client.query(`
+          SELECT column_name, data_type 
+          FROM information_schema.columns 
+          WHERE table_name = 'users' 
+          ORDER BY ordinal_position
+        `);
+        if (userColsRes.rows.length > 0) {
+          console.log('[DB] users columns:', userColsRes.rows.map(r => r.column_name).join(', '));
+        } else {
+          console.log('[DB] users table does not exist yet — will be created fresh.');
+        }
+
+        // ---------------------------------------------------------------
+        // PRÉ-MIGRATION: dropar tabelas RBAC com schema antigo
+        // (seguro: não contém dados de negócio; serão reseedadas abaixo)
+        // ---------------------------------------------------------------
+        await client.query(`
+          DROP TABLE IF EXISTS user_roles CASCADE;
+          DROP TABLE IF EXISTS user_permissions CASCADE;
+          DROP TABLE IF EXISTS role_permissions CASCADE;
+          DROP TABLE IF EXISTS permissions CASCADE;
+          DROP TABLE IF EXISTS roles CASCADE;
+          DROP TABLE IF EXISTS user_profiles CASCADE;
+          DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+          DROP TABLE IF EXISTS refresh_tokens CASCADE;
+        `);
+        console.log('[DB] Tabelas RBAC antigas removidas — serão recriadas com schema correto.');
+
+        // ---------------------------------------------------------------
+        // PRÉ-MIGRATION: renomear colunas legadas de users se necessário
+        // ---------------------------------------------------------------
+        await client.query(`
+          DO $$
+          BEGIN
+            -- Renomeia id_usuario → id (schema legado)
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'id_usuario'
+            ) AND NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'id'
+            ) THEN
+              ALTER TABLE users RENAME COLUMN id_usuario TO id;
+            END IF;
+
+            -- Garante que password existe
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'senha'
+            ) AND NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'users' AND column_name = 'password'
+            ) THEN
+              ALTER TABLE users RENAME COLUMN senha TO password;
+            END IF;
+          END $$;
+        `);
+
+        // Initialize Core Tables
         await client.query(`
           -- New Schema based on bd.sql (PostgreSQL optimized)
           
@@ -109,12 +170,34 @@ async function setupDB() {
               eh_feriado BOOLEAN DEFAULT FALSE,
               carga_horaria INTEGER NOT NULL,
               valor_remuneracao DECIMAL(10, 2) NOT NULL,
-              status_presenca VARCHAR(50) NOT NULL
+              status_presenca VARCHAR(50) NOT NULL,
+              cmd VARCHAR(100),
+              opm_origem VARCHAR(100),
+              modalidade VARCHAR(100),
+              guarnicao VARCHAR(100)
           );
+
+          -- Garantir que colunas novas existam (Migration via SQL)
+          DO $$ 
+          BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='cmd') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN cmd VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='opm_origem') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN opm_origem VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='modalidade') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN modalidade VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='guarnicao') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN guarnicao VARCHAR(100);
+            END IF;
+          END $$;
 
           -- ============================================================
           -- AUTH & USERS (Schema v2 — RBAC)
           -- ============================================================
+
           CREATE TABLE IF NOT EXISTS users (
             id             SERIAL PRIMARY KEY,
             numero_ordem   TEXT NOT NULL UNIQUE,
@@ -127,6 +210,23 @@ async function setupDB() {
             updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
           );
 
+          -- Migration: garantir colunas novas em users pré-existente
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password_hash') THEN
+              ALTER TABLE users ADD COLUMN password_hash TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='status') THEN
+              ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'ativo';
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_login_at') THEN
+              ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='updated_at') THEN
+              ALTER TABLE users ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+            END IF;
+          END $$;
+
           -- Migration Support
           CREATE TABLE IF NOT EXISTS months (
             id SERIAL PRIMARY KEY,
@@ -138,7 +238,7 @@ async function setupDB() {
           -- Perfil estendido do usuário (1:1)
           CREATE TABLE IF NOT EXISTS user_profiles (
             id              SERIAL PRIMARY KEY,
-            user_id         INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            user_id         INTEGER NOT NULL UNIQUE REFERENCES users ON DELETE CASCADE,
             email           VARCHAR(255) UNIQUE,
             telefone        VARCHAR(30),
             avatar_url      TEXT,
@@ -152,7 +252,7 @@ async function setupDB() {
           -- Tokens para redefinição de senha (12h de validade)
           CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id              SERIAL PRIMARY KEY,
-            user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user_id         INTEGER NOT NULL REFERENCES users ON DELETE CASCADE,
             token_hash      TEXT NOT NULL UNIQUE,
             expires_at      TIMESTAMP NOT NULL,
             used_at         TIMESTAMP,
@@ -163,7 +263,7 @@ async function setupDB() {
           -- Refresh Tokens JWT (7 dias)
           CREATE TABLE IF NOT EXISTS refresh_tokens (
             id          SERIAL PRIMARY KEY,
-            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user_id     INTEGER NOT NULL REFERENCES users ON DELETE CASCADE,
             token_hash  TEXT NOT NULL UNIQUE,
             expires_at  TIMESTAMP NOT NULL,
             revoked_at  TIMESTAMP,
@@ -193,16 +293,26 @@ async function setupDB() {
 
           CREATE TABLE IF NOT EXISTS role_permissions (
             role_id       INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-            permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+            permission_id INTEGER NOT NULL REFERENCES permissions ON DELETE CASCADE,
             PRIMARY KEY (role_id, permission_id)
           );
 
           CREATE TABLE IF NOT EXISTS user_roles (
-            user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            role_id      INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-            atribuido_por INTEGER REFERENCES users(id),
+            user_id      INTEGER NOT NULL REFERENCES users ON DELETE CASCADE,
+            role_id      INTEGER NOT NULL REFERENCES roles ON DELETE CASCADE,
+            atribuido_por INTEGER REFERENCES users,
             atribuido_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id, role_id)
+          );
+
+          -- Permissões diretas por usuário (sobrepõem ou complementam roles)
+          CREATE TABLE IF NOT EXISTS user_permissions (
+            user_id       INTEGER NOT NULL REFERENCES users ON DELETE CASCADE,
+            permission_id INTEGER NOT NULL REFERENCES permissions ON DELETE CASCADE,
+            permitido     BOOLEAN NOT NULL DEFAULT TRUE, -- TRUE = Adiciona, FALSE = Revoga explicitamente
+            atribuido_por INTEGER REFERENCES users,
+            atribuido_em  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, permission_id)
           );
 
           -- ============================================================
@@ -213,6 +323,7 @@ async function setupDB() {
           CREATE INDEX IF NOT EXISTS idx_prt_token_hash           ON password_reset_tokens(token_hash);
           CREATE INDEX IF NOT EXISTS idx_refresh_token_hash       ON refresh_tokens(token_hash);
           CREATE INDEX IF NOT EXISTS idx_user_roles_user_id       ON user_roles(user_id);
+          CREATE INDEX IF NOT EXISTS idx_user_perms_user_id       ON user_permissions(user_id);
           CREATE INDEX IF NOT EXISTS idx_role_perms_role_id       ON role_permissions(role_id);
 
           -- ============================================================

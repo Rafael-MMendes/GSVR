@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2 } from 'lucide-react';
+import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2, Key, Save } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -11,6 +11,9 @@ export function UserManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showPermsModal, setShowPermsModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userPermissions, setUserPermissions] = useState([]);
   const [newUserData, setNewUserData] = useState({ matricula: '', is_admin: false });
 
   useEffect(() => {
@@ -101,6 +104,44 @@ export function UserManager() {
     }
   };
 
+  const handleOpenPerms = async (user) => {
+    setSelectedUser(user);
+    setActionLoading(user.id);
+    try {
+      const res = await axios.get(`${API_URL}/usuarios/${user.id}/permissoes`);
+      setUserPermissions(res.data);
+      setShowPermsModal(true);
+    } catch (err) {
+      alert('Erro ao carregar permissões do usuário');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const toggleUserPermission = async (permId, currentVal) => {
+    if (!selectedUser) return;
+    
+    // Novo valor: true -> false -> null -> true
+    let newVal;
+    if (currentVal === true) newVal = false;
+    else if (currentVal === false) newVal = null;
+    else newVal = true;
+
+    try {
+      await axios.put(`${API_URL}/usuarios/${selectedUser.id}/permissoes`, {
+        permission_id: permId,
+        permitido: newVal
+      });
+      
+      // Atualizar estado local
+      setUserPermissions(prev => prev.map(p => 
+        p.id === permId ? { ...p, permitido: newVal } : p
+      ));
+    } catch (err) {
+      alert('Erro ao atualizar permissão');
+    }
+  };
+
   const filtered = usuarios.filter(u =>
     !searchTerm ||
     u.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -178,7 +219,15 @@ export function UserManager() {
                   </thead>
                   <tbody>
                     {admins.map(u => (
-                      <UserRow key={u.id} user={u} onToggle={toggleAdmin} onReset={resetSenha} onDelete={deleteUser} loading={actionLoading === u.id} />
+                      <UserRow 
+                        key={u.id} 
+                        user={u} 
+                        onToggle={toggleAdmin} 
+                        onReset={resetSenha} 
+                        onDelete={deleteUser} 
+                        onPerms={handleOpenPerms}
+                        loading={actionLoading === u.id} 
+                      />
                     ))}
                     {admins.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum administrador encontrado</td></tr>}
                   </tbody>
@@ -204,12 +253,99 @@ export function UserManager() {
                   </thead>
                   <tbody>
                     {regulares.map(u => (
-                      <UserRow key={u.id} user={u} onToggle={toggleAdmin} onReset={resetSenha} onDelete={deleteUser} loading={actionLoading === u.id} />
+                      <UserRow 
+                        key={u.id} 
+                        user={u} 
+                        onToggle={toggleAdmin} 
+                        onReset={resetSenha} 
+                        onDelete={deleteUser} 
+                        onPerms={handleOpenPerms}
+                        loading={actionLoading === u.id} 
+                      />
                     ))}
                     {regulares.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum usuário padrão encontrado</td></tr>}
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Permissões Customizadas */}
+      {showPermsModal && selectedUser && (
+        <div className="modal-overlay">
+          <div className="glass-panel" style={{ width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #f1f5f9' }}>
+               <button className="btn-close" onClick={() => setShowPermsModal(false)}><X size={20} /></button>
+               <h3 style={{ margin: 0, color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Key size={20} /> Permissões: {selectedUser.nome_guerra || selectedUser.numero_ordem}
+              </h3>
+              <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.8rem' }}>
+                Atribua ou revogue permissões específicas para este usuário (sobrepõe as roles).
+              </p>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#e2e8f0', border: '1px solid #cbd5e1' }}></div>
+                  Padrão (Role)
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#dcfce7', border: '1px solid #86efac' }}></div>
+                  Concedida Direta
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#fee2e2', border: '1px solid #fecaca' }}></div>
+                  Negada Direta
+                </div>
+              </div>
+
+              {Object.entries(
+                userPermissions.reduce((acc, p) => {
+                  if (!acc[p.modulo]) acc[p.modulo] = [];
+                  acc[p.modulo].push(p);
+                  return acc;
+                }, {})
+              ).map(([modulo, perms]) => (
+                <div key={modulo} style={{ marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '4px' }}>
+                    Módulo: {modulo}
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {perms.map(p => (
+                      <div 
+                        key={p.id}
+                        onClick={() => toggleUserPermission(p.id, p.permitido)}
+                        style={{ 
+                          padding: '8px 12px', 
+                          borderRadius: '8px', 
+                          border: '1px solid',
+                          borderColor: p.permitido === true ? '#86efac' : p.permitido === false ? '#fecaca' : '#e2e8f0',
+                          background: p.permitido === true ? '#f0fdf4' : p.permitido === false ? '#fef2f2' : '#fff',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>{p.code}</div>
+                          <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{p.descricao}</div>
+                        </div>
+                        {p.permitido === true && <CheckCircle2 size={14} style={{ color: '#10b981' }} />}
+                        {p.permitido === false && <X size={14} style={{ color: '#ef4444' }} />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary" onClick={() => setShowPermsModal(false)}>Concluído</button>
             </div>
           </div>
         </div>
@@ -313,7 +449,7 @@ function SectionTitle({ icon, title, color }) {
   );
 }
 
-function UserRow({ user, onToggle, onReset, onDelete, loading }) {
+function UserRow({ user, onToggle, onReset, onDelete, onPerms, loading }) {
   return (
     <tr style={{ opacity: loading ? 0.6 : 1 }}>
       <td>
@@ -336,6 +472,9 @@ function UserRow({ user, onToggle, onReset, onDelete, loading }) {
       </td>
       <td style={{ textAlign: 'right' }}>
         <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <button className="action-icon" disabled={loading} onClick={() => onPerms(user)} title="Gerenciar Permissões Individuais">
+            <Key size={16} />
+          </button>
           <button className="action-icon" disabled={loading} onClick={() => onToggle(user)} title="Alternar Permissão Admin">
             {user.is_admin ? <ShieldOff size={16} /> : <Shield size={16} />}
           </button>

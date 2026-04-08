@@ -12,6 +12,11 @@ const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 
+// Fase 4: Segurança avançada
+let helmet, rateLimit;
+try { helmet = require('helmet'); } catch { console.warn('[WARN] helmet não disponível, pulando headers de segurança.'); }
+try { rateLimit = require('express-rate-limit'); } catch { console.warn('[WARN] express-rate-limit não disponível, pulando rate limiting.'); }
+
 let pdfParser;
 try { pdfParser = require('pdf-parse'); } catch (e) { console.warn('pdf-parse nao disponivel'); }
 
@@ -56,17 +61,77 @@ app.use(express.json());
 app.use('/avatars', express.static(AVATARS_DIR));
 
 // ============================================================
+// FASE 4 — SEGURANÇA AVANÇADA: Helmet + Rate Limiting
+// ============================================================
+if (helmet) {
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' } // permite servir avatares cross-origin
+  }));
+  console.log('[Security] Helmet ativado — headers HTTP protegidos.');
+}
+
+// Rate limit geral para rotas de auth: 15 req/min por IP
+const authLimiter = rateLimit ? rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas. Aguarde 1 minuto.' } }
+}) : (req, res, next) => next();
+
+// Rate limit estrito para /login: 5 tentativas/min
+const loginLimiter = rateLimit ? rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas de login. Aguarde 1 minuto.' } }
+}) : (req, res, next) => next();
+
+// Audit log simples (pode ser trocado por Pino/Winston)
+function auditLog(userId, action, metadata = {}) {
+  const entry = {
+    ts: new Date().toISOString(),
+    userId,
+    action,
+    ...metadata
+  };
+  console.log(`[AUDIT] ${JSON.stringify(entry)}`);
+}
+
+// ============================================================
 // UTILITÁRIOS RBAC
 // ============================================================
 async function getUserPermissions(userId) {
-  const { rows } = await db.query(`
+  // 1. Buscar permissões via Roles
+  const rolesPermissions = await db.query(`
     SELECT DISTINCT p.code
     FROM user_roles ur
     JOIN role_permissions rp ON ur.role_id = rp.role_id
     JOIN permissions p ON rp.permission_id = p.id
     WHERE ur.user_id = $1
   `, [userId]);
-  return rows.map(r => r.code);
+
+  // 2. Buscar permissões diretas do usuário
+  const directPermissions = await db.query(`
+    SELECT p.code, up.permitido
+    FROM user_permissions up
+    JOIN permissions p ON up.permission_id = p.id
+    WHERE up.user_id = $1
+  `, [userId]);
+
+  const permissionsSet = new Set(rolesPermissions.rows.map(r => r.code));
+
+  // 3. Aplicar permissões diretas (Adicionar ou Remover)
+  directPermissions.rows.forEach(p => {
+    if (p.permitido) {
+      permissionsSet.add(p.code);
+    } else {
+      permissionsSet.delete(p.code);
+    }
+  });
+
+  return Array.from(permissionsSet);
 }
 
 async function getUserRoles(userId) {
@@ -112,7 +177,7 @@ setupDB().then(database => { db = database; app.listen(PORT, () => console.log(`
 // ============================================================
 // AUTH — Login (retrocompatível: texto plano → bcrypt progressivo)
 // ============================================================
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { numero_ordem, cpf, password } = req.body;
   const plainCred = password || cpf; // suporta campo antigo 'cpf' e novo 'password'
   try {
@@ -133,7 +198,10 @@ app.post('/api/login', async (req, res) => {
       }
     }
 
-    if (!credOk) return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+    if (!credOk) {
+      auditLog(null, 'LOGIN_FAILED', { numero_ordem, ip: req.ip });
+      return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+    }
 
     // Busca dados militares e permissões
     const military = await db.get('SELECT posto_graduacao, nome_guerra, nome_completo, telefone FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
@@ -156,8 +224,9 @@ app.post('/api/login', async (req, res) => {
       [user.id, refreshHash, refreshExpires, req.ip, req.headers['user-agent'] || null]
     );
 
-    // Atualiza last_login
+    // Atualiza last_login e registra audit
     await db.run('UPDATE users SET last_login_at=NOW() WHERE id=$1', [user.id]);
+    auditLog(user.id, 'LOGIN_SUCCESS', { numero_ordem, ip: req.ip, roles });
 
     res.json({
       success: true,
@@ -235,8 +304,8 @@ app.post('/api/auth/password/change', authenticate, async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
-// Solicitar reset de senha (gera token — exibe link direto na resposta pois não há SMTP)
-app.post('/api/auth/password/forgot', async (req, res) => {
+// Solicitar reset de senha — rate limited: 15/min
+app.post('/api/auth/password/forgot', authLimiter, async (req, res) => {
   const { numero_ordem } = req.body;
   if (!numero_ordem) return res.status(400).json({ success: false, error: { message: 'Matrícula obrigatória.' } });
   try {
@@ -258,8 +327,8 @@ app.post('/api/auth/password/forgot', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
-// Redefinir senha com token
-app.post('/api/auth/password/reset', async (req, res) => {
+// Redefinir senha com token — rate limited: 15/min
+app.post('/api/auth/password/reset', authLimiter, async (req, res) => {
   const { token, new_password } = req.body;
   if (!token || !new_password) return res.status(400).json({ success: false, error: { message: 'Token e nova senha são obrigatórios.' } });
   if (new_password.length < 6) return res.status(400).json({ success: false, error: { message: 'Mínimo 6 caracteres.' } });
@@ -588,9 +657,9 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM')
             nrOrdem = val;
 
-          // CPF
+          // CPF - Garantir limpeza absoluta (apenas números)
           else if (k === 'CPF')
-            cpf = val.replace(/\D/g, '');
+            cpf = String(val).replace(/\D/g, '');
 
           // Nome completo
           else if (k === 'NOMECOMPLETO' || k === 'NOME')
@@ -858,6 +927,190 @@ app.delete('/api/servicos/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- NOVAS ROTAS DE IMPORTAÇÃO DE SERVIÇOS (FT) ---
+
+function cleanCPF(cpf) {
+  if (!cpf) return '';
+  // Limpeza absoluta: remove qualquer prefixo ("CPF:"), pontuação e mantém apenas DÍGITOS.
+  return String(cpf).replace(/\D/g, '');
+}
+app.post('/api/servicos/import/preview', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
+    // Lista de colunas esperadas para identificar o cabeçalho real
+    const targetKeys = ['PG', 'NOME', 'CPF', 'DATA', 'CMD', 'OPM', 'MODALIDADE', 'GUARNICAO'];
+    
+    let bestHeaderIndex = 0;
+    let maxMatches = 0;
+
+    // Escaneia as primeiras 20 linhas para achar a que mais se parece com o cabeçalho
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const normalizedRow = rows[i].map(cell => normalizeKey(String(cell || '')));
+      const matches = normalizedRow.filter(k => targetKeys.includes(k)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        bestHeaderIndex = i;
+      }
+    }
+
+    const headers = rows[bestHeaderIndex] || [];
+    const firstDataRow = rows[bestHeaderIndex + 1] || [];
+    
+    const preview = headers.map((h, i) => {
+      const cleanH = String(h || '')
+        .replace(/&[a-z0-9#]+;/gi, ' ') // Limpa qualquer entidade HTML
+        .trim();
+
+      return {
+        index: i,
+        header: cleanH || `Coluna ${i}`,
+        normalizado: normalizeKey(cleanH),
+        exemplo: firstDataRow[i] ?? ''
+      };
+    });
+    
+    res.json({ 
+      sheet: sheetName, 
+      total_rows: rows.length - (bestHeaderIndex + 1), 
+      header_row: bestHeaderIndex,
+      colunas: preview 
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Falha ao ler o arquivo: " + e.message });
+  }
+});
+
+app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
+    const targetKeys = ['PG', 'NOME', 'CPF', 'DATA', 'CMD', 'OPM', 'MODALIDADE', 'GUARNICAO'];
+    let headerIndex = 0;
+    let maxMatches = 0;
+
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const normalizedRow = rows[i].map(cell => normalizeKey(String(cell || '')));
+      const matches = normalizedRow.filter(k => targetKeys.includes(k)).length;
+      if (matches > maxMatches) {
+        maxMatches = matches;
+        headerIndex = i;
+      }
+    }
+
+    const headers = rows[headerIndex].map(h => normalizeKey(String(h || '').replace(/&[a-z0-9#]+;/gi, ' ')));
+    const dataRows = rows.slice(headerIndex + 1);
+
+    let stats = { imported: 0, skipped: 0, errors: 0 };
+    let errorDetails = [];
+
+    for (const row of dataRows) {
+      if (row.length === 0 || !row.some(c => c !== '')) continue;
+
+      let cpfRaw = '', dataServico = '', pg = '', nome = '', cmd = '', opm = '', modalidade = '', guarnicao = '';
+
+      try {
+        headers.forEach((k, i) => {
+          let val = row[i];
+          if (val === undefined || val === null) return;
+          
+          // Tratamento especial para datas (XLSX pode vir como objeto Date)
+          if (val instanceof Date) {
+            val = val.toISOString().split('T')[0];
+          } else {
+            val = String(val).trim().replace(/&[a-z0-9#]+;/gi, ' ');
+          }
+
+          if (k === 'CPF') cpfRaw = val;
+          else if (k === 'DATA') dataServico = val;
+          else if (k === 'PG') pg = val;
+          else if (k === 'NOME') nome = val;
+          else if (k === 'CMD') cmd = val;
+          else if (k === 'OPM') opm = val;
+          else if (k === 'MODALIDADE') modalidade = val;
+          else if (k === 'GUARNICAO') guarnicao = val;
+        });
+
+        const cpf = cleanCPF(cpfRaw);
+        if (!cpf || !dataServico) {
+          stats.skipped++;
+          continue;
+        }
+
+        // 1. Localizar Militar pelo CPF
+        const military = await db.get('SELECT id_militar FROM EFETIVO WHERE cpf = $1', [cpf]);
+        if (!military) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || cpf, error: "Militar não cadastrado no sistema (CPF não encontrado)." });
+          continue;
+        }
+
+        // 2. Localizar Ciclo pela Data
+        // Assume-se formato DD-MM-YYYY ou similar. Vamos tentar converter.
+        let isoDate;
+        if (dataServico.includes('-')) {
+          const parts = dataServico.split('-');
+          if (parts[0].length === 4) isoDate = dataServico; // YYYY-MM-DD
+          else isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
+        } else {
+          isoDate = dataServico;
+        }
+        
+        const dateObj = new Date(isoDate);
+        if (isNaN(dateObj.getTime())) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || cpf, error: `Data inválida: ${dataServico}` });
+          continue;
+        }
+
+        const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+        const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [monthKey]);
+
+        if (!cycle) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || cpf, error: `Ciclo operacional para ${monthKey} não encontrado.` });
+          continue;
+        }
+
+        // 3. Inserir Serviço Executado
+        // Valor padrão R$ 192,03 para FT (6h padrão)
+        const diaSemana = dateObj.getDay();
+        const cargaHoraria = 6;
+        const valorRemuneracao = 192.03;
+
+        await db.run(
+          `INSERT INTO SERVICOS_EXECUTADOS 
+            (id_ciclo, id_militar, data_execucao, dia_semana, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT DO NOTHING`,
+          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao]
+        );
+
+        stats.imported++;
+
+      } catch (err) {
+        stats.errors++;
+        errorDetails.push({ militar: nome || 'Indefinido', error: err.message });
+      }
+    }
+
+    res.json({ success: true, message: "Importação concluída.", stats, errorDetails: errorDetails.slice(0, 50) });
+  } catch (e) {
+    res.status(500).json({ error: "Falha ao processar arquivo: " + e.message });
+  }
+});
+
 // ============================================================
 // USUARIOS (Gestão de Acesso)
 // ============================================================
@@ -932,6 +1185,56 @@ app.put('/api/usuarios/:id/senha', async (req, res) => {
     await db.run('UPDATE users SET password=$1 WHERE id=$2', [efetivo.cpf, req.params.id]);
     res.json({ success: true, message: "Senha resetada para o CPF do militar." });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Gestão de Permissões Diretas do Usuário
+app.get('/api/usuarios/:id/permissoes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Lista todas as permissões possíveis e marca o estado atual para este usuário
+    const { rows } = await db.query(`
+      SELECT p.id, p.code, p.descricao, p.modulo,
+             up.permitido
+      FROM permissions p
+      LEFT JOIN user_permissions up ON p.id = up.permission_id AND up.user_id = $1
+      ORDER BY p.modulo, p.code
+    `, [id]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/usuarios/:id/permissoes', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { permission_id, permitido } = req.body; 
+    const permId = parseInt(permission_id);
+    
+    if (isNaN(userId) || isNaN(permId)) {
+        return res.status(400).json({ error: "IDs inválidos." });
+    }
+
+    if (permitido === null) {
+      await db.query('DELETE FROM user_permissions WHERE user_id = $1 AND permission_id = $2', [userId, permId]);
+    } else {
+      await db.query(`
+        INSERT INTO user_permissions (user_id, permission_id, permitido, atribuido_por)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (user_id, permission_id) DO UPDATE SET permitido = $3
+      `, [userId, permId, permitido, req.user?.id || null]);
+    }
+
+    // Log de Auditoria
+    try {
+      await auditLog('PERMISSION_CHANGE', { target_user_id: userId, permission_id: permId, permitted: permitido }, req);
+    } catch (auditErr) {
+      console.error('[Audit] Erro ao registrar log de permissão:', auditErr);
+    }
+
+    res.json({ success: true });
+  } catch (e) { 
+    console.error('[DB] Erro ao atualizar permissão:', e.message);
+    res.status(500).json({ error: `Falha no banco de dados: ${e.message}` }); 
+  }
 });
 
 // ============================================================
