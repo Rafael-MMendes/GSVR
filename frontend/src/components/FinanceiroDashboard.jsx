@@ -247,33 +247,18 @@ export function FinanceiroDashboard() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-            <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Serviços 6h</h4>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)' }}>{resumo.total_servicos_6h}</span>
-                <span style={{ color: 'var(--text-muted)' }}>serviços</span>
+            {resumo.detalhes_por_tipo && resumo.detalhes_por_tipo.map((tipo, idx) => (
+              <div key={idx} className="glass-panel" style={{ padding: '1.25rem' }}>
+                <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{tipo.descricao}</h4>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)' }}>{tipo.qtd_servicos}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>serviços</span>
+                </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#10b981', fontWeight: 600 }}>
+                  {formatCurrency(tipo.total_gasto_tipo)}
+                </div>
               </div>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#10b981', fontWeight: 600 }}>
-                {formatCurrency(resumo.total_servicos_6h * resumo.valor_6h)}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Valor unitário: {formatCurrency(resumo.valor_6h)}
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '1.25rem' }}>
-              <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Serviços 8h</h4>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                <span style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--primary)' }}>{resumo.total_servicos_8h}</span>
-                <span style={{ color: 'var(--text-muted)' }}>serviços</span>
-              </div>
-              <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#10b981', fontWeight: 600 }}>
-                {formatCurrency(resumo.total_servicos_8h * resumo.valor_8h)}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                Valor unitário: {formatCurrency(resumo.valor_8h)}
-              </div>
-            </div>
+            ))}
 
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
               <h4 style={{ margin: '0 0 1rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Serviços</h4>

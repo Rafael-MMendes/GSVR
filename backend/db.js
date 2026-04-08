@@ -120,7 +120,8 @@ async function setupDB() {
               referencia_mes_ano VARCHAR(20) NOT NULL UNIQUE,
               data_inicio DATE NOT NULL,
               data_fim DATE NOT NULL,
-              status VARCHAR(50) NOT NULL DEFAULT 'Aberto'
+              status VARCHAR(50) NOT NULL DEFAULT 'Aberto',
+              valor_total_previsto DECIMAL(12, 2) DEFAULT 0
           );
 
           -- 4. Tabela REQUERIMENTOS (Substitui volunteers - metadados)
@@ -145,12 +146,22 @@ async function setupDB() {
               observacoes TEXT
           );
 
+          -- 5.1 Tabela TIPOS_SERVICO
+          CREATE TABLE IF NOT EXISTS TIPOS_SERVICO (
+              id_tipo_servico SERIAL PRIMARY KEY,
+              descricao VARCHAR(100) NOT NULL,
+              carga_horaria INTEGER NOT NULL,
+              valor_remuneracao DECIMAL(10, 2) NOT NULL,
+              ativo BOOLEAN DEFAULT TRUE
+          );
+
           -- 6. Tabela ESCALA_PLANEJAMENTO (Substitui schedules)
           CREATE TABLE IF NOT EXISTS ESCALA_PLANEJAMENTO (
               id_escala SERIAL PRIMARY KEY,
               id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_disponibilidade INTEGER REFERENCES DISPONIBILIDADE_REQUERIMENTO(id_disponibilidade),
+              id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico),
               data_servico DATE NOT NULL,
               horario_servico VARCHAR(50) NOT NULL,
               horario_embarque VARCHAR(50),
@@ -166,6 +177,7 @@ async function setupDB() {
               id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_escala INTEGER REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE SET NULL,
+              id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico),
               data_execucao DATE NOT NULL,
               dia_semana INTEGER NOT NULL,
               eh_feriado BOOLEAN DEFAULT FALSE,
@@ -181,6 +193,15 @@ async function setupDB() {
           -- Garantir que colunas novas existam (Migration via SQL)
           DO $$ 
           BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_total_previsto') THEN
+              ALTER TABLE CICLOS ADD COLUMN valor_total_previsto DECIMAL(12, 2) DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
+              ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_tipo_servico') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='cmd') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN cmd VARCHAR(100);
             END IF;
@@ -380,24 +401,28 @@ async function setupDB() {
           CREATE VIEW vw_relatorio_operacional_completo AS
           SELECT 
               o.id_opm, o.sigla AS opm_sigla, o.descricao AS opm_descricao,
-              c.id_ciclo, c.referencia_mes_ano, c.status AS ciclo_status,
+              c.id_ciclo, c.referencia_mes_ano, c.status AS ciclo_status, c.valor_total_previsto AS ciclo_valor_teto,
               e.id_militar, e.nome_completo, e.nome_guerra, e.posto_graduacao, e.matricula, e.cpf,
               req.id_requerimento, req.numero_requerimento,
               dr.id_disponibilidade, dr.dia_mes AS disponibilidade_dia, dr.horario_turno AS disponibilidade_turno,
               ep.id_escala, ep.data_servico AS escala_data, ep.horario_servico AS escala_turno, ep.funcao AS escala_funcao,
-              se.id_execucao, se.data_execucao AS execucao_data, se.carga_horaria AS execucao_carga_horaria, se.valor_remuneracao AS execucao_valor_remuneracao, se.status_presenca AS execucao_presenca
+              ts_pl.descricao AS escala_tipo_servico_desc, ts_pl.valor_remuneracao AS escala_valor_previsto,
+              se.id_execucao, se.data_execucao AS execucao_data, se.carga_horaria AS execucao_carga_horaria, se.valor_remuneracao AS execucao_valor_remuneracao, se.status_presenca AS execucao_presenca,
+              ts_ex.descricao AS execucao_tipo_servico_desc
           FROM EFETIVO e
           LEFT JOIN REQUERIMENTOS req ON e.id_militar = req.id_militar
           LEFT JOIN DISPONIBILIDADE_REQUERIMENTO dr ON req.id_requerimento = dr.id_requerimento
           LEFT JOIN ESCALA_PLANEJAMENTO ep ON e.id_militar = ep.id_militar
+          LEFT JOIN TIPOS_SERVICO ts_pl ON ep.id_tipo_servico = ts_pl.id_tipo_servico
           LEFT JOIN SERVICOS_EXECUTADOS se ON e.id_militar = se.id_militar AND (ep.id_escala = se.id_escala OR se.id_escala IS NULL)
+          LEFT JOIN TIPOS_SERVICO ts_ex ON se.id_tipo_servico = ts_ex.id_tipo_servico
           LEFT JOIN CICLOS c ON (ep.id_ciclo = c.id_ciclo OR se.id_ciclo = c.id_ciclo OR req.id_ciclo = c.id_ciclo)
           LEFT JOIN OPM o ON c.id_opm = o.id_opm;
 
           DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
           CREATE VIEW vw_relatorio_operacional_agregado AS
           SELECT 
-              c.id_ciclo, c.referencia_mes_ano, o.sigla AS opm_sigla,
+              c.id_ciclo, c.referencia_mes_ano, c.valor_total_previsto AS ciclo_valor_teto, o.sigla AS opm_sigla,
               e.id_militar, e.nome_guerra, e.posto_graduacao,
               COUNT(DISTINCT ep.id_escala) as qtd_escalas,
               COUNT(DISTINCT se.id_execucao) as qtd_servicos_executados,
@@ -408,7 +433,7 @@ async function setupDB() {
           JOIN EFETIVO e ON 1=1
           LEFT JOIN ESCALA_PLANEJAMENTO ep ON c.id_ciclo = ep.id_ciclo AND e.id_militar = ep.id_militar
           LEFT JOIN SERVICOS_EXECUTADOS se ON c.id_ciclo = se.id_ciclo AND e.id_militar = se.id_militar
-          GROUP BY c.id_ciclo, c.referencia_mes_ano, o.sigla, e.id_militar, e.nome_guerra, e.posto_graduacao
+          GROUP BY c.id_ciclo, c.referencia_mes_ano, c.valor_total_previsto, o.sigla, e.id_militar, e.nome_guerra, e.posto_graduacao
           HAVING COUNT(DISTINCT ep.id_escala) > 0 OR COUNT(DISTINCT se.id_execucao) > 0;
         `);
 
@@ -418,6 +443,15 @@ async function setupDB() {
         const opmCheck = await client.query('SELECT count(*) FROM OPM');
         if (parseInt(opmCheck.rows[0].count) === 0) {
           await client.query("INSERT INTO OPM (descricao, sigla) VALUES ('Batalhão de Policia Militar', 'OPM Padrão')");
+        }
+
+        // ============================================================
+        // SEEDS — Tipos de Serviço Predeterminados
+        // ============================================================
+        const tiposCheck = await client.query('SELECT count(*) FROM TIPOS_SERVICO');
+        if (parseInt(tiposCheck.rows[0].count) === 0) {
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 6h', 6, 192.03)");
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 8h', 8, 250.00)");
         }
 
         // ============================================================

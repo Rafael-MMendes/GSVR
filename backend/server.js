@@ -1081,7 +1081,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         }
 
         const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-        const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [monthKey]);
+        const cycle = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [monthKey]);
 
         if (!cycle) {
           stats.errors++;
@@ -1089,18 +1089,40 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 3. Inserir Serviço Executado
-        // Valor padrão R$ 192,03 para FT (6h padrão)
+        // 3. Obter Tipo de Serviço (por default usaremos o primeiro de 6h a menos que especificado, pois antes era fixo)
+        // Isso pode ser refinado futuramente criando a seleção de TIPO via frontend/planilha
+        const defaultTipo = await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO WHERE descricao LIKE '%6h%' AND ativo = true LIMIT 1") || await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO LIMIT 1");
+        
+        if (!defaultTipo) {
+           stats.errors++;
+           errorDetails.push({ militar: nome || cpf, error: `Nenhum Tipo de Serviço cadastrado no sistema para referência.` });
+           continue;
+        }
+
+        const idTipoServico = defaultTipo.id_tipo_servico;
+        const cargaHoraria = defaultTipo.carga_horaria;
+        const valorRemuneracao = parseFloat(defaultTipo.valor_remuneracao);
+
+        // 4. Conferencia do Teto Financeiro (Valor Total Previsto)
+        const { rows: somaRows } = await db.query('SELECT COALESCE(SUM(valor_remuneracao), 0) as total FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1', [cycle.id_ciclo]);
+        const currentTotal = parseFloat(somaRows[0].total);
+        const teto = parseFloat(cycle.valor_total_previsto);
+
+        if (teto > 0 && (currentTotal + valorRemuneracao) > teto) {
+           stats.errors++;
+           errorDetails.push({ militar: nome || cpf, error: `Orçamento Estourado no ciclo ${monthKey}. Teto: ${teto}, Atual + Este: ${currentTotal + valorRemuneracao}` });
+           continue;
+        }
+
+        // 5. Inserir Serviço Executado preservando os valores históricos do tipo naquele instante
         const diaSemana = dateObj.getDay();
-        const cargaHoraria = 6;
-        const valorRemuneracao = 192.03;
 
         await db.run(
           `INSERT INTO SERVICOS_EXECUTADOS 
-            (id_ciclo, id_militar, data_execucao, dia_semana, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            (id_ciclo, id_militar, data_execucao, dia_semana, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            ON CONFLICT DO NOTHING`,
-          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao]
+          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
         );
 
         stats.imported++;
@@ -1247,33 +1269,88 @@ app.put('/api/usuarios/:id/permissoes', async (req, res) => {
 // FINANCEIRO
 // ============================================================
 app.get('/api/financeiro/resumo', async (req, res) => {
+// ============================================================
+// TIPOS DE SERVICO
+// ============================================================
+app.get('/api/tipos-servico', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM TIPOS_SERVICO ORDER BY ativo DESC, carga_horaria ASC');
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tipos-servico', async (req, res) => {
+  try {
+    const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
+    const { rows } = await db.query(
+      'INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao, ativo) VALUES ($1, $2, $3, $4) RETURNING *',
+      [descricao, carga_horaria, valor_remuneracao, ativo ?? true]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/tipos-servico/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
+    const { rows } = await db.query(
+      'UPDATE TIPOS_SERVICO SET descricao = $1, carga_horaria = $2, valor_remuneracao = $3, ativo = $4 WHERE id_tipo_servico = $5 RETURNING *',
+      [descricao, carga_horaria, valor_remuneracao, ativo, id]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// DASHBOARD FINANCEIRO E ESTATISTICAS (Flexibilizado)
+// ============================================================
+app.get('/api/financeiro/resumo', async (req, res) => {
   try {
     const month = req.query.month || getCurrentMonthKey();
-    const q = `
+    
+    // Obter dados globais e do orçamento do Ciclo
+    const qGlobal = `
       SELECT
-        COUNT(*) FILTER (WHERE horario_servico LIKE '%6h%') as t6,
-        COUNT(*) FILTER (WHERE horario_servico LIKE '%8h%') as t8,
-        COUNT(DISTINCT id_militar) as militares_unicos,
-        COUNT(*) as total_militar_servicos
-      FROM ESCALA_PLANEJAMENTO ep
-      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+        c.valor_total_previsto as verba_ciclo,
+        COUNT(DISTINCT se.id_militar) as militares_unicos,
+        COUNT(se.id_execucao) as total_militar_servicos,
+        COALESCE(SUM(se.valor_remuneracao), 0) as total_gasto
+      FROM CICLOS c
+      LEFT JOIN SERVICOS_EXECUTADOS se ON c.id_ciclo = c.id_ciclo
       WHERE c.referencia_mes_ano = $1
+      GROUP BY c.valor_total_previsto
     `;
-    const { rows } = await db.query(q, [month]);
-    const stats = rows[0] || { t6: 0, t8: 0, militares_unicos: 0, total_militar_servicos: 0 };
-    const v6 = 192.03;
-    const v8 = 250.00;
-    const total_gasto = (parseInt(stats.t6) * v6) + (parseInt(stats.t8) * v8);
-    const verba_ciclo = 35000.00;
+    const resGlobal = await db.query(qGlobal, [month]);
+    
+    // Obter agrupamento por Tipos de Serviço
+    const qTipos = `
+      SELECT
+        ts.descricao,
+        COUNT(se.id_execucao) as qtd_servicos,
+        SUM(se.valor_remuneracao) as total_gasto_tipo
+      FROM SERVICOS_EXECUTADOS se
+      JOIN TIPOS_SERVICO ts ON se.id_tipo_servico = ts.id_tipo_servico
+      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
+      WHERE c.referencia_mes_ano = $1
+      GROUP BY ts.descricao
+    `;
+    const resTipos = await db.query(qTipos, [month]);
+    
+    // Se o ciclo ainda nao existe, os dados vem vazios, evitamos crash
+    const stats = resGlobal.rows[0] || { verba_ciclo: 0, militares_unicos: 0, total_militar_servicos: 0, total_gasto: 0 };
+    
+    const verba_ciclo = parseFloat(stats.verba_ciclo || 0);
+    const total_gasto = parseFloat(stats.total_gasto || 0);
+
     res.json({
-      verba_ciclo, total_gasto,
+      verba_ciclo,
+      total_gasto,
       saldo_restante: verba_ciclo - total_gasto,
       percentual_utilizado: verba_ciclo > 0 ? (total_gasto / verba_ciclo) * 100 : 0,
-      total_servicos_6h: parseInt(stats.t6),
-      total_servicos_8h: parseInt(stats.t8),
-      valor_6h: v6, valor_8h: v8,
       total_militar_servicos: parseInt(stats.total_militar_servicos),
       total_militares_unicos: parseInt(stats.militares_unicos),
+      detalhes_por_tipo: resTipos.rows,
       mes_selecionado: month
     });
   } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -1282,14 +1359,15 @@ app.get('/api/financeiro/resumo', async (req, res) => {
 app.get('/api/financeiro/detalhado', async (req, res) => {
   try {
     const month = req.query.month || getCurrentMonthKey();
+    
     const qDiario = `
-      SELECT TO_CHAR(data_servico, 'DD/MM') as data,
+      SELECT TO_CHAR(se.data_execucao, 'DD/MM') as data,
              COUNT(*) as servicos,
-             SUM(CASE WHEN horario_servico LIKE '%8h%' THEN 250.00 ELSE 192.03 END) as gasto
-      FROM ESCALA_PLANEJAMENTO ep
-      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+             SUM(se.valor_remuneracao) as gasto
+      FROM SERVICOS_EXECUTADOS se
+      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
       WHERE c.referencia_mes_ano = $1
-      GROUP BY data_servico ORDER BY data_servico ASC
+      GROUP BY se.data_execucao ORDER BY se.data_execucao ASC
     `;
     const resDiario = await db.query(qDiario, [month]);
     let acumuladoTotal = 0;
@@ -1302,13 +1380,13 @@ app.get('/api/financeiro/detalhado', async (req, res) => {
     const qTop = `
       SELECT e.matricula as id, e.nome_guerra as name,
              COUNT(*) as servicos,
-             SUM(CASE WHEN ep.horario_servico LIKE '%8h%' THEN 250.00 ELSE 192.03 END) as gasto
-      FROM ESCALA_PLANEJAMENTO ep
-      JOIN EFETIVO e ON ep.id_militar = e.id_militar
-      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+             SUM(se.valor_remuneracao) as gasto
+      FROM SERVICOS_EXECUTADOS se
+      JOIN EFETIVO e ON se.id_militar = e.id_militar
+      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
       WHERE c.referencia_mes_ano = $1
       GROUP BY e.matricula, e.nome_guerra
-      ORDER BY servicos DESC LIMIT 10
+      ORDER BY gasto DESC LIMIT 10
     `;
     const resTop = await db.query(qTop, [month]);
     res.json({

@@ -17,6 +17,7 @@ import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
 import { RelatorioOperacional } from './components/RelatorioOperacional';
+import { TiposServicoManager } from './components/TiposServicoManager';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
@@ -197,6 +198,11 @@ function App() {
                         <Calendar size={16} /> Gerenciamento de Ciclos
                       </a>
                     )}
+                    {isAdmin && (
+                      <a href="#" className={`dropdown-item ${currentView === 'tipos-servico' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tipos-servico'); }}>
+                        <DollarSign size={16} /> Tipos de Serviço (Verba)
+                      </a>
+                    )}
                     {hasPermission('opm:read') && (
                       <a href="#" className={`dropdown-item ${currentView === 'opm' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('opm'); }}>
                         <Building2 size={16} /> Configuração OPM
@@ -274,6 +280,7 @@ function App() {
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
         {currentView === 'relatorio-operacional' && hasPermission('financeiro:read') && <RelatorioOperacional />}
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
+        {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
         {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
         {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
