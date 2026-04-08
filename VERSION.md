@@ -1,3 +1,16 @@
+## v1.12.15 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Integração Planejamento ↔ Analítico**: O módulo "Analítico FT" agora lê dados da tabela `SERVICOS_EXECUTADOS` (dados reais de execução) em vez da tabela antiga `schedules` (planejamento).
+- **Filtro por Ciclo no Analítico**: Adicionado seletor de ciclo no AnalyticsDashboard para filtrar serviços por período.
+- **Correção Verb no Financeiro**: Corrigida a rota `/api/financeiro/resumo` para buscar corretamente o `valor_total_previsto` do ciclo selecionado. Implementada verificação mais robusta do tipo de dados (number vs string).
+- **Rota GET ciclos/:id**: Adicionada nova rota para buscar ciclo específico por ID.
+- **Ajuste na View vw_detalhes_ciclos**: A view agora retorna o campo `valor_total_previsto` corretamente na listagem de ciclos.
+
+---
+
 ## v1.12.14 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com
