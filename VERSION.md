@@ -1,3 +1,20 @@
+## v1.12.14 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Correção de Fuso Horário na Importação FT**: Implementada solução definitiva para leitura de datas do Excel. O código agora usa métodos UTC (`getUTCFullYear`, `getUTCMonth`, `getUTCDate`) para extrair os valores reais independentemente do fuso horário do servidor.
+- **Blindagem de Datas no Backend**: Adicionada função helper `formatDateToISO()` no `server.js` para formatar datas de forma segura em todas as rotas de ciclos (POST, PUT) e criação automática.
+- **Rota de Limpeza**: Adicionada nova rota `DELETE /api/servicos/ciclo/:cicloId` para limpar serviços de um ciclo específico durante testes de importação.
+- **Correção de Fuso no Frontend**: Implementada função `formatDateDisplay()` em todos os componentes React para exibir datas vindas do PostgreSQL corretamente. Aplicada em:
+  - `CicloManager.jsx` - Cards de ciclos e modal de edição
+  - `ServicosExecutadosManager.jsx` - Listagem de serviços
+  - `VolunteerForm.jsx` - Vigência do ciclo
+  - `RelatorioOperacional.jsx` - Datas de escalas e execuções
+- **Ajuste na Exibição de Datas**: Substituído `new Date().toLocaleDateString()` por parsing manual de strings YYYY-MM-DD, evitando que o JavaScript interprete datas UTC de forma incorreta no fuso de Brasília (UTC-3).
+
+---
+
 ## v1.12.13 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com
