@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X } from 'lucide-react';
+import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -166,9 +166,18 @@ export function ServicosExecutadosManager() {
             Registro e controle dos serviços realizados pelos militares
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Plus size={18} /> Registrar Serviço
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'import-servicos' }))}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
+          >
+            <FileSpreadsheet size={18} /> Importar FT
+          </button>
+          <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={18} /> Registrar Serviço
+          </button>
+        </div>
       </header>
 
       {/* Cards de resumo */}

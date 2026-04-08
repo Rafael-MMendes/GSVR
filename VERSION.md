@@ -101,23 +101,6 @@
 
 ---
 
-## v1.12.1 — 2026-04-08
-**Autor:** Alan Kleber
-**Email:** alan.kleber@example.com
-
-### Mudanças:
-- **Correção na Leitura de PDFs de Requerimentos**: Análise profunda do parser de PDF que estava lendo incorretamente os dias disponíveis. O sistema agora interpreta corretamente cada caractere da linha de turnos:
-  - Posição 0 = campo Motorista (X = sim, espaço ou S = não)
-  - Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
-  - Cada caractere representa um dia: X (disponível), S (em serviço ordinário), espaço (não voluntário)
-- **Correção duplicate code**: Removido bloco de código duplicado no endpoint de importação que processava os arquivos duas vezes.
-- **Suporte a Número de Ordem**: Adicionada coluna `numero_ordem` na tabela EFETIVO para suportar a identificação correta dos militares nos requerimentos (diferente da matrícula). Atualizado script de importação para capturar esta informação do Excel.
-- **Criação Automática de Ciclos**: O sistema agora cria automaticamente o registro na tabela CICLOS quando um requerimento é importado para um mês que ainda não existe.
-- **Criação Automática de Meses**: O endpoint `/api/months` agora cria automaticamente o registro do mês atual caso não exista.
-- **Correção na Associação de Militares**: O parser agora busca o militar tanto por `numero_ordem` quanto por `matrícula` para garantir que a associação seja feita corretamente independente de qual campo está sendo usado no PDF.
-
----
-
 ## v1.12.0 — 2026-04-07
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -127,7 +110,7 @@
 - **Backend — Reescrita Completa do server.js**: Corrigidos todos os placeholders SQL `?` (SQLite) para `$n` (PostgreSQL) em todas as rotas (login, volunteers POST/DELETE, efetivo, ciclos, OPM). Adicionadas rotas `PUT` e `DELETE` para OPM e CICLOS que estavam completamente ausentes.
 - **Novo Módulo: SERVICOS_EXECUTADOS**: Implementação completa com 4 endpoints REST (`GET`, `POST`, `PUT`, `DELETE`). O frontend recebeu o novo componente `ServicosExecutadosManager.jsx` com listagem filtrada, cards de resumo e formulário de registro de execução de serviços.
 - **Novo Módulo: Gestão de Usuários**: Implementado `UserManager.jsx` com listagem de todos os usuários do sistema divididos por nível de acesso (admin/regular), ações de promoção/rebaixamento de administrador e reset de senha para o CPF padrão.
-- **Correção de Bug no Import de Efetivo**: Corrigido o INSERT que copiava `nome_completo` para o campo `nome_guerra` (`$1` duplicado). Agora o campo `nome_guerra` é lido corretamente da coluna da planilha.
+- **Correção de Bug no Import de Efetivo**: Corrigido mapeamento de colunas para suportar cabeçalhos como `P/G`, `NOME GUERRA` e `Nº ORDEM`. Implementado fallback automático para o primeiro nome quando o nome de guerra não for informado na planilha, garantindo consistência nos dados importados.
 - **Navbar Expandida**: Adicionados os novos módulos "Serviços Executados" e "Gestão de Usuários" no menu de navegação do sistema com ícones correspondentes.
 
 ---

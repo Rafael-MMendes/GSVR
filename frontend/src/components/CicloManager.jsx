@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Calendar, Plus, Edit2, Trash2, X, Check, Building2, Users, ClipboardCheck, AlertCircle, Activity } from 'lucide-react';
+import { Calendar, Plus, Edit2, Trash2, X, Check, Building2, Users, ClipboardCheck, AlertCircle, Activity, DollarSign } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -15,7 +15,8 @@ export function CicloManager() {
     referencia_mes_ano: '',
     data_inicio: '',
     data_fim: '',
-    status: 'Aberto'
+    status: 'Aberto',
+    valor_total_previsto: ''
   });
 
   useEffect(() => {
@@ -77,7 +78,8 @@ export function CicloManager() {
       referencia_mes_ano: '',
       data_inicio: '',
       data_fim: '',
-      status: 'Aberto'
+      status: 'Aberto',
+      valor_total_previsto: ''
     });
   };
 
@@ -88,7 +90,8 @@ export function CicloManager() {
       referencia_mes_ano: ciclo.referencia_mes_ano,
       data_inicio: ciclo.data_inicio.split('T')[0],
       data_fim: ciclo.data_fim.split('T')[0],
-      status: ciclo.status
+      status: ciclo.status,
+      valor_total_previsto: ciclo.valor_total_previsto || ''
     });
     setIsModalOpen(true);
   };
@@ -268,6 +271,22 @@ export function CicloManager() {
                     <option value="Fechado">Fechado (Somente consulta)</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <DollarSign size={16} /> Valor Total Previsto (Teto do Ciclo)
+                </label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control" 
+                  value={formData.valor_total_previsto} 
+                  onChange={e => setFormData({ ...formData, valor_total_previsto: e.target.value })} 
+                  placeholder="R$ 0,00"
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução. Preencha zero para não estabelecer teto.</small>
               </div>
 
               <div style={{ 
