@@ -228,7 +228,47 @@ async function setupDB() {
                 UNIQUE(date, month_key)
             );
 
+            -- 9. Tabela FERIADOS (Para Cálculo de Remuneração de FT)
+            CREATE TABLE IF NOT EXISTS FERIADOS (
+                id_feriado SERIAL PRIMARY KEY,
+                data DATE NOT NULL UNIQUE,
+                descricao VARCHAR(255)
+            );
+
           END $$;
+
+          -- Populando FERIADOS (Seeds 2025-2026)
+          INSERT INTO FERIADOS (data, descricao) VALUES
+            -- 2025
+            ('2025-01-01', 'Confraternização Universal'),
+            ('2025-03-03', 'Carnaval'),
+            ('2025-03-04', 'Carnaval'),
+            ('2025-04-18', 'Sexta-feira Santa'),
+            ('2025-04-21', 'Tiradentes'),
+            ('2025-05-01', 'Dia do Trabalho'),
+            ('2025-06-19', 'Corpus Christi'),
+            ('2025-09-07', 'Independência do Brasil'),
+            ('2025-10-12', 'Nossa Sra Aparecida'),
+            ('2025-11-02', 'Finados'),
+            ('2025-11-15', 'Proclamação da República'),
+            ('2025-11-20', 'Consciência Negra'),
+            ('2025-12-25', 'Natal'),
+            -- 2026
+            ('2026-01-01', 'Confraternização Universal'),
+            ('2026-02-16', 'Carnaval'),
+            ('2026-02-17', 'Carnaval'),
+            ('2026-03-03', 'Carnaval'),
+            ('2026-04-03', 'Sexta-feira Santa'),
+            ('2026-04-21', 'Tiradentes'),
+            ('2026-05-01', 'Dia do Trabalho'),
+            ('2026-06-04', 'Corpus Christi'),
+            ('2026-07-09', 'Independência do Brasil'),
+            ('2026-10-12', 'Nossa Sra Aparecida'),
+            ('2026-11-02', 'Finados'),
+            ('2026-11-15', 'Proclamação da República'),
+            ('2026-11-20', 'Consciência Negra'),
+            ('2026-12-25', 'Natal')
+          ON CONFLICT (data) DO NOTHING;
 
           -- ============================================================
           -- AUTH & USERS (Schema v2 — RBAC)

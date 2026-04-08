@@ -83,6 +83,29 @@ function padCpf(cpf) {
 
 const ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
 
+let holidaysSet = new Set();
+async function loadHolidays() {
+  if (!db) return;
+  try {
+    const rows = await db.all('SELECT data FROM FERIADOS');
+    holidaysSet = new Set(rows.map(r => {
+      if (!r.data) return null;
+      // Trata tanto objeto Date quanto string ISO
+      const d = new Date(r.data);
+      return d.toISOString().split('T')[0];
+    }).filter(Boolean));
+    console.log(`[DB] ${holidaysSet.size} feriados carregados na cache.`);
+  } catch (e) {
+    console.error('[ERR] Falha ao carregar feriados:', e.message);
+  }
+}
+
+function isFeriado(dateObj) {
+  if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return false;
+  const iso = dateObj.toISOString().split('T')[0];
+  return holidaysSet.has(iso);
+}
+
 app.use(cors());
 app.use(express.json());
 // Servir avatares estáticos
@@ -200,7 +223,11 @@ function authorize(...requiredPermissions) {
 }
 
 let db;
-setupDB().then(database => { db = database; app.listen(PORT, () => console.log(`Backend on http://localhost:${PORT}`)); }).catch(err => console.error("DB error:", err));
+(async () => { 
+  db = await setupDB(); 
+  await loadHolidays();
+  app.listen(PORT, () => console.log(`Backend on http://localhost:${PORT}`)); 
+})();
 
 // ============================================================
 // AUTH — Login (retrocompatível: texto plano → bcrypt progressivo)
@@ -1006,14 +1033,20 @@ app.get('/api/servicos', async (req, res) => {
 app.post('/api/servicos', async (req, res) => {
   try {
     const { id_ciclo, id_militar, id_escala, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca } = req.body;
-    if (!id_ciclo || !id_militar || !data_execucao || !carga_horaria || !status_presenca) {
+    if (!id_ciclo || !id_militar || !data_execucao || !status_presenca) {
       return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     }
-    // Calcular valor automaticamente se não informado
-    const valor = valor_remuneracao || (parseInt(carga_horaria) === 8 ? 250.00 : 192.03);
+    // Calcular automaticamente baseado no dia da semana e feriados
+    const dateObj = new Date(data_execucao);
+    const diaSemana = dia_semana !== undefined ? dia_semana : dateObj.getDay();
+    const ehFeriado = eh_feriado !== undefined ? eh_feriado : isFeriado(dateObj);
+    const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || ehFeriado);
+    const cargaCalc = carga_horaria || (isExtras ? 8 : 6);
+    const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
+    
     const r = await db.run(
       'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, id_escala, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [id_ciclo, id_militar, id_escala || null, data_execucao, dia_semana || new Date(data_execucao).getDay(), eh_feriado || false, carga_horaria, valor, status_presenca]
+      [id_ciclo, id_militar, id_escala || null, data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca]
     );
     res.status(201).json({ success: true, id_execucao: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1022,10 +1055,16 @@ app.post('/api/servicos', async (req, res) => {
 app.put('/api/servicos/:id', async (req, res) => {
   try {
     const { data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca } = req.body;
-    const valor = valor_remuneracao || (parseInt(carga_horaria) === 8 ? 250.00 : 192.03);
+    const dateObj = new Date(data_execucao);
+    const diaSemana = dia_semana !== undefined ? dia_semana : dateObj.getDay();
+    const ehFeriado = eh_feriado !== undefined ? eh_feriado : isFeriado(dateObj);
+    const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || ehFeriado);
+    const cargaCalc = carga_horaria || (isExtras ? 8 : 6);
+    const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
+    
     await db.run(
       'UPDATE SERVICOS_EXECUTADOS SET data_execucao=$1, dia_semana=$2, eh_feriado=$3, carga_horaria=$4, valor_remuneracao=$5, status_presenca=$6 WHERE id_execucao=$7',
-      [data_execucao, dia_semana || new Date(data_execucao).getDay(), eh_feriado || false, carga_horaria, valor, status_presenca, req.params.id]
+      [data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca, req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1035,6 +1074,33 @@ app.delete('/api/servicos/:id', async (req, res) => {
   try {
     await db.run('DELETE FROM SERVICOS_EXECUTADOS WHERE id_execucao = $1', [req.params.id]);
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Rota para corrigir carga horária de serviços existentes baseado no dia da semana e feriados
+app.post('/api/servicos/corrigir-cargas', async (req, res) => {
+  try {
+    const { rows: servicos } = await db.query('SELECT id_execucao, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao FROM SERVICOS_EXECUTADOS');
+    
+    let atualizados = 0;
+    for (const s of servicos) {
+      const dateObj = new Date(s.data_execucao);
+      const diaSemana = s.dia_semana !== null ? s.dia_semana : dateObj.getDay();
+      const ehFeriado = s.eh_feriado || isFeriado(dateObj);
+      const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || ehFeriado);
+      const novaCarga = isExtras ? 8 : 6;
+      const novoValor = isExtras ? 250.00 : 192.03;
+      
+      if (s.carga_horaria !== novaCarga || parseFloat(s.valor_remuneracao) !== novoValor) {
+        await db.run(
+          'UPDATE SERVICOS_EXECUTADOS SET carga_horaria = $1, valor_remuneracao = $2, eh_feriado = $3, dia_semana = $4 WHERE id_execucao = $5',
+          [novaCarga, novoValor, ehFeriado, diaSemana, s.id_execucao]
+        );
+        atualizados++;
+      }
+    }
+    
+    res.json({ success: true, message: `${atualizados} serviços corrigidos.` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1246,10 +1312,15 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         }
 
         const idTipoServico = defaultTipo.id_tipo_servico;
-        const cargaHoraria = defaultTipo.carga_horaria;
-        const valorRemuneracao = parseFloat(defaultTipo.valor_remuneracao);
+        
+        const diaSemana = dateObj.getDay(); // 0=Dom, 5=Sex, 6=Sab
+        const feriado = isFeriado(dateObj);
+        
+        // Sexta, Sábado, Domingo ou Feriado = 8h e 250.00. Demais dias = 6h e 192.03
+        const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || feriado);
+        const cargaHoraria = isExtras ? 8 : 6;
+        const valorRemuneracao = isExtras ? 250.00 : 192.03;
 
-        // 4. Conferencia do Teto Financeiro (Valor Total Previsto)
         const { rows: somaRows } = await db.query('SELECT COALESCE(SUM(valor_remuneracao), 0) as total FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1', [cycle.id_ciclo]);
         const currentTotal = parseFloat(somaRows[0].total);
         const teto = parseFloat(cycle.valor_total_previsto);
@@ -1260,15 +1331,12 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 5. Inserir Serviço Executado preservando os valores históricos do tipo naquele instante
-        const diaSemana = dateObj.getDay();
-
         await db.run(
           `INSERT INTO SERVICOS_EXECUTADOS 
-            (id_ciclo, id_militar, data_execucao, dia_semana, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            ON CONFLICT DO NOTHING`,
-          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
+          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, feriado, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
         );
 
         stats.imported++;
