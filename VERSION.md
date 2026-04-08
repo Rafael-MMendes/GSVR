@@ -2,6 +2,23 @@
 
 Documento dedicado ao acompanhamento de todas as atualizações, novas configurações e resoluções de problemas (bugfixes) implementados no projeto.
 
+## v1.12.1 — 2026-04-08
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Correção na Leitura de PDFs de Requerimentos**: Análise profunda do parser de PDF que estava lendo incorretamente os dias disponíveis. O sistema agora interpreta corretamente cada caractere da linha de turnos:
+  - Posição 0 = campo Motorista (X = sim, espaço ou S = não)
+  - Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
+  - Cada caractere representa um dia: X (disponível), S (em serviço ordinário), espaço (não voluntário)
+- **Correção duplicate code**: Removido bloco de código duplicado no endpoint de importação que processava os arquivos duas vezes.
+- **Suporte a Número de Ordem**: Adicionada coluna `numero_ordem` na tabela EFETIVO para suportar a identificação correta dos militares nos requerimentos (diferente da matrícula). Atualizado script de importação para capturar esta informação do Excel.
+- **Criação Automática de Ciclos**: O sistema agora cria automaticamente o registro na tabela CICLOS quando um requerimento é importado para um mês que ainda não existe.
+- **Criação Automática de Meses**: O endpoint `/api/months` agora cria automaticamente o registro do mês atual caso não exista.
+- **Correção na Associação de Militares**: O parser agora busca o militar tanto por `numero_ordem` quanto por `matrícula` para garantir que a associação seja feita corretamente independente de qual campo está sendo usado no PDF.
+
+---
+
 ## v1.12.0 — 2026-04-07
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
