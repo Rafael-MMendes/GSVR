@@ -607,7 +607,7 @@ app.get('/api/volunteers', async (req, res) => {
              FROM DISPONIBILIDADE_REQUERIMENTO 
              WHERE id_requerimento = r.id_requerimento GROUP BY dia_mes
            ) d) as availability_json,
-           (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_militar = e.id_militar AND ep.id_ciclo = c.id_ciclo) as service_count
+           (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count
     FROM REQUERIMENTOS r 
     JOIN EFETIVO e ON r.id_militar = e.id_militar 
     JOIN CICLOS c ON r.id_ciclo = c.id_ciclo 
