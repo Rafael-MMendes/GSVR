@@ -634,7 +634,7 @@ export function RequerimentosAdmin() {
               <button className="btn btn-outline" onClick={() => setShowFolderModal(false)}>Cancelar</button>
               <button 
                 className="btn btn-primary" 
-                onClick={handleImportFromFiles} 
+                onClick={() => { console.log('Importar clicked:', { selectedFiles: selectedFiles.length, selectedMonth, importing }); handleImportFromFiles(); }} 
                 disabled={importing || selectedFiles.length === 0 || !selectedMonth}
               >
                 {importing ? 'Importando...' : 'Importar'}
