@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FileText, Calendar, Building, DollarSign, Activity, ChevronDown, ChevronRight, User } from 'lucide-react';
 
+const formatDateDisplay = (dateValue) => {
+  if (!dateValue) return '---';
+  try {
+    const dateStr = String(dateValue).split('T')[0]; 
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '---';
+  }
+};
+
 export const RelatorioOperacional = () => {
   const [agregado, setAgregado] = useState([]);
   const [hierarquia, setHierarquia] = useState([]);
@@ -191,7 +202,7 @@ export const RelatorioOperacional = () => {
                               {h.escala.length === 0 ? <p style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Nenhuma</p> : (
                                 <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem' }}>
                                   {h.escala.map((e, i) => (
-                                    <li key={i}>{new Date(e.data).toLocaleDateString('pt-BR')} - {e.turno} ({e.funcao || 'N/A'})</li>
+                                    <li key={i}>{formatDateDisplay(e.data)} - {e.turno} ({e.funcao || 'N/A'})</li>
                                   ))}
                                 </ul>
                               )}
@@ -205,7 +216,7 @@ export const RelatorioOperacional = () => {
                                 <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.8rem' }}>
                                   {h.execucao.map((ex, i) => (
                                     <li key={i}>
-                                      {new Date(ex.data).toLocaleDateString('pt-BR')} - {ex.carga_horaria}h - R${ex.remuneracao} <span style={{ padding: '2px 6px', borderRadius: 4, background: ex.status === 'PRESENTE' ? '#dcfce7' : '#fee2e2', color: ex.status === 'PRESENTE' ? '#166534' : '#991b1b', fontSize: '0.7rem' }}>{ex.status}</span>
+                                      {formatDateDisplay(ex.data)} - {ex.carga_horaria}h - R${ex.remuneracao} <span style={{ padding: '2px 6px', borderRadius: 4, background: ex.status === 'PRESENTE' ? '#dcfce7' : '#fee2e2', color: ex.status === 'PRESENTE' ? '#166534' : '#991b1b', fontSize: '0.7rem' }}>{ex.status}</span>
                                     </li>
                                   ))}
                                 </ul>

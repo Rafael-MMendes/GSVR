@@ -3,6 +3,17 @@ import axios from 'axios';
 import { Save, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
 import { maskPhone } from '../utils/formatters';
 
+const formatDateDisplay = (dateValue) => {
+  if (!dateValue) return '---';
+  try {
+    const dateStr = String(dateValue).split('T')[0]; 
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '---';
+  }
+};
+
 const ranks = [
   "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
   "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
@@ -224,7 +235,7 @@ export function VolunteerForm({ userData }) {
                 </h4>
                 <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.85rem' }}>
                     {selectedCiclo 
-                        ? `Vigência: ${new Date(selectedCiclo.data_inicio).toLocaleDateString()} até ${new Date(selectedCiclo.data_fim).toLocaleDateString()}`
+                        ? `Vigência: ${formatDateDisplay(selectedCiclo.data_inicio)} até ${formatDateDisplay(selectedCiclo.data_fim)}`
                         : 'Selecione um período aberto para inscrição'}
                 </p>
             </div>

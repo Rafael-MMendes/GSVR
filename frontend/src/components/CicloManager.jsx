@@ -4,6 +4,18 @@ import { Calendar, Plus, Edit2, Trash2, X, Check, Building2, Users, ClipboardChe
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
+// Função para formatar data vinda do banco (Postgres) de forma segura
+const formatDateDisplay = (dateValue) => {
+  if (!dateValue) return '---';
+  try {
+    const dateStr = String(dateValue).split('T')[0]; 
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '---';
+  }
+};
+
 export function CicloManager() {
   const [ciclos, setCiclos] = useState([]);
   const [opms, setOpms] = useState([]);
@@ -85,11 +97,17 @@ export function CicloManager() {
 
   const openEdit = (ciclo) => {
     setEditingCiclo(ciclo);
+    
+    const formatParaInput = (data) => {
+      if (!data) return '';
+      return typeof data === 'string' ? data.split('T')[0] : '';
+    };
+    
     setFormData({
       id_opm: ciclo.id_opm,
       referencia_mes_ano: ciclo.referencia_mes_ano,
-      data_inicio: ciclo.data_inicio.split('T')[0],
-      data_fim: ciclo.data_fim.split('T')[0],
+      data_inicio: formatParaInput(ciclo.data_inicio),
+      data_fim: formatParaInput(ciclo.data_fim),
       status: ciclo.status,
       valor_total_previsto: ciclo.valor_total_previsto || ''
     });
@@ -154,11 +172,15 @@ export function CicloManager() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
                 <div>
                     <label style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Início</label>
-                    <div style={{ color: '#334155', fontWeight: 500 }}>{new Date(ciclo.data_inicio).toLocaleDateString()}</div>
+                    <div style={{ color: '#334155', fontWeight: 500 }}>
+                      {formatDateDisplay(ciclo.data_inicio)}
+                    </div>
                 </div>
                 <div>
                     <label style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Término</label>
-                    <div style={{ color: '#334155', fontWeight: 500 }}>{new Date(ciclo.data_fim).toLocaleDateString()}</div>
+                    <div style={{ color: '#334155', fontWeight: 500 }}>
+                      {formatDateDisplay(ciclo.data_fim)}
+                    </div>
                 </div>
               </div>
               

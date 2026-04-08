@@ -2,6 +2,36 @@ process.env.FORCE_COLOR = '0';
 process.env.NO_COLOR = '1';
 process.env.TERM = 'dumb';
 
+// Função helper para formatar data para YYYY-MM-DD sem problema de fuso horário
+function formatDateToISO(dateOrString) {
+  if (!dateOrString) return null;
+  
+  if (dateOrString instanceof Date) {
+    const y = dateOrString.getUTCFullYear();
+    const m = String(dateOrString.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(dateOrString.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  
+  const dataStr = String(dateOrString).trim();
+  if (dataStr.includes('T')) {
+    return dataStr.split('T')[0];
+  }
+  
+  if (dataStr.includes('/')) {
+    const parts = dataStr.split('/');
+    if (parts[2]?.length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  
+  if (dataStr.includes('-') && dataStr.split('-')[0].length === 4) {
+    return dataStr;
+  }
+  
+  return dataStr;
+}
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -975,9 +1005,13 @@ app.post('/api/ciclos', async (req, res) => {
   try {
     const { id_opm, referencia_mes_ano, data_inicio, data_fim, status } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    
+    const dataInicioISO = formatDateToISO(data_inicio);
+    const dataFimISO = formatDateToISO(data_fim);
+    
     const r = await db.run(
       'INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES ($1, $2, $3, $4, $5)',
-      [id_opm || null, referencia_mes_ano, data_inicio, data_fim, status || 'Aberto']
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto']
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -987,9 +1021,13 @@ app.put('/api/ciclos/:id', async (req, res) => {
   try {
     const { id_opm, referencia_mes_ano, data_inicio, data_fim, status } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    
+    const dataInicioISO = formatDateToISO(data_inicio);
+    const dataFimISO = formatDateToISO(data_fim);
+    
     await db.run(
       'UPDATE CICLOS SET id_opm=$1, referencia_mes_ano=$2, data_inicio=$3, data_fim=$4, status=$5 WHERE id_ciclo=$6',
-      [id_opm || null, referencia_mes_ano, data_inicio, data_fim, status || 'Aberto', req.params.id]
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1101,6 +1139,15 @@ app.post('/api/servicos/corrigir-cargas', async (req, res) => {
     }
     
     res.json({ success: true, message: `${atualizados} serviços corrigidos.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Rota para limpar serviços de um ciclo específico
+app.delete('/api/servicos/ciclo/:cicloId', async (req, res) => {
+  try {
+    const cicloId = req.params.cicloId;
+    const result = await db.run('DELETE FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1', [cicloId]);
+    res.json({ success: true, message: `${result.changes} serviços removidos do ciclo ${cicloId}.` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1243,10 +1290,8 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           let val = row[i];
           if (val === undefined || val === null) return;
 
-          // Tratamento especial para datas (XLSX pode vir como objeto Date)
-          if (val instanceof Date) {
-            val = val.toISOString().split('T')[0];
-          } else {
+          // NÃO converter datas para string aqui - manter o objeto Date original
+          if (!(val instanceof Date)) {
             val = String(val).trim().replace(/&[a-z0-9#]+;/gi, ' ');
           }
 
@@ -1275,18 +1320,66 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         }
 
         // 2. Localizar Ciclo pela Data
-        // Assume-se formato DD-MM-YYYY ou similar. Vamos tentar converter.
         let isoDate;
-        if (dataServico.includes('-')) {
-          const parts = dataServico.split('-');
-          if (parts[0].length === 4) isoDate = dataServico; // YYYY-MM-DD
-          else isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
+        
+        if (dataServico instanceof Date) {
+          // Objeto Date do XLSX - extrair componentes locais
+          const y = dataServico.getFullYear();
+          const m = String(dataServico.getMonth() + 1).padStart(2, '0');
+          const d = String(dataServico.getDate()).padStart(2, '0');
+          isoDate = `${y}-${m}-${d}`;
         } else {
-          isoDate = dataServico;
+          // String - parsear formatos comuns
+          const dataStr = String(dataServico).trim();
+          // Formato 2026/04/02
+          const match1 = dataStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+          if (match1) {
+            isoDate = `${match1[1]}-${match1[2].padStart(2, '0')}-${match1[3].padStart(2, '0')}`;
+          }
+          // Formato 2026-04-02
+          else if (dataStr.includes('-') && dataStr.split('-')[0].length === 4) {
+            isoDate = dataStr;
+          }
+          // Formato 02/04/2026
+          else if (dataStr.includes('/')) {
+            const parts = dataStr.split('/');
+            if (parts[2].length === 4) {
+              isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            } else {
+              isoDate = dataStr;
+            }
+          } else {
+            isoDate = dataStr;
+          }
         }
 
-        const dateObj = new Date(isoDate);
-        if (isNaN(dateObj.getTime())) {
+        // 2. Localizar Ciclo pela Data
+        let dateObj;
+
+        if (dataServico instanceof Date) {
+          const ano = dataServico.getUTCFullYear();
+          const mes = dataServico.getUTCMonth();
+          const dia = dataServico.getUTCDate();
+          dateObj = new Date(ano, mes, dia);
+        } else {
+          const dataStr = String(dataServico).trim();
+          
+          if (dataStr.includes('T')) {
+            const apenasData = dataStr.split('T')[0];
+            const [ano, mes, dia] = apenasData.split('-').map(Number);
+            dateObj = new Date(ano, mes - 1, dia);
+          } else if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/').map(Number);
+            dateObj = new Date(ano, mes - 1, dia);
+          } else if (dataStr.includes('-')) {
+            const [ano, mes, dia] = dataStr.split('-').map(Number);
+            dateObj = new Date(ano, mes - 1, dia);
+          } else {
+            dateObj = new Date(dataStr);
+          }
+        }
+
+        if (!dateObj || isNaN(dateObj.getTime())) {
           stats.errors++;
           errorDetails.push({ militar: nome || cpf, error: `Data inválida: ${dataServico}` });
           continue;
@@ -1788,9 +1881,13 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           let c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
           if (!c) {
             const [year, month] = item.month_key.split('-');
-            const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const lastDay = new Date(parseInt(year), parseInt(month), 0);
-            await db.run('INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES (1, $1, $2, $3, $4)', [item.month_key, firstDay.toISOString().split('T')[0], lastDay.toISOString().split('T')[0], 'Aberto']);
+            const y = parseInt(year);
+            const m = parseInt(month) - 1;
+            const firstDay = new Date(y, m, 1);
+            const lastDay = new Date(y, m + 1, 0);
+            const dataInicioISO = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+            const dataFimISO = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+            await db.run('INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES (1, $1, $2, $3, $4)', [item.month_key, dataInicioISO, dataFimISO, 'Aberto']);
             c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
           }
           console.log('Ciclo found:', c);

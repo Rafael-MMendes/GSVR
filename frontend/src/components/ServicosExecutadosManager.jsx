@@ -1,8 +1,20 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet } from 'lucide-react';
+import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+
+// Função para formatar data vinda do banco de forma segura
+const formatDateDisplay = (dateValue) => {
+  if (!dateValue) return '---';
+  try {
+    const dateStr = String(dateValue).split('T')[0]; 
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '---';
+  }
+};
 
 const STATUS_OPTIONS = ['Presente', 'Ausente', 'Justificado', 'Atestado'];
 const CARGA_OPTIONS = [{ value: 6, label: '6h — R$ 192,03' }, { value: 8, label: '8h — R$ 250,00' }];
@@ -33,6 +45,9 @@ export function ServicosExecutadosManager() {
   const [filterCiclo, setFilterCiclo] = useState('');
   const [filterMilitar, setFilterMilitar] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDataInicio, setFilterDataInicio] = useState('');
+  const [filterDataFim, setFilterDataFim] = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const [formData, setFormData] = useState({
     id_ciclo: '',
@@ -51,7 +66,7 @@ export function ServicosExecutadosManager() {
 
   useEffect(() => {
     fetchServicos();
-  }, [filterCiclo, filterMilitar]);
+  }, [filterCiclo, filterMilitar, filterDataInicio, filterDataFim]);
 
   const fetchData = async () => {
     try {
@@ -71,10 +86,13 @@ export function ServicosExecutadosManager() {
 
   const fetchServicos = async () => {
     setLoading(true);
+    setSelectedIds(new Set());
     try {
       const params = {};
       if (filterCiclo) params.ciclo_id = filterCiclo;
       if (filterMilitar) params.militar_id = filterMilitar;
+      if (filterDataInicio) params.data_inicio = filterDataInicio;
+      if (filterDataFim) params.data_fim = filterDataFim;
       const res = await axios.get(`${API_URL}/servicos`, { params });
       setServicos(res.data);
     } catch (e) {
@@ -108,6 +126,36 @@ export function ServicosExecutadosManager() {
       fetchServicos();
     } catch (err) {
       alert(err.response?.data?.error || 'Erro ao excluir.');
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(s => s.id_execucao)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Deseja excluir ${selectedIds.size} registro(s) de serviço(s)?`)) return;
+    try {
+      await Promise.all(Array.from(selectedIds).map(id => axios.delete(`${API_URL}/servicos/${id}`)));
+      setSelectedIds(new Set());
+      fetchServicos();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao excluir registros.');
     }
   };
 
@@ -225,7 +273,31 @@ export function ServicosExecutadosManager() {
             <input className="form-control" style={{ margin: 0, paddingLeft: '34px' }} placeholder="Nome ou matrícula..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
         </div>
+        <div style={{ flex: 1, minWidth: '140px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Início</label>
+          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataInicio} onChange={e => setFilterDataInicio(e.target.value)} />
+        </div>
+        <div style={{ flex: 1, minWidth: '140px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Fim</label>
+          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataFim} onChange={e => setFilterDataFim(e.target.value)} />
+        </div>
       </div>
+
+      {/* Botões de ação em massa */}
+      {selectedIds.size > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleDeleteSelected} 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
+          >
+            <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
+          </button>
+          <button className="btn btn-secondary" onClick={() => setSelectedIds(new Set())} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <X size={16} /> Limpar seleção
+          </button>
+        </div>
+      )}
 
       {/* Tabela */}
       {loading ? (
@@ -235,6 +307,14 @@ export function ServicosExecutadosManager() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th style={{ width: '40px' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.size === filtered.length && filtered.length > 0}
+                    onChange={handleSelectAll}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </th>
                 <th>Data</th>
                 <th>Militar</th>
                 <th>Posto</th>
@@ -248,15 +328,23 @@ export function ServicosExecutadosManager() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
                     Nenhum serviço registrado para os filtros selecionados.
                   </td>
                 </tr>
               ) : (
                 filtered.map(s => (
                   <tr key={s.id_execucao}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.has(s.id_execucao)}
+                        onChange={() => handleSelectOne(s.id_execucao)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                    </td>
                     <td style={{ fontWeight: 500 }}>
-                      {s.data_execucao ? new Date(s.data_execucao).toLocaleDateString('pt-BR') : '—'}
+                      {formatDateDisplay(s.data_execucao)}
                     </td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{s.nome_guerra || s.nome_completo}</div>
