@@ -112,16 +112,22 @@ async function setupDB() {
               status_presenca VARCHAR(50) NOT NULL
           );
 
-          -- Legacy / Auth Tables
+          -- ============================================================
+          -- AUTH & USERS (Schema v2 — RBAC)
+          -- ============================================================
           CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            numero_ordem TEXT NOT NULL UNIQUE, -- Linkado a matricula de EFETIVO
-            password TEXT NOT NULL,
-            is_admin INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id             SERIAL PRIMARY KEY,
+            numero_ordem   TEXT NOT NULL UNIQUE,
+            password       TEXT NOT NULL,             -- legado: CPF texto plano
+            password_hash  TEXT,                      -- bcrypt hash (migrado progressivamente)
+            is_admin       INTEGER DEFAULT 0,         -- legado: mantido para rollback
+            status         VARCHAR(20) NOT NULL DEFAULT 'ativo',
+            last_login_at  TIMESTAMP,
+            created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
           );
 
-          -- Migration Support for existing data structure
+          -- Migration Support
           CREATE TABLE IF NOT EXISTS months (
             id SERIAL PRIMARY KEY,
             month_key TEXT NOT NULL UNIQUE,
@@ -129,7 +135,89 @@ async function setupDB() {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );
 
-          -- Triggers logic (Function + Trigger)
+          -- Perfil estendido do usuário (1:1)
+          CREATE TABLE IF NOT EXISTS user_profiles (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            email           VARCHAR(255) UNIQUE,
+            telefone        VARCHAR(30),
+            avatar_url      TEXT,
+            avatar_filename TEXT,
+            status_ativo    BOOLEAN NOT NULL DEFAULT TRUE,
+            deleted_at      TIMESTAMP,
+            created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Tokens para redefinição de senha (12h de validade)
+          CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash      TEXT NOT NULL UNIQUE,
+            expires_at      TIMESTAMP NOT NULL,
+            used_at         TIMESTAMP,
+            ip_solicitante  INET,
+            created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Refresh Tokens JWT (7 dias)
+          CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token_hash  TEXT NOT NULL UNIQUE,
+            expires_at  TIMESTAMP NOT NULL,
+            revoked_at  TIMESTAMP,
+            ip_criacao  INET,
+            user_agent  TEXT,
+            created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- ============================================================
+          -- RBAC — Roles, Permissions, Relacionamentos
+          -- ============================================================
+          CREATE TABLE IF NOT EXISTS roles (
+            id          SERIAL PRIMARY KEY,
+            nome        VARCHAR(50) NOT NULL UNIQUE,
+            descricao   TEXT,
+            is_sistema  BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS permissions (
+            id          SERIAL PRIMARY KEY,
+            code        VARCHAR(100) NOT NULL UNIQUE,
+            descricao   TEXT,
+            modulo      VARCHAR(50),
+            created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS role_permissions (
+            role_id       INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+            permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+            PRIMARY KEY (role_id, permission_id)
+          );
+
+          CREATE TABLE IF NOT EXISTS user_roles (
+            user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role_id      INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+            atribuido_por INTEGER REFERENCES users(id),
+            atribuido_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, role_id)
+          );
+
+          -- ============================================================
+          -- ÍNDICES
+          -- ============================================================
+          CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id    ON user_profiles(user_id);
+          CREATE INDEX IF NOT EXISTS idx_user_profiles_email      ON user_profiles(email) WHERE email IS NOT NULL;
+          CREATE INDEX IF NOT EXISTS idx_prt_token_hash           ON password_reset_tokens(token_hash);
+          CREATE INDEX IF NOT EXISTS idx_refresh_token_hash       ON refresh_tokens(token_hash);
+          CREATE INDEX IF NOT EXISTS idx_user_roles_user_id       ON user_roles(user_id);
+          CREATE INDEX IF NOT EXISTS idx_role_perms_role_id       ON role_permissions(role_id);
+
+          -- ============================================================
+          -- Triggers logic (Function + Trigger — Escalas)
+          -- ============================================================
           CREATE OR REPLACE FUNCTION fn_valida_escala()
           RETURNS TRIGGER AS $$
           DECLARE
@@ -177,31 +265,129 @@ async function setupDB() {
           LEFT JOIN OPM o ON c.id_opm = o.id_opm;
         `);
 
-        // Check if default OPM exists
+        // ============================================================
+        // SEEDS — OPM padrão
+        // ============================================================
         const opmCheck = await client.query('SELECT count(*) FROM OPM');
         if (parseInt(opmCheck.rows[0].count) === 0) {
           await client.query("INSERT INTO OPM (descricao, sigla) VALUES ('Batalhão de Policia Militar', 'OPM Padrão')");
         }
 
-        // --- Create Initial Admin ---
+        // ============================================================
+        // SEEDS — Roles padrão do sistema
+        // ============================================================
+        await client.query(`
+          INSERT INTO roles (nome, descricao, is_sistema) VALUES
+            ('ADMIN',   'Administrador — acesso total ao sistema',                   TRUE),
+            ('GERENTE', 'Gerente Operacional — ciclos, escalas e efetivo',           TRUE),
+            ('MILITAR', 'Militar — acesso básico ao próprio perfil e requerimentos', TRUE)
+          ON CONFLICT (nome) DO NOTHING
+        `);
+
+        // ============================================================
+        // SEEDS — Permissões granulares
+        // ============================================================
+        await client.query(`
+          INSERT INTO permissions (code, descricao, modulo) VALUES
+            ('efetivo:read',    'Visualizar efetivo',              'efetivo'),
+            ('efetivo:create',  'Cadastrar militar',               'efetivo'),
+            ('efetivo:update',  'Editar dados de militar',         'efetivo'),
+            ('efetivo:delete',  'Excluir militar do sistema',      'efetivo'),
+            ('efetivo:import',  'Importar efetivo via planilha',   'efetivo'),
+            ('ciclos:read',     'Visualizar ciclos',               'ciclos'),
+            ('ciclos:create',   'Criar ciclo de escala',           'ciclos'),
+            ('ciclos:update',   'Editar ciclo',                    'ciclos'),
+            ('ciclos:delete',   'Encerrar/excluir ciclo',          'ciclos'),
+            ('escalas:read',    'Visualizar escalas',              'escalas'),
+            ('escalas:create',  'Criar escala',                    'escalas'),
+            ('escalas:update',  'Editar escala',                   'escalas'),
+            ('usuarios:read',   'Visualizar usuários',             'usuarios'),
+            ('usuarios:admin',  'Gerenciar contas e permissões',   'usuarios'),
+            ('financeiro:read', 'Visualizar financeiro',           'financeiro'),
+            ('opm:read',        'Visualizar OPMs',                 'opm'),
+            ('opm:admin',       'Gerenciar OPMs',                  'opm'),
+            ('perfil:read',     'Ver próprio perfil',              'perfil'),
+            ('perfil:update',   'Editar próprio perfil',           'perfil')
+          ON CONFLICT (code) DO NOTHING
+        `);
+
+        // Atribuir TODAS as permissões para ADMIN
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r, permissions p WHERE r.nome = 'ADMIN'
+          ON CONFLICT DO NOTHING
+        `);
+
+        // Permissões do GERENTE
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r, permissions p
+            WHERE r.nome = 'GERENTE'
+              AND p.code IN (
+                'efetivo:read','efetivo:create','efetivo:update','efetivo:import',
+                'ciclos:read','ciclos:create','ciclos:update',
+                'escalas:read','escalas:create','escalas:update',
+                'financeiro:read','opm:read',
+                'usuarios:read',
+                'perfil:read','perfil:update'
+              )
+          ON CONFLICT DO NOTHING
+        `);
+
+        // Permissões do MILITAR
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r, permissions p
+            WHERE r.nome = 'MILITAR'
+              AND p.code IN ('escalas:read','perfil:read','perfil:update')
+          ON CONFLICT DO NOTHING
+        `);
+
+        // ============================================================
+        // Admin mestre — 999999
+        // ============================================================
         const adminMatricula = '999999';
         const adminCpf = '00000000000';
         const adminCheck = await client.query('SELECT id FROM users WHERE numero_ordem = $1', [adminMatricula]);
         
         if (adminCheck.rows.length === 0) {
-          // Add to EFETIVO first
           await client.query(
             "INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, opm, status_ativo) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (matricula) DO NOTHING",
             ['Administrador do Sistema', 'Administrador', 'Coronel PM', adminMatricula, adminCpf, 'OPM Padrão', true]
           );
-
-          // Add to users
           await client.query(
             "INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, $3)",
             [adminMatricula, adminCpf, 1]
           );
-          console.log(`Initial Admin User created: ${adminMatricula}`);
+          console.log(`[DB] Admin mestre criado: ${adminMatricula}`);
         }
+
+        // Garantir que o admin mestre tenha role ADMIN
+        await client.query(`
+          INSERT INTO user_roles (user_id, role_id)
+            SELECT u.id, r.id FROM users u, roles r
+            WHERE u.numero_ordem = $1 AND r.nome = 'ADMIN'
+          ON CONFLICT DO NOTHING
+        `, [adminMatricula]);
+
+        // Migrar is_admin=1 existentes para role ADMIN
+        await client.query(`
+          INSERT INTO user_roles (user_id, role_id)
+            SELECT u.id, r.id FROM users u, roles r
+            WHERE u.is_admin = 1 AND r.nome = 'ADMIN'
+          ON CONFLICT DO NOTHING
+        `);
+
+        // Migrar demais (is_admin=0) para role MILITAR
+        await client.query(`
+          INSERT INTO user_roles (user_id, role_id)
+            SELECT u.id, r.id FROM users u, roles r
+            WHERE (u.is_admin IS NULL OR u.is_admin = 0) AND r.nome = 'MILITAR'
+              AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id)
+          ON CONFLICT DO NOTHING
+        `);
+
+        console.log('[DB] Schema RBAC + Perfil inicializado com sucesso.');
 
       } finally {
         client.release();

@@ -6,40 +6,438 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 
 let pdfParser;
 try { pdfParser = require('pdf-parse'); } catch (e) { console.warn('pdf-parse nao disponivel'); }
 
 const { setupDB } = require('./db');
-const upload = multer({ storage: multer.memoryStorage() });
+// Multer configurado para memória (Excel) e disco (avatares)
+const uploadMemory = multer({ storage: multer.memoryStorage() });
+const upload = uploadMemory; // alias legado
+const AVATARS_DIR = '/tmp/avatars';
+if (!fs.existsSync(AVATARS_DIR)) fs.mkdirSync(AVATARS_DIR, { recursive: true });
+const uploadAvatar = multer({
+  storage: multer.diskStorage({
+    destination: AVATARS_DIR,
+    filename: (req, file, cb) => cb(null, `${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`)
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Apenas imagens são aceitas'));
+    cb(null, true);
+  }
+});
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'ft_jwt_secret_dev_2026_change_in_prod';
+const JWT_EXPIRES_IN = '15m';
+const REFRESH_EXPIRES_DAYS = 7;
+const BCRYPT_ROUNDS = 12;
 
 const monthNames = ['Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 function getCurrentMonthKey() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; }
 function getMonthName(monthKey) { const [year, month] = monthKey.split('-'); return `${monthNames[parseInt(month) - 1]} / ${year}`; }
+function hashToken(token) { return crypto.createHash('sha256').update(token).digest('hex'); }
+function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 
 const rankMap = { 'Asp Of': 'Aspirante PM', 'Sd': 'Soldado PM', 'Cb': 'Cabo PM', '3º Sgt': '3º Sargento PM', '2º Sgt': '2º Sargento PM', '1º Sgt': '1º Sargento PM', 'Subten': 'Subtenente PM', '2º Ten': '2º Tenente PM', '1º Ten': '1º Tenente PM', 'Cap': 'Capitão PM', 'Maj': 'Major PM', 'Ten Cel': 'Tenente Coronel PM', 'Cel': 'Coronel PM' };
 function normalizeRank(rank) { return rankMap[rank] || rank || 'Soldado PM'; }
 
 app.use(cors());
 app.use(express.json());
+// Servir avatares estáticos
+app.use('/avatars', express.static(AVATARS_DIR));
+
+// ============================================================
+// UTILITÁRIOS RBAC
+// ============================================================
+async function getUserPermissions(userId) {
+  const { rows } = await db.query(`
+    SELECT DISTINCT p.code
+    FROM user_roles ur
+    JOIN role_permissions rp ON ur.role_id = rp.role_id
+    JOIN permissions p ON rp.permission_id = p.id
+    WHERE ur.user_id = $1
+  `, [userId]);
+  return rows.map(r => r.code);
+}
+
+async function getUserRoles(userId) {
+  const { rows } = await db.query(`
+    SELECT r.nome FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1
+  `, [userId]);
+  return rows.map(r => r.nome);
+}
+
+// ============================================================
+// MIDDLEWARES AUTH & RBAC
+// ============================================================
+async function authenticate(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token não fornecido.' } });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (e) {
+    return res.status(401).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Token inválido ou expirado.' } });
+  }
+}
+
+function authorize(...requiredPermissions) {
+  return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED' } });
+    try {
+      const userPermissions = await getUserPermissions(req.user.id);
+      const hasAll = requiredPermissions.every(p => userPermissions.includes(p));
+      if (!hasAll) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Acesso negado.' } });
+      next();
+    } catch (e) {
+      res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: e.message } });
+    }
+  };
+}
 
 let db;
 setupDB().then(database => { db = database; app.listen(PORT, () => console.log(`Backend on http://localhost:${PORT}`)); }).catch(err => console.error("DB error:", err));
 
 // ============================================================
-// AUTH
+// AUTH — Login (retrocompatível: texto plano → bcrypt progressivo)
 // ============================================================
 app.post('/api/login', async (req, res) => {
-  const { numero_ordem, cpf } = req.body;
+  const { numero_ordem, cpf, password } = req.body;
+  const plainCred = password || cpf; // suporta campo antigo 'cpf' e novo 'password'
   try {
     const user = await db.get('SELECT * FROM users WHERE numero_ordem = $1', [numero_ordem]);
-    if (!user || user.password !== cpf) return res.status(401).json({ error: "Credenciais invalidas" });
-    const military = await db.get('SELECT posto_graduacao, nome_guerra, telefone FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
-    res.json({ success: true, is_admin: user.is_admin === 1, user: { id: user.id, numero_ordem, rank: normalizeRank(military?.posto_graduacao), nome_guerra: military?.nome_guerra || '', phone: military?.telefone || '' } });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    if (!user) return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+
+    let credOk = false;
+    if (user.password_hash) {
+      // Senha já migrada para bcrypt
+      credOk = await bcrypt.compare(plainCred, user.password_hash);
+    } else {
+      // Legado: comparação direta com CPF texto plano
+      credOk = (user.password === plainCred);
+      if (credOk) {
+        // Migração progressiva: salva o hash bcrypt silenciosamente
+        const hash = await bcrypt.hash(plainCred, BCRYPT_ROUNDS);
+        await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, user.id]);
+      }
+    }
+
+    if (!credOk) return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+
+    // Busca dados militares e permissões
+    const military = await db.get('SELECT posto_graduacao, nome_guerra, nome_completo, telefone FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
+    const permissions = await getUserPermissions(user.id);
+    const roles = await getUserRoles(user.id);
+
+    // Emite Access Token (15 min)
+    const accessToken = jwt.sign(
+      { id: user.id, numero_ordem, is_admin: user.is_admin === 1, roles, permissions },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Emite Refresh Token (7 dias) e salva hash no banco
+    const rawRefresh = generateToken();
+    const refreshHash = hashToken(rawRefresh);
+    const refreshExpires = new Date(Date.now() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+    await db.run(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_criacao, user_agent) VALUES ($1,$2,$3,$4,$5)',
+      [user.id, refreshHash, refreshExpires, req.ip, req.headers['user-agent'] || null]
+    );
+
+    // Atualiza last_login
+    await db.run('UPDATE users SET last_login_at=NOW() WHERE id=$1', [user.id]);
+
+    res.json({
+      success: true,
+      access_token: accessToken,
+      refresh_token: rawRefresh,
+      user: {
+        id: user.id,
+        numero_ordem,
+        is_admin: user.is_admin === 1,
+        roles,
+        permissions,
+        rank: normalizeRank(military?.posto_graduacao),
+        nome_guerra: military?.nome_guerra || '',
+        nome_completo: military?.nome_completo || '',
+        phone: military?.telefone || ''
+      }
+    });
+  } catch (e) { res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: e.message } }); }
+});
+
+// Renovar Access Token via Refresh Token
+app.post('/api/auth/refresh', async (req, res) => {
+  const { refresh_token } = req.body;
+  if (!refresh_token) return res.status(400).json({ success: false, error: { code: 'MISSING_TOKEN' } });
+  try {
+    const hash = hashToken(refresh_token);
+    const stored = await db.get(
+      'SELECT * FROM refresh_tokens WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at > NOW()',
+      [hash]
+    );
+    if (!stored) return res.status(401).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Refresh token inválido ou expirado.' } });
+
+    const user = await db.get('SELECT * FROM users WHERE id=$1', [stored.user_id]);
+    const permissions = await getUserPermissions(user.id);
+    const roles = await getUserRoles(user.id);
+
+    const accessToken = jwt.sign(
+      { id: user.id, numero_ordem: user.numero_ordem, is_admin: user.is_admin === 1, roles, permissions },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+    res.json({ success: true, access_token: accessToken });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// Logout — revoga o Refresh Token
+app.post('/api/auth/logout', authenticate, async (req, res) => {
+  const { refresh_token } = req.body;
+  try {
+    if (refresh_token) {
+      const hash = hashToken(refresh_token);
+      await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE token_hash=$1', [hash]);
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// Alterar própria senha (autenticado)
+app.post('/api/auth/password/change', authenticate, async (req, res) => {
+  const { current_password, new_password } = req.body;
+  if (!current_password || !new_password) return res.status(400).json({ success: false, error: { message: 'Senha atual e nova senha são obrigatórias.' } });
+  if (new_password.length < 6) return res.status(400).json({ success: false, error: { message: 'A nova senha deve ter no mínimo 6 caracteres.' } });
+  try {
+    const user = await db.get('SELECT * FROM users WHERE id=$1', [req.user.id]);
+    let currentOk = false;
+    if (user.password_hash) currentOk = await bcrypt.compare(current_password, user.password_hash);
+    else currentOk = (user.password === current_password);
+    if (!currentOk) return res.status(401).json({ success: false, error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Senha atual incorreta.' } });
+
+    const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+    await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [newHash, user.id]);
+    // Revogar todos os refresh tokens (força relogin)
+    await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [user.id]);
+    res.json({ success: true, message: 'Senha alterada com sucesso.' });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// Solicitar reset de senha (gera token — exibe link direto na resposta pois não há SMTP)
+app.post('/api/auth/password/forgot', async (req, res) => {
+  const { numero_ordem } = req.body;
+  if (!numero_ordem) return res.status(400).json({ success: false, error: { message: 'Matrícula obrigatória.' } });
+  try {
+    const user = await db.get('SELECT id FROM users WHERE numero_ordem=$1', [numero_ordem]);
+    // Resposta genérica (não revela se o usuário existe)
+    if (!user) return res.json({ success: true, message: 'Se a matrícula existir, um token de reset foi gerado.' });
+
+    const rawToken = generateToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12h
+    // Invalidar tokens anteriores
+    await db.run('UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL', [user.id]);
+    await db.run(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, ip_solicitante) VALUES ($1,$2,$3,$4)',
+      [user.id, tokenHash, expiresAt, req.ip]
+    );
+    // Em produção: enviar e-mail. Por ora, retorna token para o admin
+    res.json({ success: true, message: 'Token de reset gerado.', reset_token: rawToken, expires_at: expiresAt });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// Redefinir senha com token
+app.post('/api/auth/password/reset', async (req, res) => {
+  const { token, new_password } = req.body;
+  if (!token || !new_password) return res.status(400).json({ success: false, error: { message: 'Token e nova senha são obrigatórios.' } });
+  if (new_password.length < 6) return res.status(400).json({ success: false, error: { message: 'Mínimo 6 caracteres.' } });
+  try {
+    const tokenHash = hashToken(token);
+    const stored = await db.get(
+      'SELECT * FROM password_reset_tokens WHERE token_hash=$1 AND used_at IS NULL AND expires_at > NOW()',
+      [tokenHash]
+    );
+    if (!stored) return res.status(400).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Token inválido, expirado ou já utilizado.' } });
+
+    const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+    await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [newHash, stored.user_id]);
+    await db.run('UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1', [stored.id]);
+    await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [stored.user_id]);
+    res.json({ success: true, message: 'Senha redefinida com sucesso.' });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// ============================================================
+// PERFIL — /me (própria conta)
+// ============================================================
+app.get('/api/me', authenticate, async (req, res) => {
+  try {
+    const user = await db.get('SELECT id, numero_ordem, status, last_login_at, created_at FROM users WHERE id=$1', [req.user.id]);
+    const profile = await db.get('SELECT email, telefone, avatar_url, status_ativo FROM user_profiles WHERE user_id=$1', [req.user.id]);
+    const military = await db.get('SELECT nome_completo, nome_guerra, posto_graduacao, opm FROM EFETIVO WHERE matricula=$1', [user.numero_ordem]);
+    const permissions = await getUserPermissions(req.user.id);
+    const roles = await getUserRoles(req.user.id);
+    res.json({ success: true, data: { ...user, ...profile, ...military, permissions, roles } });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.put('/api/me/profile', authenticate, async (req, res) => {
+  const { email, telefone } = req.body;
+  try {
+    // Upsert user_profiles
+    await db.run(`
+      INSERT INTO user_profiles (user_id, email, telefone, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        email = EXCLUDED.email,
+        telefone = EXCLUDED.telefone,
+        updated_at = NOW()
+    `, [req.user.id, email || null, telefone || null]);
+    res.json({ success: true, message: 'Perfil atualizado com sucesso.' });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.post('/api/me/avatar', authenticate, uploadAvatar.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: { message: 'Nenhum arquivo enviado.' } });
+    const avatarUrl = `/avatars/${req.file.filename}`;
+    await db.run(`
+      INSERT INTO user_profiles (user_id, avatar_url, avatar_filename, updated_at)
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET avatar_url=$2, avatar_filename=$3, updated_at=NOW()
+    `, [req.user.id, avatarUrl, req.file.originalname]);
+    res.json({ success: true, avatar_url: avatarUrl });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.delete('/api/me/avatar', authenticate, async (req, res) => {
+  try {
+    await db.run('UPDATE user_profiles SET avatar_url=NULL, avatar_filename=NULL, updated_at=NOW() WHERE user_id=$1', [req.user.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.delete('/api/me', authenticate, async (req, res) => {
+  try {
+    // Exclusão lógica (soft delete)
+    await db.run('UPDATE user_profiles SET deleted_at=NOW(), status_ativo=FALSE, updated_at=NOW() WHERE user_id=$1', [req.user.id]);
+    await db.run('UPDATE users SET status=$1, updated_at=NOW() WHERE id=$2', ['inativo', req.user.id]);
+    await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [req.user.id]);
+    res.json({ success: true, message: 'Conta desativada.' });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// ============================================================
+// RBAC Admin — Roles & Permissions
+// ============================================================
+app.get('/api/roles', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT r.*, COUNT(rp.permission_id) as total_permissions
+      FROM roles r LEFT JOIN role_permissions rp ON r.id = rp.role_id
+      GROUP BY r.id ORDER BY r.is_sistema DESC, r.nome
+    `);
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.get('/api/roles/:id', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  try {
+    const role = await db.get('SELECT * FROM roles WHERE id=$1', [req.params.id]);
+    if (!role) return res.status(404).json({ success: false, error: { message: 'Role não encontrada.' } });
+    const { rows: perms } = await db.query(
+      'SELECT p.* FROM permissions p JOIN role_permissions rp ON p.id=rp.permission_id WHERE rp.role_id=$1 ORDER BY p.modulo, p.code',
+      [req.params.id]
+    );
+    res.json({ success: true, data: { ...role, permissions: perms } });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.post('/api/roles', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  const { nome, descricao } = req.body;
+  if (!nome) return res.status(400).json({ success: false, error: { message: 'Nome da role é obrigatório.' } });
+  try {
+    const r = await db.run(
+      'INSERT INTO roles (nome, descricao, is_sistema) VALUES ($1, $2, FALSE)',
+      [nome.toUpperCase().trim(), descricao || null]
+    );
+    res.status(201).json({ success: true, id: r.lastID });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.put('/api/roles/:id', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  const { descricao, permission_ids } = req.body;
+  try {
+    const role = await db.get('SELECT is_sistema FROM roles WHERE id=$1', [req.params.id]);
+    if (!role) return res.status(404).json({ success: false, error: { message: 'Role não encontrada.' } });
+    if (descricao) await db.run('UPDATE roles SET descricao=$1 WHERE id=$2', [descricao, req.params.id]);
+    if (Array.isArray(permission_ids)) {
+      // Substituição completa das permissões
+      await db.run('DELETE FROM role_permissions WHERE role_id=$1', [req.params.id]);
+      for (const pid of permission_ids) {
+        await db.run('INSERT INTO role_permissions (role_id, permission_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [req.params.id, pid]);
+      }
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.delete('/api/roles/:id', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  try {
+    const role = await db.get('SELECT is_sistema FROM roles WHERE id=$1', [req.params.id]);
+    if (!role) return res.status(404).json({ success: false, error: { message: 'Role não encontrada.' } });
+    if (role.is_sistema) return res.status(403).json({ success: false, error: { message: 'Roles de sistema não podem ser excluídas.' } });
+    await db.run('DELETE FROM roles WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+app.get('/api/permissions', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM permissions ORDER BY modulo, code');
+    // Agrupa por módulo
+    const grouped = rows.reduce((acc, p) => {
+      const mod = p.modulo || 'geral';
+      if (!acc[mod]) acc[mod] = [];
+      acc[mod].push(p);
+      return acc;
+    }, {});
+    res.json({ success: true, data: rows, grouped });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// Atribuir roles a um usuário
+app.put('/api/usuarios/:id/roles', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  const { role_ids } = req.body;
+  if (!Array.isArray(role_ids)) return res.status(400).json({ success: false, error: { message: 'role_ids deve ser um array.' } });
+  try {
+    await db.run('DELETE FROM user_roles WHERE user_id=$1', [req.params.id]);
+    for (const rid of role_ids) {
+      await db.run(
+        'INSERT INTO user_roles (user_id, role_id, atribuido_por) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+        [req.params.id, rid, req.user.id]
+      );
+    }
+    // Manter is_admin sincronizado com role ADMIN
+    const { rows } = await db.query(
+      `SELECT 1 FROM user_roles ur JOIN roles r ON ur.role_id=r.id WHERE ur.user_id=$1 AND r.nome='ADMIN'`,
+      [req.params.id]
+    );
+    await db.run('UPDATE users SET is_admin=$1 WHERE id=$2', [rows.length > 0 ? 1 : 0, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
 // ============================================================
@@ -467,12 +865,52 @@ app.get('/api/usuarios', async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT u.id, u.numero_ordem, u.is_admin, u.created_at,
-             e.nome_guerra, e.posto_graduacao, e.nome_completo
+             e.nome_guerra, e.posto_graduacao, e.nome_completo, e.cpf
       FROM users u
       LEFT JOIN EFETIVO e ON u.numero_ordem = e.matricula
       ORDER BY u.is_admin DESC, e.nome_completo ASC
     `);
     res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/militares/not-users', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT e.id_militar, e.matricula, e.nome_guerra, e.posto_graduacao, e.nome_completo
+      FROM EFETIVO e
+      WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.numero_ordem = e.matricula)
+      ORDER BY e.posto_graduacao, e.nome_completo
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/usuarios', async (req, res) => {
+  try {
+    const { matricula, is_admin } = req.body;
+    if (!matricula) return res.status(400).json({ error: "Matrícula é obrigatória." });
+
+    // Verifica se o militar existe no efetivo para pegar o CPF (senha padrão)
+    const militar = await db.get('SELECT cpf FROM EFETIVO WHERE matricula = $1', [matricula]);
+    if (!militar) return res.status(404).json({ error: "Militar não encontrado no sistema de efetivo." });
+
+    const r = await db.run(
+      'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, $3) ON CONFLICT (numero_ordem) DO UPDATE SET is_admin = $3',
+      [matricula, militar.cpf, is_admin ? 1 : 0]
+    );
+    res.status(201).json({ success: true, id: r.lastID });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/usuarios/:id', async (req, res) => {
+  try {
+    // Evitar deletar a si mesmo ou o admin master (exemplo simplificado)
+    const user = await db.get('SELECT numero_ordem FROM users WHERE id = $1', [req.params.id]);
+    if (user?.numero_ordem === '999999') return res.status(403).json({ error: "Não é possível excluir o administrador mestre." });
+
+    await db.run('DELETE FROM users WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
