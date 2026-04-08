@@ -1001,6 +1001,14 @@ app.get('/api/ciclos', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/ciclos/:id', async (req, res) => {
+  try {
+    const ciclo = await db.get('SELECT * FROM CICLOS WHERE id_ciclo = $1', [req.params.id]);
+    if (!ciclo) return res.status(404).json({ error: 'Ciclo não encontrado' });
+    res.json(ciclo);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/ciclos', async (req, res) => {
   try {
     const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
@@ -1652,7 +1660,17 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       // Primeiro, buscar o ciclo específico para garantir que temos os dados
       const ciclo = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [month]);
       
-      const verba_ciclo = ciclo ? parseFloat(ciclo.valor_total_previsto || 0) : 0;
+      console.log('[DEBUG] Ciclo encontrado:', ciclo);
+      console.log('[DEBUG] Valor_previsto raw:', ciclo?.valor_total_previsto);
+      
+      let verba_ciclo = 0;
+      if (ciclo && ciclo.valor_total_previsto) {
+        // Asegurar que é número
+        verba_ciclo = typeof ciclo.valor_total_previsto === 'number' 
+          ? ciclo.valor_total_previsto 
+          : parseFloat(ciclo.valor_total_previsto) || 0;
+      }
+      console.log('[DEBUG] Verba ciclo parseada:', verba_ciclo);
 
       // Obter dados dos serviços executados
       const qGlobal = `
