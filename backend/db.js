@@ -449,8 +449,9 @@ async function setupDB() {
               o.descricao as opm_descricao,
               c.referencia_mes_ano,
               c.data_inicio,
-              c.data_fim,
-              c.status,
+          c.data_fim,
+          c.status,
+          c.valor_total_previsto,
               (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
               (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
           FROM CICLOS c
@@ -592,7 +593,7 @@ async function setupDB() {
         
         if (adminCheck.rows.length === 0) {
           await client.query(
-            "INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, opm, status_ativo) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (matricula) DO NOTHING",
+            "INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, opm, status_ativo) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (cpf) DO NOTHING",
             ['Administrador do Sistema', 'Administrador', 'Coronel PM', adminMatricula, adminCpf, 'OPM Padrão', true]
           );
           await client.query(
