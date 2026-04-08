@@ -1649,19 +1649,21 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     try {
       const month = req.query.month || getCurrentMonthKey();
 
-      // Obter dados globais e do orçamento do Ciclo
+      // Primeiro, buscar o ciclo específico para garantir que temos os dados
+      const ciclo = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [month]);
+      
+      const verba_ciclo = ciclo ? parseFloat(ciclo.valor_total_previsto || 0) : 0;
+
+      // Obter dados dos serviços executados
       const qGlobal = `
       SELECT
-        c.valor_total_previsto as verba_ciclo,
         COUNT(DISTINCT se.id_militar) as militares_unicos,
         COUNT(se.id_execucao) as total_militar_servicos,
         COALESCE(SUM(se.valor_remuneracao), 0) as total_gasto
-      FROM CICLOS c
-      LEFT JOIN SERVICOS_EXECUTADOS se ON c.id_ciclo = c.id_ciclo
-      WHERE c.referencia_mes_ano = $1
-      GROUP BY c.valor_total_previsto
-    `;
-      const resGlobal = await db.query(qGlobal, [month]);
+      FROM SERVICOS_EXECUTADOS se
+      WHERE se.id_ciclo = $1
+      `;
+      const resGlobal = await db.query(qGlobal, [ciclo?.id_ciclo || 0]);
 
       // Obter agrupamento por Tipos de Serviço
       const qTipos = `
@@ -1671,16 +1673,12 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         SUM(se.valor_remuneracao) as total_gasto_tipo
       FROM SERVICOS_EXECUTADOS se
       JOIN TIPOS_SERVICO ts ON se.id_tipo_servico = ts.id_tipo_servico
-      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
-      WHERE c.referencia_mes_ano = $1
+      WHERE se.id_ciclo = $1
       GROUP BY ts.descricao
-    `;
-      const resTipos = await db.query(qTipos, [month]);
+      `;
+      const resTipos = await db.query(qTipos, [ciclo?.id_ciclo || 0]);
 
-      // Se o ciclo ainda nao existe, os dados vem vazios, evitamos crash
-      const stats = resGlobal.rows[0] || { verba_ciclo: 0, militares_unicos: 0, total_militar_servicos: 0, total_gasto: 0 };
-
-      const verba_ciclo = parseFloat(stats.verba_ciclo || 0);
+      const stats = resGlobal.rows[0] || { militares_unicos: 0, total_militar_servicos: 0, total_gasto: 0 };
       const total_gasto = parseFloat(stats.total_gasto || 0);
 
       res.json({

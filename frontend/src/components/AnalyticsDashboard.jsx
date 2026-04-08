@@ -10,24 +10,39 @@ const ORCAMENTO_MENSAL = 85000;
 
 export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
-  const [volunteers, setVolunteers] = useState([]);
-  const [schedules, setSchedules] = useState([]);
+  const [efetivo, setEfetivo] = useState([]);
+  const [servicos, setServicos] = useState([]);
+  const [ciclos, setCiclos] = useState([]);
+  const [selectedCiclo, setSelectedCiclo] = useState('');
   const [stats, setStats] = useState([]);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (ciclos.length > 0 && !selectedCiclo) {
+      setSelectedCiclo(ciclos[0].id_ciclo);
+    }
+  }, [ciclos]);
+
+  useEffect(() => {
+    if (selectedCiclo) {
+      filterByCiclo();
+    }
+  }, [selectedCiclo, efetivo, servicos]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [volRes, schedRes] = await Promise.all([
-        axios.get(`${API_URL}/volunteers`),
-        axios.get(`${API_URL}/schedules`),
+      const [efetivoRes, servicosRes, ciclosRes] = await Promise.all([
+        axios.get(`${API_URL}/efetivo`),
+        axios.get(`${API_URL}/servicos`),
+        axios.get(`${API_URL}/ciclos`),
       ]);
-      setVolunteers(volRes.data);
-      setSchedules(schedRes.data);
-      buildStats(volRes.data, schedRes.data);
+      setEfetivo(efetivoRes.data);
+      setServicos(servicosRes.data);
+      setCiclos(ciclosRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -35,45 +50,43 @@ export function AnalyticsDashboard() {
     }
   };
 
-  const buildStats = (vols, scheds) => {
-    // Map: volunteerId -> { name, rank, numero_ordem, motorista, count6h, count8h }
+  const filterByCiclo = () => {
+    const servicosCiclo = servicos.filter(s => s.id_ciclo === parseInt(selectedCiclo));
+    buildStats(efetivo, servicosCiclo);
+  };
+
+  const buildStats = (efetivoData, servicosData) => {
     const map = {};
-    vols.forEach(v => {
-      map[v.id] = {
-        id: v.id,
-        numero_ordem: v.numero_ordem,
-        rank: v.rank,
-        name: v.name,
-        motorista: v.motorista,
+    
+    efetivoData.forEach(e => {
+      map[e.id_militar] = {
+        id: e.id_militar,
+        numero_ordem: e.matricula,
+        rank: e.posto_graduacao,
+        name: e.nome_guerra,
+        motorista: e.motorista,
         count6h: 0,
         count8h: 0,
       };
     });
 
-    // Walk all saved schedules
-    scheds.forEach(sched => {
-      (sched.patrols || []).forEach(patrol => {
-        const dur = patrol.duration || '6h';
-        (patrol.members || []).forEach(member => {
-          if (map[member.id]) {
-            if (dur === '8h') {
-              map[member.id].count8h += 1;
-            } else {
-              map[member.id].count6h += 1;
-            }
-          }
-        });
-      });
+    servicosData.forEach(s => {
+      if (map[s.id_militar]) {
+        if (s.carga_horaria === 8) {
+          map[s.id_militar].count8h += 1;
+        } else {
+          map[s.id_militar].count6h += 1;
+        }
+      }
     });
 
-    const result = Object.values(map).map(s => ({
-      ...s,
-      total: s.count6h + s.count8h,
-      remaining: Math.max(0, MAX_SERVICES - (s.count6h + s.count8h)),
-      valorTotal: (s.count6h * VALOR_FT_6H) + (s.count8h * VALOR_FT_8H),
+    const result = Object.values(map).map(item => ({
+      ...item,
+      total: item.count6h + item.count8h,
+      remaining: Math.max(0, MAX_SERVICES - (item.count6h + item.count8h)),
+      valorTotal: (item.count6h * VALOR_FT_6H) + (item.count8h * VALOR_FT_8H),
     }));
 
-    // Sort by total descending, then by name
     result.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
     setStats(result);
   };
@@ -114,10 +127,26 @@ export function AnalyticsDashboard() {
             Contagem de serviços por militar · Limite mensal: {MAX_SERVICES} serviços
           </p>
         </div>
-        <button className="btn btn-outline" onClick={loadData} disabled={loading}>
-          <RefreshCw size={16} />
-          {loading ? 'Carregando...' : 'Atualizar'}
-        </button>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {ciclos.length > 0 && (
+            <select 
+              value={selectedCiclo} 
+              onChange={e => setSelectedCiclo(e.target.value)}
+              className="form-control"
+              style={{ minWidth: '150px' }}
+            >
+              {ciclos.map(c => (
+                <option key={c.id_ciclo} value={c.id_ciclo}>
+                  {c.referencia_mes_ano}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn btn-outline" onClick={loadData} disabled={loading}>
+            <RefreshCw size={16} />
+            {loading ? 'Carregando...' : 'Atualizar'}
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
