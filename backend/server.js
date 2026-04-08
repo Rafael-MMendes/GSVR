@@ -1003,15 +1003,15 @@ app.get('/api/ciclos', async (req, res) => {
 
 app.post('/api/ciclos', async (req, res) => {
   try {
-    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status } = req.body;
+    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const dataInicioISO = formatDateToISO(data_inicio);
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
-      'INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES ($1, $2, $3, $4, $5)',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto']
+      'INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', valor_total_previsto || 0]
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1019,15 +1019,15 @@ app.post('/api/ciclos', async (req, res) => {
 
 app.put('/api/ciclos/:id', async (req, res) => {
   try {
-    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status } = req.body;
+    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const dataInicioISO = formatDateToISO(data_inicio);
     const dataFimISO = formatDateToISO(data_fim);
     
     await db.run(
-      'UPDATE CICLOS SET id_opm=$1, referencia_mes_ano=$2, data_inicio=$3, data_fim=$4, status=$5 WHERE id_ciclo=$6',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', req.params.id]
+      'UPDATE CICLOS SET id_opm=$1, referencia_mes_ano=$2, data_inicio=$3, data_fim=$4, status=$5, valor_total_previsto=$6 WHERE id_ciclo=$7',
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', valor_total_previsto || 0, req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
