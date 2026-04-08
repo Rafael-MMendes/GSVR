@@ -753,89 +753,82 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         }
 
         // Validação dos campos obrigatórios
-        try {
-          const matricula = String(row['MATRÍCULA'] || row['Matrícula'] || row['MATRICULA'] || row['Matricula'] || '').trim();
-          const cpf = String(row['CPF'] || row['Cpf'] || '').replace(/\D/g, '').trim();
-          const nome = String(row['NOME COMPLETO'] || row['Nome'] || row['Nome Completo'] || '').trim();
-          const nomeGuerra = String(row['NOME DE GUERRA'] || row['Nome de Guerra'] || row['NOME_GUERRA'] || nome).trim();
-          const posto = String(row['POSTO/GRAD'] || row['Posto'] || row['Graduação'] || 'SD PM').trim();
-
-          if (!matricula || !cpf || !nome) {
-            stats.skipped++;
-            if (nome || matricula) {
-              errorDetails.push({
-                militar: nome || `Matrícula ${matricula}` || 'Linha sem dados',
-                error: `Campos obrigatórios ausentes — Matrícula: "${matricula}", CPF: "${cpf}", Nome: "${nome}"`
-              });
-              stats.errors++;
-            }
-            continue;
+        if (!matricula || !cpf || !nome) {
+          stats.skipped++;
+          if (nome || matricula) {
+            errorDetails.push({
+              militar: nome || `Matrícula ${matricula}` || 'Linha sem dados',
+              error: `Campos obrigatórios ausentes — Matrícula: "${matricula}", CPF: "${cpf}", Nome: "${nome}"`
+            });
+            stats.errors++;
           }
+          continue;
+        }
 
-          // Verifica existência por matrícula OU cpf
-          const existing = await db.get(
-            'SELECT id_militar, nome_guerra, posto_graduacao FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
-            [matricula, cpf]
-          );
+        // Verifica existência por matrícula OU cpf
+        const existing = await db.get(
+          'SELECT id_militar, nome_guerra, posto_graduacao FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
+          [matricula, cpf]
+        );
 
-          if (existing) {
-            // UPSERT: atualiza campos que estão vazios/padrão com os dados corretos da planilha
-            const needsUpdate =
-              (!existing.nome_guerra || existing.nome_guerra === '-' || existing.nome_guerra === '' || existing.nome_guerra === existing.nome_guerra?.split(' ')[0]) ||
-              (!existing.posto_graduacao || existing.posto_graduacao === 'Militar');
+        if (existing) {
+          // UPSERT: atualiza campos que estão vazios/padrão com os dados corretos da planilha
+          const needsUpdate =
+            (!existing.nome_guerra || existing.nome_guerra === '-' || existing.nome_guerra === '' || existing.nome_guerra === existing.nome_guerra?.split(' ')[0]) ||
+            (!existing.posto_graduacao || existing.posto_graduacao === 'Militar');
 
-            if (needsUpdate) {
-              await db.run(
-                `UPDATE EFETIVO SET
+          if (needsUpdate) {
+            await db.run(
+              `UPDATE EFETIVO SET
                 nome_guerra = COALESCE(NULLIF($1, ''), nome_guerra),
                 posto_graduacao = CASE WHEN posto_graduacao IS NULL OR posto_graduacao = 'Militar' THEN $2 ELSE posto_graduacao END,
                 rgpm = COALESCE(NULLIF($3, ''), rgpm),
                 opm = COALESCE(NULLIF($4, ''), opm),
                 telefone = COALESCE(NULLIF($5, ''), telefone)
               WHERE id_militar = $6`,
-                [nomeGuerra, posto, rgpm, opm, telefone, existing.id_militar]
-              );
-              stats.imported++; // conta como atualizado
-            } else {
-              stats.existing++;
-            }
-            continue;
+              [nomeGuerra, posto, rgpm, opm, telefone, existing.id_militar]
+            );
+            stats.imported++; // conta como atualizado
+          } else {
+            stats.existing++;
           }
-
-          // Inserção completa com todos os campos da tabela EFETIVO
-          await db.run(
-            `INSERT INTO EFETIVO
-            (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, status_ativo)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, telefone, statusAtivo]
-          );
-
-          // Cria o usuário no sistema com senha padrão = CPF
-          await db.run(
-            'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING',
-            [matricula, cpf]
-          );
-
-          stats.imported++;
-
-        } catch (err) {
-          stats.errors++;
-          console.error('[IMPORT ERROR]', nome || matricula, err.message);
-          errorDetails.push({ militar: nome || `Matrícula ${matricula}` || 'Indefinido', error: err.message });
+          continue;
         }
+
+        // Inserção completa com todos os campos da tabela EFETIVO
+        await db.run(
+          `INSERT INTO EFETIVO
+          (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, status_ativo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, telefone, statusAtivo]
+        );
+
+        // Cria o usuário no sistema com senha padrão = CPF
+        await db.run(
+          'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING',
+          [matricula, cpf]
+        );
+
+        stats.imported++;
+
+      } catch (err) {
+        stats.errors++;
+        console.error('[IMPORT ERROR]', nome || matricula, err.message);
+        errorDetails.push({ militar: nome || `Matrícula ${matricula}` || 'Indefinido', error: err.message });
       }
+    }
 
     res.json({
-        success: true,
-        message: `${stats.imported} militares importados com sucesso.`,
-        stats,
-        errorDetails: errorDetails.slice(0, 50) // Limita a 50 erros exibidos
-      });
-    } catch (e) {
-      console.error('[IMPORT FATAL]', e.message);
-      res.status(500).json({ error: "Falha ao ler o arquivo Excel: " + e.message });
-    }
-  });
+      success: true,
+      message: `${stats.imported} militares importados com sucesso.`,
+      stats,
+      errorDetails: errorDetails.slice(0, 50) // Limita a 50 erros exibidos
+    });
+  } catch (e) {
+    console.error('[IMPORT FATAL]', e.message);
+    res.status(500).json({ error: "Falha ao ler o arquivo Excel: " + e.message });
+  }
+});
 
 
 // ============================================================
