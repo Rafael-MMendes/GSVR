@@ -638,6 +638,18 @@ function normalizeKey(key) {
     .replace(/[^A-Z0-9]/g, "");
 }
 
+// Função utilitária: formata telefone para (XX)XXXXX-XXXX
+function formatPhone(phone) {
+  if (!phone) return null;
+  const cleaned = String(phone).replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return cleaned.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1)$2-$3');
+  } else if (cleaned.length === 10) {
+    return cleaned.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1)$2-$3');
+  }
+  return cleaned; // Fallback se não bater formato
+}
+
 // Função utilitária: verifica se o valor é vazio/placeholder
 function isEmpty(val) {
   const s = String(val ?? '').trim();
@@ -784,9 +796,10 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
                 posto_graduacao = CASE WHEN posto_graduacao IS NULL OR posto_graduacao = 'Militar' THEN $2 ELSE posto_graduacao END,
                 rgpm = COALESCE(NULLIF($3, ''), rgpm),
                 opm = COALESCE(NULLIF($4, ''), opm),
-                telefone = COALESCE(NULLIF($5, ''), telefone)
+                telefone = COALESCE(NULLIF($5, ''), telefone),
+                motorista = COALESCE(NULLIF($7, ''), motorista)
               WHERE id_militar = $6`,
-              [nomeGuerra, posto, rgpm, opm, telefone, existing.id_militar]
+              [nomeGuerra, posto, rgpm, opm, formatPhone(telefone), existing.id_militar, motorista]
             );
             stats.imported++; // conta como atualizado
           } else {
@@ -798,9 +811,9 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         // Inserção completa com todos os campos da tabela EFETIVO
         await db.run(
           `INSERT INTO EFETIVO
-          (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, status_ativo)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, telefone, statusAtivo]
+          (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, formatPhone(telefone), motorista, statusAtivo]
         );
 
         // Cria o usuário no sistema com senha padrão = CPF
@@ -1307,46 +1320,79 @@ app.put('/api/usuarios/:id/permissoes', async (req, res) => {
 });
 
 // ============================================================
-// FINANCEIRO
+// SCHEDULES (Planejamento de Guarnições)
+// ============================================================
+app.get('/api/schedules', async (req, res) => {
+  try {
+    const { date, month } = req.query;
+    if (!date || !month) return res.status(400).json({ error: "Date and Month are required" });
+    
+    const row = await db.get('SELECT patrols FROM schedules WHERE date = $1 AND month_key = $2', [String(date), month]);
+    if (!row) return res.json([]);
+    
+    // As patrulhas são armazenadas como JSON string no campo TEXT
+    const patrols = typeof row.patrols === 'string' ? JSON.parse(row.patrols) : row.patrols;
+    res.json([{ id: 1, date, month_key: month, patrols }]);
+  } catch (e) {
+    console.error('[API] Error fetching schedules:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/schedules', async (req, res) => {
+  try {
+    const { date, month_key, patrols } = req.body;
+    if (!date || !month_key || !patrols) return res.status(400).json({ error: "Missing required fields" });
+    
+    const patrolsJson = JSON.stringify(patrols);
+    await db.run(
+      'INSERT INTO schedules (date, month_key, patrols) VALUES ($1, $2, $3) ON CONFLICT (date, month_key) DO UPDATE SET patrols = EXCLUDED.patrols',
+      [String(date), month_key, patrolsJson]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[API] Error saving schedules:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// FINANCEIRO & TIPOS DE SERVICO
+// ============================================================
+app.get('/api/tipos-servico', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM TIPOS_SERVICO ORDER BY ativo DESC, carga_horaria ASC');
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tipos-servico', async (req, res) => {
+  try {
+    const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
+    const { rows } = await db.query(
+      'INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao, ativo) VALUES ($1, $2, $3, $4) RETURNING *',
+      [descricao, carga_horaria, valor_remuneracao, ativo ?? true]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/tipos-servico/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
+    const { rows } = await db.query(
+      'UPDATE TIPOS_SERVICO SET descricao = $1, carga_horaria = $2, valor_remuneracao = $3, ativo = $4 WHERE id_tipo_servico = $5 RETURNING *',
+      [descricao, carga_horaria, valor_remuneracao, ativo, id]
+    );
+    res.json(rows[0]);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// DASHBOARD FINANCEIRO E ESTATISTICAS (Flexibilizado)
 // ============================================================
 app.get('/api/financeiro/resumo', async (req, res) => {
-  // ============================================================
-  // TIPOS DE SERVICO
-  // ============================================================
-  app.get('/api/tipos-servico', async (req, res) => {
-    try {
-      const { rows } = await db.query('SELECT * FROM TIPOS_SERVICO ORDER BY ativo DESC, carga_horaria ASC');
-      res.json(rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
-  app.post('/api/tipos-servico', async (req, res) => {
-    try {
-      const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
-      const { rows } = await db.query(
-        'INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao, ativo) VALUES ($1, $2, $3, $4) RETURNING *',
-        [descricao, carga_horaria, valor_remuneracao, ativo ?? true]
-      );
-      res.json(rows[0]);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
-  app.put('/api/tipos-servico/:id', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { descricao, carga_horaria, valor_remuneracao, ativo } = req.body;
-      const { rows } = await db.query(
-        'UPDATE TIPOS_SERVICO SET descricao = $1, carga_horaria = $2, valor_remuneracao = $3, ativo = $4 WHERE id_tipo_servico = $5 RETURNING *',
-        [descricao, carga_horaria, valor_remuneracao, ativo, id]
-      );
-      res.json(rows[0]);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-  });
-
-  // ============================================================
-  // DASHBOARD FINANCEIRO E ESTATISTICAS (Flexibilizado)
-  // ============================================================
-  app.get('/api/financeiro/resumo', async (req, res) => {
     try {
       const month = req.query.month || getCurrentMonthKey();
 
@@ -1487,7 +1533,14 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     // Tentar extrair Posto/Graduação (ex: SD PM, CB PM, 1º SGT PM, etc)
     const rankRegex = /(CEL|TC|MAJ|CAP|1º TEN|2º TEN|SUB|1º SGT|2º SGT|3º SGT|CB|SD)\s+PM/i;
     const rankMatch = text.match(rankRegex);
-    if (rankMatch) data.rank = rankMatch[0].toUpperCase();
+    if (rankMatch) {
+      data.rank = rankMatch[0].toUpperCase();
+    } else {
+      // Tentar match mais generico sem o PM no final se falhar
+      const rankRegexAlt = /(CORONEL|TENENTE CORONEL|MAJOR|CAPITÃO|CAPITAO|TENENTE|SUBTENENTE|SARGENTO|CABO|SOLDADO)/i;
+      const rankMatchAlt = text.match(rankRegexAlt);
+      if (rankMatchAlt) data.rank = rankMatchAlt[0].toUpperCase();
+    }
 
     if (data.numero_ordem && db) {
       try {

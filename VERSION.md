@@ -1,3 +1,26 @@
+## v1.12.12 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Restauração de Rotas Críticas**: Recuperadas as rotas `/api/schedules` (GET/POST) que foram acidentalmente removidas, restabelecendo a funcionalidade de salvar e carregar o planejamento de guarnições.
+- **Correção da Visibilidade de Voluntários**: Resolvido o bug onde militares com requerimento não apareciam no menu "Compor Guarnições". Implementada normalização de IDs e flexibilização na busca por turnos (case-insensitive).
+- **Estabilização Estrutural**: Refatorada a estrutura do `server.js` para remover aninhamentos redundantes e garantir o fechamento correto de todos os blocos de rota.
+
+---
+
+## v1.12.11 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Resolução de Erro de Sintaxe**: Corrigido erro crítico no `server.js` (`Unexpected end of input`) causado por aninhamento acidental de rotas e chaves não fechadas.
+- **Padronização de Telefones**: Implementada formatação automática para o padrão `(DDD)xxxxx-xxxx` durante a importação do efetivo.
+- **Inteligência na Importação de PDF**: Refinada a extração de Posto/Graduação dos requerimentos em PDF, garantindo que o banco de dados seja atualizado com a graduação correta do militar.
+- **Melhoria no Efetivo Import**: Otimizado o mapeamento de colunas Excel para capturar melhor os campos de matrícula e graduação, evitando o placeholder genérico "Militar".
+
+---
+
 ## v1.12.10 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com

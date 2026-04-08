@@ -218,6 +218,16 @@ async function setupDB() {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='guarnicao') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN guarnicao VARCHAR(100);
             END IF;
+
+            -- 8. Tabela SCHEDULES (Persistência da Edição de Guarnições)
+            CREATE TABLE IF NOT EXISTS schedules (
+                id SERIAL PRIMARY KEY,
+                date TEXT NOT NULL,
+                month_key TEXT NOT NULL,
+                patrols TEXT,
+                UNIQUE(date, month_key)
+            );
+
           END $$;
 
           -- ============================================================

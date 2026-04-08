@@ -79,16 +79,20 @@ export function AdminDashboard() {
     console.log('Loading schedule data for:', { monthKey, dateVal, volunteersCount: volunteersData.length });
 
     const availablePeople = volunteersData.filter(v => {
+      // DEBUG: Se precisar debugar um militar específico descomente:
+      // if (v.numero_ordem === 'SEU_NUMERO') console.log('DEBUG Availability:', v.name, v.availability);
+      
       if (!v.availability) return false;
-      const keys = Object.keys(v.availability);
-      // Garantir que verifica tanto string "1" quanto "01" ou o número 1
-      const hasKey = keys.includes(selectedDateStr) || 
-                     keys.includes(selectedDateStr.padStart(2, '0')) ||
-                     keys.includes(String(selectedDateNum));
-      return hasKey;
+      
+      const keys = Object.keys(v.availability).map(k => String(k).replace(/^0+/, ''));
+      const targetStr = String(selectedDateNum);
+      const targetPadded = String(selectedDateNum).padStart(2, '0');
+      
+      const hasDay = keys.includes(targetStr) || keys.includes(targetPadded);
+      return hasDay;
     });
 
-    console.log('Available people found:', availablePeople.length);
+    console.log(`[Dashboard] Pool: Total=${volunteersData.length}, Para o dia ${selectedDateNum}=${availablePeople.length}`);
 
     const patrols = (schedulesData.length > 0 && schedulesData[0].patrols) ? schedulesData[0].patrols : Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
@@ -101,11 +105,17 @@ export function AdminDashboard() {
     const assignedIds = new Set();
     patrols.forEach(patrol => {
       if (patrol.members) {
-        patrol.members.forEach(m => assignedIds.add(m.id));
+        patrol.members.forEach(m => {
+          if (m.id) assignedIds.add(String(m.id));
+          if (m.id_militar) assignedIds.add(`m${m.id_militar}`);
+        });
       }
     });
 
-    const pool = availablePeople.filter(p => !assignedIds.has(p.id));
+    const pool = availablePeople.filter(p => {
+      const isAssigned = assignedIds.has(String(p.id)) || (p.id_militar && assignedIds.has(`m${p.id_militar}`));
+      return !isAssigned;
+    });
     setState({ pool, patrols });
   };
 
@@ -442,14 +452,19 @@ export function AdminDashboard() {
           <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
             Militares Disponíveis ({(() => {
               const base = state.pool;
-              if (selectedShift === 'Todos') return base.length;
-              const dateKey = String(selectedDate);
-              const dateNum = parseInt(selectedDate);
-              const paddedKey = dateKey.padStart(2, '0');
               return base.filter(p => {
-                if (!p.availability) return true; // Se não tem dado, mostra (evita crash)
-                const dayShifts = p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey] || [];
-                return dayShifts.includes(selectedShift);
+                if (selectedShift === 'Todos') return true;
+                if (!p.availability) return false;
+                
+                const targetDayKey = String(selectedDateNum);
+                const targetDayPadded = targetDayKey.padStart(2, '0');
+                
+                const dayShifts = p.availability[targetDayKey] || p.availability[targetDayPadded] || [];
+                if (!Array.isArray(dayShifts)) return false;
+                
+                return dayShifts.some(s => 
+                  String(s).toLowerCase().trim().includes(selectedShift.toLowerCase().trim())
+                );
               }).length;
             })()})
           </h3>
@@ -457,11 +472,17 @@ export function AdminDashboard() {
             {state.pool
               .filter(p => {
                 if (selectedShift === 'Todos') return true;
-                const dateKey = String(selectedDate);
-                const dateNum = parseInt(selectedDate);
-                const paddedKey = dateKey.padStart(2, '0');
-                const dayShifts = (p.availability && (p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey])) || [];
-                return dayShifts.includes(selectedShift);
+                if (!p.availability) return false;
+
+                const targetDayKey = String(selectedDateNum);
+                const targetDayPadded = targetDayKey.padStart(2, '0');
+                
+                const dayShifts = p.availability[targetDayKey] || p.availability[targetDayPadded] || [];
+                if (!Array.isArray(dayShifts)) return false;
+
+                return dayShifts.some(s => 
+                  String(s).toLowerCase().trim().includes(selectedShift.toLowerCase().trim())
+                );
               })
               .map(p => {
               const dateKey = String(selectedDate);
