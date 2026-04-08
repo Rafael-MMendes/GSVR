@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Save, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
+import { maskPhone } from '../utils/formatters';
 
 const ranks = [
-  "Aspirante PM", "Soldado PM", "Cabo PM", "3º Sargento PM", "2º Sargento PM", 
-  "1º Sargento PM", "Subtenente PM", "2º Tenente PM", "1º Tenente PM", 
-  "Capitão PM", "Major PM", "Tenente Coronel PM", "Coronel PM"
+  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
+  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
 ];
 
 const SHIFTS = [
@@ -292,7 +292,7 @@ export function VolunteerForm({ userData }) {
                 className="form-control"
                 placeholder="(82) 99999-9999"
                 value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                onChange={e => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>

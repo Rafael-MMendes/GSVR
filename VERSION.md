@@ -1,6 +1,105 @@
-# Versionamento do Sistema de Escalas - Gestão de Força Tarefa
+## v1.12.10 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
 
-Documento dedicado ao acompanhamento de todas as atualizações, novas configurações e resoluções de problemas (bugfixes) implementados no projeto.
+### Mudanças:
+- **Correção de Crash (Tela Branca)**: Resolvido erro crítico no Planejamento de Escala que ocorria ao remover militares de guarnições. O erro era causado pela tentativa de acessar a disponibilidade de "nomes antigos" ou membros já escalados que não possuíam dados de turno carregados.
+- **Robustez no Drag and Drop**: Implementadas verificações de segurança no sistema de movimentação de militares para evitar falhas de índice e garantir compatibilidade entre diferentes formatos de IDs (legado vs. novo).
+- **Tratamento de Dados Nulos**: O dashboard agora lida graciosamente com militares que não possuem informações de disponibilidade no sistema, permitindo sua movimentação sem travar a interface.
+
+---
+
+## v1.12.9 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Inteligência na Importação de PDF**: O sistema agora extrai automaticamente o Posto/Graduação diretamente do texto do requerimento em PDF.
+- **Sincronização de Efetivo**: Durante a importação de requerimentos, o cadastro do militar (Efetivo) é atualizado automaticamente com o posto identificado no PDF, eliminando o valor genérico "Militar".
+- **Busca Flexível no Importador**: O importador de PDF agora ignora pontos e traços na matrícula ao associar o requerimento ao militar no banco de dados.
+- **Ajuste no Importador de Excel**: Alterado o valor padrão de postos não identificados de "Militar" para "SD PM" para manter a consistência do efetivo.
+
+---
+
+## v1.12.8 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Correção de Preenchimento**: Corrigido o erro que impedia a associação automática do Posto/Graduação nos requerimentos devido a divergência de nomenclaturas (siglas vs. nomes extensos).
+- **Busca Flexível**: O sistema de lookup agora ignora formatações (pontos e traços) na matrícula, facilitando a busca do militar idependente de como os dados foram inseridos originalmente.
+- **Padronização de Siglas**: Unificadas as siglas de Postos/Graduações em todo o sistema (SD PM, CB PM, etc.).
+
+---
+
+## v1.12.7 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Associação de Postos**: Implementada busca automática de Posto/Graduação e Nome ao digitar o Nº de Ordem na Gestão de Requerimentos.
+- **Padronização de Telefones**: Implementada máscara de input `(XX) XXXXX-XXXX` nos módulos de Requerimentos, Efetivo e Cadastro Público.
+- **Utilitário de Formatação**: Criado sistema centralizado de máscaras para garantir consistência visual em todo o sistema.
+- **Nova API**: Adicionado endpoint de lookup para militares via matrícula.
+
+---
+
+## v1.12.6 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Expansão de Grade**: Aumentado o número padrão de guarnições de 6 para 8.
+- **Gestão Dinâmica**: Adicionado botão para criar novas guarnições sob demanda (Guarnição 9, 10, etc.).
+- **Exclusão de Grupos**: Implementado botão para remover guarnições desnecessárias, com retorno automático de militares alocados para a lista de disponíveis.
+- **Sincronização Backend**: Ajustado o fallback do servidor para garantir consistência com a nova grade de 8 grupos.
+- **Hotfix de UI**: Corrigido erro de referência (`handlePrint`) que causava tela branca ao carregar o dashboard após a última atualização.
+
+---
+
+## v1.12.5 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Correção Crítica**: Resolvido erro de "coluna inexistente" que impedia a visualização dos requerimentos no dashboard.
+- **Persistência de Atributos**: Implementada a gravação do status de motorista na tabela `EFETIVO` através de formulários e importação de PDF.
+- **Migração de Dados**: Adicionada migração automática para compatibilidade da tabela de militares com as novas funcionalidades.
+
+---
+
+## v1.12.4 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Consistência do Grade de Planejamento**: Corrigido o problema onde guarnições vazias desapareciam após o salvamento. Agora o sistema garante a exibição das 6 guarnições padrão independentemente do número de militares escalados.
+- **Contador de Serviços (0/8)**: Adicionado um contador visual no card de cada militar informando quantos serviços ele já possui no ciclo atual.
+- **Destaque de Limite de Carga Horária**: Implementado alerta visual (cor vermelha e ícone de aviso) para militares que atingiram o limite de 8 serviços no ciclo.
+- **Persistência Refinada**: O backend agora mantém as configurações de turno e duração das guarnições mesmo quando elas estão vazias.
+
+---
+
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Restauração do Planejamento de Escala**: Implementados os endpoints `GET` e `POST /api/schedules` que estavam ausentes, permitindo a persistência das guarnições no banco de dados.
+- **Integração com ESCALA_PLANEJAMENTO**: O backend agora traduz corretamente o estado do frontend (lista de guarnições) para registros normalizados no banco de dados, incluindo suporte a carga horária (6h/8h) e funções (Comandante, Motorista, Patrulheiro).
+- **Robustez na Filtragem de Disponibilidade**: Ajustada a lógica no `AdminDashboard.jsx` para lidar consistentemente com diferentes formatos de dia (ex: `"1"`, `1`, `"01"`), garantindo que todos os voluntários aptos apareçam na lista de escalação.
+- **Log de Depuração**: Adicionada telemetria básica no console do frontend para monitorar o carregamento de voluntários e escalas.
+
+---
+
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Correção Definitiva no Parser de PDF**: Resolvido bug crítico onde chamadas de `.trim()` nas linhas de disponibilidade causavam o deslocamento dos marcadores 'X' para dias incorretos quando o mês iniciava com dias vazios.
+- **Preservação de Alinhamento Posicional**: O sistema agora preserva rigorosamente todos os espaços extraídos do PDF, garantindo que a posição de cada caractere mapeie com precisão o dia do mês correspondente (ex: caractere na posição 4 sempre corresponderá ao dia 04).
+- **Tratamento de Strings Vazias**: Melhorada a robustez da função `processMarksLine` para lidar com linhas inconsistentes sem perder a referência posicional.
+
+---
 
 ## v1.12.1 — 2026-04-08
 **Autor:** Alan Kleber

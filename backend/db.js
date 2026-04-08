@@ -49,8 +49,12 @@ async function setupDB() {
               rgpm VARCHAR(20),
               opm VARCHAR(100),
               telefone VARCHAR(50),
+              motorista VARCHAR(10) DEFAULT 'Não',
               status_ativo BOOLEAN DEFAULT TRUE
           );
+
+          -- Migration: Adicionar coluna motorista se não existir
+          ALTER TABLE EFETIVO ADD COLUMN IF NOT EXISTS motorista VARCHAR(10) DEFAULT 'Não';
 
           -- 3. Tabela CICLOS (Substitui months)
           CREATE TABLE IF NOT EXISTS CICLOS (

@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText } from 'lucide-react';
+import { maskPhone, formatPhone } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
 const ranks = [
-  "Aspirante PM", "Soldado PM", "Cabo PM", "3º Sargento PM", "2º Sargento PM", 
-  "1º Sargento PM", "Subtenente PM", "2º Tenente PM", "1º Tenente PM", 
-  "Capitão PM", "Major PM", "Tenente Coronel PM", "Coronel PM"
+  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
+  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
 ];
 
 const SHIFTS = [
@@ -145,6 +145,31 @@ export function RequerimentosAdmin() {
     });
     setShowModal(true);
   };
+
+  // Efeito para buscar militar por Nº de Ordem
+  useEffect(() => {
+    const lookupMilitar = async () => {
+      const matricula = formData.numero_ordem.trim();
+      if (matricula.length >= 4 && !editingVolunteer) {
+        try {
+          const res = await axios.get(`${API_URL}/efetivo/lookup/${matricula}`);
+          if (res.data) {
+            setFormData(prev => ({
+              ...prev,
+              name: res.data.nome_completo,
+              rank: res.data.posto_graduacao,
+              phone: res.data.telefone ? maskPhone(res.data.telefone) : prev.phone
+            }));
+          }
+        } catch (e) {
+          // Militar não encontrado ou erro, ignorar silenciosamente
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(lookupMilitar, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.numero_ordem, editingVolunteer]);
 
   const openEditModal = (volunteer) => {
     setEditingVolunteer(volunteer);
@@ -289,7 +314,7 @@ export function RequerimentosAdmin() {
                   <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{v.numero_ordem}</td>
                   <td style={{ padding: '0.75rem' }}>{v.rank}</td>
                   <td style={{ padding: '0.75rem', fontWeight: 500 }}>{v.name}</td>
-                  <td style={{ padding: '0.75rem' }}>{v.phone || '-'}</td>
+                  <td style={{ padding: '0.75rem' }}>{formatPhone(v.phone)}</td>
                   <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                     {v.motorista === 'Sim' ? (
                       <span style={{ background: 'var(--success)', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>Sim</span>
@@ -400,8 +425,9 @@ export function RequerimentosAdmin() {
                 <input
                   type="text"
                   className="form-control"
+                  placeholder="(00) 00000-0000"
                   value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={e => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
                 />
               </div>
               <div className="form-group">
@@ -496,7 +522,7 @@ export function RequerimentosAdmin() {
               <div><strong>Nº Ordem:</strong><br/>{viewingVolunteer.numero_ordem}</div>
               <div><strong>Posto/Grad:</strong><br/>{viewingVolunteer.rank}</div>
               <div><strong>Nome:</strong><br/>{viewingVolunteer.name}</div>
-              <div><strong>Telefone:</strong><br/>{viewingVolunteer.phone || '-'}</div>
+              <div><strong>Telefone:</strong><br/>{formatPhone(viewingVolunteer.phone)}</div>
               <div><strong>Motorista:</strong><br/>{viewingVolunteer.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
             </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Edit2, Trash2, Search, User, CreditCard, Shield, MapPin, Phone, CheckCircle, XCircle } from 'lucide-react';
+import { maskPhone, formatPhone } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -163,7 +164,7 @@ export function EfetivoManager() {
                   <td style={{ fontSize: '0.9rem' }}>{m.nome_completo}</td>
                   <td><code>{m.matricula}</code></td>
                   <td style={{ fontSize: '0.8rem' }}>{m.cpf}</td>
-                  <td>{m.telefone || '-'}</td>
+                  <td>{formatPhone(m.telefone)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button className="btn-icon" onClick={() => openEdit(m)} title="Editar"><Edit2 size={16} /></button>
@@ -247,7 +248,12 @@ export function EfetivoManager() {
                 
                 <div>
                   <label className="form-label">Telefone</label>
-                  <input className="form-input" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: e.target.value })} placeholder="(00) 00000-0000" />
+                  <input 
+                    className="form-input" 
+                    value={formData.telefone} 
+                    onChange={e => setFormData({ ...formData, telefone: maskPhone(e.target.value) })} 
+                    placeholder="(00) 00000-0000" 
+                  />
                 </div>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '10px' }}>

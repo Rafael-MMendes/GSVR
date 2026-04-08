@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -38,7 +38,7 @@ export function AdminDashboard() {
   
   const [state, setState] = useState({
     pool: [],
-    patrols: Array.from({length: 6}, (_, i) => ({ 
+    patrols: Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
       name: `Guarnição ${i+1}`, 
       duration: '6h',
@@ -74,15 +74,23 @@ export function AdminDashboard() {
 
   const loadScheduleData = (volunteersData, schedulesData, monthKey, dateVal) => {
     const selectedDateStr = String(dateVal);
+    const selectedDateNum = parseInt(dateVal);
     
+    console.log('Loading schedule data for:', { monthKey, dateVal, volunteersCount: volunteersData.length });
+
     const availablePeople = volunteersData.filter(v => {
       if (!v.availability) return false;
       const keys = Object.keys(v.availability);
-      const hasKey = keys.includes(selectedDateStr);
+      // Garantir que verifica tanto string "1" quanto "01" ou o número 1
+      const hasKey = keys.includes(selectedDateStr) || 
+                     keys.includes(selectedDateStr.padStart(2, '0')) ||
+                     keys.includes(String(selectedDateNum));
       return hasKey;
     });
 
-    const patrols = schedulesData.length > 0 ? schedulesData[0].patrols : Array.from({length: 6}, (_, i) => ({ 
+    console.log('Available people found:', availablePeople.length);
+
+    const patrols = (schedulesData.length > 0 && schedulesData[0].patrols) ? schedulesData[0].patrols : Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
       name: `Guarnição ${i+1}`, 
       duration: '6h',
@@ -92,11 +100,12 @@ export function AdminDashboard() {
 
     const assignedIds = new Set();
     patrols.forEach(patrol => {
-      patrol.members.forEach(m => assignedIds.add(m.id));
+      if (patrol.members) {
+        patrol.members.forEach(m => assignedIds.add(m.id));
+      }
     });
 
     const pool = availablePeople.filter(p => !assignedIds.has(p.id));
-
     setState({ pool, patrols });
   };
 
@@ -105,13 +114,16 @@ export function AdminDashboard() {
     
     const loadData = async () => {
       try {
+        console.log('Fetching data for month:', selectedMonth);
         const volRes = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
+        console.log('Volunteers fetched:', volRes.data.length);
         setVolunteers(volRes.data);
         
         const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&month=${selectedMonth}`);
+        console.log('Schedules fetched:', schedRes.data);
         loadScheduleData(volRes.data, schedRes.data, selectedMonth, selectedDate);
       } catch (e) {
-        console.error(e);
+        console.error('Error loading dashboard data:', e);
       }
     };
 
@@ -239,6 +251,42 @@ export function AdminDashboard() {
 
 
 
+  const addPatrol = () => {
+    setState(prev => {
+      const nextNum = prev.patrols.length + 1;
+      return {
+        ...prev,
+        patrols: [
+          ...prev.patrols,
+          {
+            id: `p${Date.now()}`,
+            name: `Guarnição ${nextNum}`,
+            duration: '6h',
+            timeSpan: '',
+            members: []
+          }
+        ]
+      };
+    });
+  };
+
+  const removePatrol = (patrolId) => {
+    setState(prev => {
+      const patrolToRemove = prev.patrols.find(p => p.id === patrolId);
+      if (!patrolToRemove) return prev;
+
+      // Retornar militares para o pool
+      const updatedPool = [...prev.pool, ...patrolToRemove.members];
+      const updatedPatrols = prev.patrols.filter(p => p.id !== patrolId);
+
+      return {
+        ...prev,
+        pool: updatedPool,
+        patrols: updatedPatrols
+      };
+    });
+  };
+
   const handleDragStart = (e, personId, sourceId) => {
     e.dataTransfer.setData('personId', personId);
     e.dataTransfer.setData('sourceId', sourceId);
@@ -249,7 +297,7 @@ export function AdminDashboard() {
   };
 
   const handleDrop = (e, targetId) => {
-    const personId = parseInt(e.dataTransfer.getData('personId'));
+    const personId = e.dataTransfer.getData('personId');
     const sourceId = e.dataTransfer.getData('sourceId');
 
     if (sourceId === targetId) return;
@@ -263,15 +311,17 @@ export function AdminDashboard() {
       let person;
 
       if (sourceId === 'pool') {
-        const idx = newState.pool.findIndex(p => p.id === personId);
+        const idx = newState.pool.findIndex(p => String(p.id) === String(personId));
         if (idx > -1) {
           person = newState.pool.splice(idx, 1)[0];
         }
       } else {
         const pIdx = newState.patrols.findIndex(p => p.id === sourceId);
-        const mIdx = newState.patrols[pIdx].members.findIndex(m => m.id === personId);
-        if (mIdx > -1) {
-          person = newState.patrols[pIdx].members.splice(mIdx, 1)[0];
+        if (pIdx > -1) {
+          const mIdx = newState.patrols[pIdx].members.findIndex(m => String(m.id) === String(personId));
+          if (mIdx > -1) {
+            person = newState.patrols[pIdx].members.splice(mIdx, 1)[0];
+          }
         }
       }
 
@@ -395,7 +445,12 @@ export function AdminDashboard() {
               if (selectedShift === 'Todos') return base.length;
               const dateKey = String(selectedDate);
               const dateNum = parseInt(selectedDate);
-              return base.filter(p => (p.availability[dateKey] || p.availability[dateNum] || []).includes(selectedShift)).length;
+              const paddedKey = dateKey.padStart(2, '0');
+              return base.filter(p => {
+                if (!p.availability) return true; // Se não tem dado, mostra (evita crash)
+                const dayShifts = p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey] || [];
+                return dayShifts.includes(selectedShift);
+              }).length;
             })()})
           </h3>
           <div className="volunteers-list">
@@ -404,12 +459,15 @@ export function AdminDashboard() {
                 if (selectedShift === 'Todos') return true;
                 const dateKey = String(selectedDate);
                 const dateNum = parseInt(selectedDate);
-                return (p.availability[dateKey] || p.availability[dateNum] || []).includes(selectedShift);
+                const paddedKey = dateKey.padStart(2, '0');
+                const dayShifts = (p.availability && (p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey])) || [];
+                return dayShifts.includes(selectedShift);
               })
               .map(p => {
               const dateKey = String(selectedDate);
               const dateNum = parseInt(selectedDate);
-              const prefShifts = p.availability[dateKey] || p.availability[dateNum] || [];
+              const paddedKey = dateKey.padStart(2, '0');
+              const prefShifts = (p.availability && (p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey])) || [];
               return (
                 <div 
                   key={p.id} 
@@ -420,6 +478,24 @@ export function AdminDashboard() {
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ background: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', border: '1px solid #e2e8f0' }}>Nº {p.numero_ordem}</div>
                     <div style={{ fontWeight: 600 }}>{p.rank} {p.name}</div>
+                    
+                    {/* Contador de Serviços */}
+                    <div style={{ 
+                      background: p.service_count >= 8 ? '#fecaca' : (p.service_count >= 6 ? '#ffedd5' : '#dcfce7'), 
+                      color: p.service_count >= 8 ? '#991b1b' : (p.service_count >= 6 ? '#9a3412' : '#166534'), 
+                      padding: '0.1rem 0.6rem', 
+                      borderRadius: '12px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: '800',
+                      border: `1px solid ${p.service_count >= 8 ? '#f87171' : (p.service_count >= 6 ? '#fb923c' : '#4ade80')}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      SERV. {p.service_count}/8
+                      {p.service_count >= 8 && <AlertTriangle size={10} />}
+                    </div>
+
                     {p.motorista === 'Sim' && (
                       <div style={{ background: '#10b981', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>MOTORISTA</div>
                     )}
@@ -436,6 +512,28 @@ export function AdminDashboard() {
 
         {/* Patrols Column (The printable area) */}
         <div className="glass-panel" style={{ padding: '0', background: 'transparent', border: 'none', boxShadow: 'none' }}>
+          
+          <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '0 1.5rem' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>Planejamento de Escala</h2>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={addPatrol}
+                className="glass-button secondary"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem'
+                }}
+              >
+                <Plus size={18} /> Adicionar Guarnição
+              </button>
+              <button onClick={generatePDF} className="glass-button primary">
+                <Printer size={18} /> Imprimir Escala
+              </button>
+            </div>
+          </div>
+
           <div ref={printRef} style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', minHeight: '100%' }}>
             
             <div className="print-only print-header" style={{ 
@@ -471,14 +569,33 @@ export function AdminDashboard() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, patrol.id)}
                 >
-                  <div className="patrol-header" style={{ justifyContent: 'center' }}>
+                  <div className="patrol-header" style={{ justifyContent: 'center', position: 'relative' }}>
                     <input 
                       type="text" 
                       value={patrol.name} 
                       onChange={e => handlePatrolSettingChange(patrol.id, 'name', e.target.value)} 
                       style={{ border: 'none', background: 'transparent', fontSize: '1.125rem', fontWeight: 600, color: 'var(--primary)', width: 'auto', flex: 1, outline: 'none', textAlign: 'center' }} 
                     />
-                    <span className="patrol-count">{patrol.members.length}/3</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                       <span className="patrol-count">{patrol.members.length}/3</span>
+                       <button 
+                         onClick={() => removePatrol(patrol.id)}
+                         className="no-print"
+                         style={{ 
+                           marginLeft: '8px',
+                           padding: '4px',
+                           color: '#ef4444',
+                           background: 'transparent',
+                           border: 'none',
+                           cursor: 'pointer',
+                           display: 'flex',
+                           alignItems: 'center'
+                         }}
+                         title="Remover Guarnição"
+                       >
+                         <Trash2 size={16} />
+                       </button>
+                    </div>
                   </div>
 
                   <div className="patrol-settings">
@@ -502,7 +619,7 @@ export function AdminDashboard() {
                       >
                         <option value="">Selecione o Horário...</option>
                         {getTimeOptions(patrol.duration).map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
+                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
                     </div>
