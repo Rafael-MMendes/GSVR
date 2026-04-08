@@ -21,7 +21,7 @@ async function setupDB() {
     try {
       const client = await pool.connect();
       console.log("Connected to PostgreSQL.");
-      
+
       try {
         // ---------------------------------------------------------------
         // DIAGNÓSTICO: logar estrutura real da tabela users
@@ -117,7 +117,7 @@ async function setupDB() {
           -- Migration: Adicionar coluna motorista se não existir
           ALTER TABLE EFETIVO ADD COLUMN IF NOT EXISTS motorista VARCHAR(10) DEFAULT 'Não';
 
-          -- 3. Tabela CICLOS (Substitui months)
+          -- 3. Tabela CICLOS
           CREATE TABLE IF NOT EXISTS CICLOS (
               id_ciclo SERIAL PRIMARY KEY,
               id_opm INTEGER REFERENCES OPM(id_opm),
@@ -219,14 +219,7 @@ async function setupDB() {
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN guarnicao VARCHAR(100);
             END IF;
 
-            -- 8. Tabela SCHEDULES (Persistência da Edição de Guarnições)
-            CREATE TABLE IF NOT EXISTS schedules (
-                id SERIAL PRIMARY KEY,
-                date TEXT NOT NULL,
-                month_key TEXT NOT NULL,
-                patrols TEXT,
-                UNIQUE(date, month_key)
-            );
+
 
             -- 9. Tabela FERIADOS (Para Cálculo de Remuneração de FT)
             CREATE TABLE IF NOT EXISTS FERIADOS (
@@ -308,13 +301,7 @@ async function setupDB() {
             END IF;
           END $$;
 
-          -- Migration Support
-          CREATE TABLE IF NOT EXISTS months (
-            id SERIAL PRIMARY KEY,
-            month_key TEXT NOT NULL UNIQUE,
-            month_name TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
+
 
           -- Perfil estendido do usuário (1:1)
           CREATE TABLE IF NOT EXISTS user_profiles (
@@ -590,7 +577,7 @@ async function setupDB() {
         const adminMatricula = '999999';
         const adminCpf = '00000000000';
         const adminCheck = await client.query('SELECT id FROM users WHERE numero_ordem = $1', [adminMatricula]);
-        
+
         if (adminCheck.rows.length === 0) {
           await client.query(
             "INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, opm, status_ativo) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (cpf) DO NOTHING",
@@ -653,14 +640,14 @@ async function setupDB() {
         run: async (sql, params = []) => {
           const isInsert = sql.toUpperCase().includes('INSERT');
           const hasReturning = sql.toUpperCase().includes('RETURNING');
-          
+
           let internalSql = sql;
           if (isInsert && !hasReturning) {
             internalSql += ' RETURNING *';
           }
-            
+
           const result = await pool.query(translateSQL(internalSql), params);
-          
+
           // Se for insert, tenta pegar o valor da primeira coluna (geralmente o ID) para simular o lastID do SQLite
           let lastID = null;
           if (isInsert && result.rows.length > 0) {
@@ -668,12 +655,12 @@ async function setupDB() {
             lastID = firstRow[Object.keys(firstRow)[0]];
           }
 
-          return { 
-            lastID: lastID, 
-            changes: result.rowCount 
+          return {
+            lastID: lastID,
+            changes: result.rowCount
           };
         },
-        
+
         // Add pool access for complex queries
         query: async (text, params) => {
           return pool.query(text, params);
