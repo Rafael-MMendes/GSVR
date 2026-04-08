@@ -1,3 +1,12 @@
+## v1.12.16 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Correção de Contagem de Serviços no Planejamento**: O campo "Militares Disponíveis" no AdminDashboard agora exibe a contagem correta de serviços tirados pelo militar no ciclo. A query foi alterada de `ESCALA_PLANEJAMENTO` para `SERVICOS_EXECUTADOS`, garantindo que a contagem reflita os serviços efetivamente executados/importados.
+
+---
+
 ## v1.12.15 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com
