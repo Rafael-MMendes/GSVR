@@ -235,6 +235,11 @@ async function setupDB() {
           -- Migration: garantir colunas novas em users pré-existente
           DO $$
           BEGIN
+            -- Se a tabela users já existia sem a coluna id, precisamos adicioná-la e redefini-la como PK
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='id') THEN
+              ALTER TABLE users DROP CONSTRAINT IF EXISTS users_pkey CASCADE;
+              ALTER TABLE users ADD COLUMN id SERIAL PRIMARY KEY;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password_hash') THEN
               ALTER TABLE users ADD COLUMN password_hash TEXT;
             END IF;
