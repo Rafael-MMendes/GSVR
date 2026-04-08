@@ -16,6 +16,7 @@ import { ServicosExecutadosManager } from './components/ServicosExecutadosManage
 import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
+import { RelatorioOperacional } from './components/RelatorioOperacional';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
@@ -174,6 +175,9 @@ function App() {
                     <a href="#" className={`dropdown-item ${currentView === 'financeiro' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('financeiro'); }}>
                       <DollarSign size={16} /> Dashboard Financeiro
                     </a>
+                    <a href="#" className={`dropdown-item ${currentView === 'relatorio-operacional' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('relatorio-operacional'); }}>
+                      <FileText size={16} /> Relatório Hierárquico
+                    </a>
                   </div>
                 </div>
               )}
@@ -268,6 +272,7 @@ function App() {
         {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
+        {currentView === 'relatorio-operacional' && hasPermission('financeiro:read') && <RelatorioOperacional />}
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
         {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}

@@ -1319,6 +1319,105 @@ app.get('/api/financeiro/detalhado', async (req, res) => {
 });
 
 // ============================================================
+// RELATÓRIOS OPERACIONAIS (Integridade Relacional Plena)
+// ============================================================
+app.get('/api/relatorios/operacional-agregado', async (req, res) => {
+  try {
+    const month = req.query.month;
+    let query = 'SELECT * FROM vw_relatorio_operacional_agregado';
+    const params = [];
+    if (month) {
+      query += ' WHERE referencia_mes_ano = $1';
+      params.push(month);
+    }
+    const { rows } = await db.query(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro na view operacional agregado', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/relatorios/operacional-completo', async (req, res) => {
+  try {
+    const month = req.query.month;
+    let query = 'SELECT * FROM vw_relatorio_operacional_completo';
+    const params = [];
+    if (month) {
+      query += ' WHERE referencia_mes_ano = $1';
+      params.push(month);
+    }
+    const { rows } = await db.query(query, params);
+    
+    // Aggregating by militar context (frontend JSON format requested)
+    const hierarchical = [];
+    const militaresMap = new Map();
+
+    rows.forEach(row => {
+      if (!row.id_militar) return;
+      if (!militaresMap.has(row.id_militar)) {
+        militaresMap.set(row.id_militar, {
+          id_ciclo: row.id_ciclo,
+          referencia: row.referencia_mes_ano,
+          opm: { sigla: row.opm_sigla, descricao: row.opm_descricao },
+          militar: {
+            id_militar: row.id_militar,
+            nome_guerra: row.nome_guerra,
+            posto_graduacao: row.posto_graduacao,
+            matricula: row.matricula,
+            cpf: row.cpf
+          },
+          requerimentos: [],
+          escala: [],
+          execucao: [],
+          consolidacao: {
+            horas_feitas: 0,
+            valor_devido: 0
+          }
+        });
+      }
+      
+      const entry = militaresMap.get(row.id_militar);
+      
+      if (row.id_requerimento && !entry.requerimentos.find(r => r.id_requerimento === row.id_requerimento)) {
+        entry.requerimentos.push({
+          id_requerimento: row.id_requerimento,
+          numero_requerimento: row.numero_requerimento,
+          dia_mes: row.disponibilidade_dia,
+          turno: row.disponibilidade_turno
+        });
+      }
+
+      if (row.id_escala && !entry.escala.find(e => e.id_escala === row.id_escala)) {
+        entry.escala.push({
+          id_escala: row.id_escala,
+          data: row.escala_data,
+          turno: row.escala_turno,
+          funcao: row.escala_funcao
+        });
+      }
+
+      if (row.id_execucao && !entry.execucao.find(e => e.id_execucao === row.id_execucao)) {
+        entry.execucao.push({
+          id_execucao: row.id_execucao,
+          data: row.execucao_data,
+          carga_horaria: row.execucao_carga_horaria,
+          remuneracao: row.execucao_valor_remuneracao,
+          status: row.execucao_presenca
+        });
+        entry.consolidacao.horas_feitas += Number(row.execucao_carga_horaria || 0);
+        entry.consolidacao.valor_devido += Number(row.execucao_valor_remuneracao || 0);
+      }
+    });
+
+    res.json(Array.from(militaresMap.values()));
+  } catch (error) {
+    console.error('Erro na view operacional completa', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
 // PDF IMPORT (Requerimentos via PDF)
 // ============================================================
 function processMarksLine(line, shiftCode, data) {
