@@ -1,3 +1,18 @@
+## v1.12.13 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Suporte a Sinônimos (FT)**: Adicionado suporte a múltiplos nomes de colunas (ex: `Posto/Grad`, `Unidade`, `Nome de Guerra`) para facilitar a importação de diferentes formatos de planilhas.
+- **Robustez na Importação FT**: Implementada limpeza profunda de caracteres (`deepCleanText`) para ignorar bordas de tabelas ASCII (ex: `+--`, `|`) e decodificar entidades HTML. Aprimorado o algoritmo de detecção de cabeçalhos para localizar a tabela real em planilhas com cabeçalhos decorados.
+- **Estabilização da Importação FT**: Corrigida a leitura de CPF na planilha de serviços executados, ignorando prefixos como "CPF:" e garantindo a padronização para 11 dígitos.
+- **Correção Crítica na Importação de Efetivo**: Resolvido o erro `motorista is not defined` que interrompia a leitura da planilha Excel.
+- **Mapeamento de Postos Dinâmico**: Aprimorada a detecção de colunas de Posto/Graduação e a lógica de atualização (UPSERT) para garantir que promoções de patente sejam refletidas no sistema.
+- **Padronização de CPF Geral**: Implementado preenchimento automático (*padding*) com zeros à esquerda em todo o sistema (entrada manual, edição e importação).
+- **Normalização de Siglas**: Garantido o uso exclusivo de siglas militares oficiais (ex: `SD PM`, `TC PM`) em todos os módulos.
+
+---
+
 ## v1.12.12 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com

@@ -52,8 +52,34 @@ function getMonthName(monthKey) { const [year, month] = monthKey.split('-'); ret
 function hashToken(token) { return crypto.createHash('sha256').update(token).digest('hex'); }
 function generateToken() { return crypto.randomBytes(32).toString('hex'); }
 
-const rankMap = { 'Asp Of': 'Aspirante PM', 'Sd': 'Soldado PM', 'Cb': 'Cabo PM', '3º Sgt': '3º Sargento PM', '2º Sgt': '2º Sargento PM', '1º Sgt': '1º Sargento PM', 'Subten': 'Subtenente PM', '2º Ten': '2º Tenente PM', '1º Ten': '1º Tenente PM', 'Cap': 'Capitão PM', 'Maj': 'Major PM', 'Ten Cel': 'Tenente Coronel PM', 'Cel': 'Coronel PM' };
-function normalizeRank(rank) { return rankMap[rank] || rank || 'Soldado PM'; }
+const rankMap = { 
+  'CEL': 'CEL PM', 'CEL PM': 'CEL PM',
+  'TC': 'TC PM', 'TEN CEL': 'TC PM', 'TC PM': 'TC PM',
+  'MAJ': 'MAJ PM', 'MAJ PM': 'MAJ PM',
+  'CAP': 'CAP PM', 'CAP PM': 'CAP PM',
+  '1º TEN': '1º TEN PM', '1º TEN PM': '1º TEN PM',
+  '2º TEN': '2º TEN PM', '2º TEN PM': '2º TEN PM',
+  'SUB': 'SUB PM', 'SUB PM': 'SUB PM', 'SUBTEN': 'SUB PM',
+  '1º SGT': '1º SGT PM', '1º SGT PM': '1º SGT PM',
+  '2º SGT': '2º SGT PM', '2º SGT PM': '2º SGT PM',
+  '3º SGT': '3º SGT PM', '3º SGT PM': '3º SGT PM',
+  'CB': 'CB PM', 'CABO': 'CB PM', 'CB PM': 'CB PM',
+  'SD': 'SD PM', 'SOLDADO': 'SD PM', 'SD PM': 'SD PM',
+  'ASP': 'ASP PM', 'ASP PM': 'ASP PM', 'ASP OF': 'ASP PM'
+};
+
+function normalizeRank(rank) {
+  if (!rank) return 'SD PM';
+  const r = String(rank).toUpperCase().trim();
+  // Se já é uma sigla padrão do rankMap, retorna a versão mapeada ou a própria r
+  return rankMap[r] || r; 
+}
+
+function padCpf(cpf) {
+  if (!cpf) return '';
+  const cleaned = String(cpf).replace(/\D/g, '');
+  return cleaned.padStart(11, '0');
+}
 
 const ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
 
@@ -578,11 +604,15 @@ app.post('/api/efetivo', async (req, res) => {
   try {
     const { nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo } = req.body;
     if (!nome_completo || !posto_graduacao || !matricula || !cpf) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    
+    const formattedCpf = padCpf(cpf);
+    const normalizedRankVal = normalizeRank(posto_graduacao);
+
     const r = await db.run(
       'INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-      [nome_completo, nome_guerra || nome_completo, posto_graduacao, matricula, cpf, rgpm || null, opm || null, telefone || null, motorista || 'Não', status_ativo !== false]
+      [nome_completo, nome_guerra || nome_completo.split(' ')[0], normalizedRankVal, matricula, formattedCpf, rgpm || null, opm || null, telefone || null, motorista || 'Não', status_ativo !== false]
     );
-    await db.run('INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING', [matricula, cpf]);
+    await db.run('INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING', [matricula, formattedCpf]);
     res.status(201).json({ success: true, id_militar: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -590,9 +620,12 @@ app.post('/api/efetivo', async (req, res) => {
 app.put('/api/efetivo/:id', async (req, res) => {
   try {
     const { nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo } = req.body;
+    const formattedCpf = padCpf(cpf);
+    const normalizedRankVal = normalizeRank(posto_graduacao);
+    
     await db.run(
       'UPDATE EFETIVO SET nome_completo=$1, nome_guerra=$2, posto_graduacao=$3, matricula=$4, cpf=$5, rgpm=$6, opm=$7, telefone=$8, motorista=$9, status_ativo=$10 WHERE id_militar=$11',
-      [nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm || null, opm || null, telefone || null, motorista || 'Não', status_ativo, req.params.id]
+      [nome_completo, nome_guerra, normalizedRankVal, matricula, formattedCpf, rgpm || null, opm || null, telefone || null, motorista || 'Não', status_ativo, req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -621,19 +654,27 @@ app.get('/api/efetivo/lookup/:matricula', async (req, res) => {
 
 app.delete('/api/efetivo/:id', async (req, res) => {
   try {
-    const hasReq = await db.get('SELECT 1 FROM REQUERIMENTOS WHERE id_militar = $1', [req.params.id]);
-    if (hasReq) return res.status(400).json({ error: "Não é possível excluir: militar possui requerimentos ativos." });
-    const hasEscala = await db.get('SELECT 1 FROM ESCALA_PLANEJAMENTO WHERE id_militar = $1', [req.params.id]);
-    if (hasEscala) return res.status(400).json({ error: "Não é possível excluir: militar possui escalas registradas." });
-    await db.run('DELETE FROM EFETIVO WHERE id_militar = $1', [req.params.id]);
     await db.run('DELETE FROM users WHERE numero_ordem = (SELECT matricula FROM EFETIVO WHERE id_militar = $1)', [req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Função utilitária: decodifica entidades HTML e remove artefatos de borda ASCII (+, -, |)
+function deepCleanText(text) {
+  if (!text) return "";
+  let s = String(text)
+    .replace(/&[a-z0-9#]+;/gi, " ") // Remove entidades HTML (&nbsp;, &lt;, etc)
+    .replace(/[+\-|]{2,}/g, " ")    // Remove sequências de bordas ASCII (++--, |---|)
+    .replace(/\s+/g, " ")           // Normaliza espaços
+    .trim();
+  // Se a string resultar em apenas caracteres de borda isolados, limpa
+  if (s === "+" || s === "|" || s === "-") return "";
+  return s;
+}
 
 // Função utilitária: normaliza chave de coluna Excel → string sem acentos/espaços para comparação
 function normalizeKey(key) {
-  return String(key).toUpperCase()
+  const clean = deepCleanText(key);
+  return clean.toUpperCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^A-Z0-9]/g, "");
 }
@@ -697,8 +738,8 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
     let errorDetails = [];
 
     for (const row of data) {
-      let matricula = '', nrOrdem = '', cpf = '', nome = '', nomeGuerra = '', posto = 'Militar';
-      let rgpm = null, opm = null, telefone = null, statusAtivo = true;
+      let matricula = '', nrOrdem = '', cpf = '', nome = '', nomeGuerra = '', posto = 'SD PM';
+      let rgpm = null, opm = null, telefone = null, statusAtivo = true, motorista = 'Não';
 
       try {
         // Mapear cada coluna pela chave normalizada
@@ -716,9 +757,9 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM')
             nrOrdem = val;
 
-          // CPF - Garantir limpeza absoluta (apenas números)
+          // CPF - Garantir limpeza absoluta e padding de 11 dígitos
           else if (k === 'CPF')
-            cpf = String(val).replace(/\D/g, '');
+            cpf = padCpf(val);
 
           // Nome completo
           else if (k === 'NOMECOMPLETO' || k === 'NOME')
@@ -728,10 +769,10 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k.includes('GUERRA'))
             nomeGuerra = val;
 
-          // Posto/Graduação: PG, POSTO, GRAD, POSTOGRAD, POSTOGRADUACAO
+          // Posto/Graduação
           else if (k === 'PG' || k === 'POSTOGRAD' || k === 'POSTOGRADUACAO' ||
             k.startsWith('POSTO') || k.startsWith('GRAD'))
-            posto = val;
+            posto = normalizeRank(val);
 
           // RGPM
           else if (k === 'RGPM' || k === 'RG' || k === 'RGPOLICIAL' || k === 'REGISTROGERAL')
@@ -749,6 +790,12 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k === 'STATUS' || k === 'SITUACAO' || k === 'CONDICAO') {
             const v = val.toUpperCase();
             statusAtivo = (v === 'ATIVO' || v === 'ATIVA' || v === '1' || v === 'SIM' || v === 'TRUE');
+          }
+
+          // Motorista / Condutor
+          else if (k === 'MOTORISTA' || k === 'CONDUTOR' || k === 'MOT' || k === 'COND') {
+            const v = val.toUpperCase();
+            motorista = (v === 'SIM' || v === 'S' || v === 'TRUE' || v === '1' || v === 'MOTORISTA' || v === 'CONDUTOR') ? 'Sim' : 'Não';
           }
         });
 
@@ -784,20 +831,22 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         );
 
         if (existing) {
-          // UPSERT: atualiza campos que estão vazios/padrão com os dados corretos da planilha
+          // UPSERT: atualiza se houver mudanças relevantes no nome de guerra, posto ou motorista
           const needsUpdate =
-            (!existing.nome_guerra || existing.nome_guerra === '-' || existing.nome_guerra === '' || existing.nome_guerra === existing.nome_guerra?.split(' ')[0]) ||
-            (!existing.posto_graduacao || existing.posto_graduacao === 'Militar');
+            (nomeGuerra && existing.nome_guerra !== nomeGuerra) ||
+            (posto && existing.posto_graduacao !== posto) ||
+            (motorista && existing.motorista !== motorista) ||
+            (!existing.rgpm && rgpm) || (!existing.opm && opm);
 
           if (needsUpdate) {
             await db.run(
               `UPDATE EFETIVO SET
                 nome_guerra = COALESCE(NULLIF($1, ''), nome_guerra),
-                posto_graduacao = CASE WHEN posto_graduacao IS NULL OR posto_graduacao = 'Militar' THEN $2 ELSE posto_graduacao END,
+                posto_graduacao = COALESCE(NULLIF($2, ''), posto_graduacao),
                 rgpm = COALESCE(NULLIF($3, ''), rgpm),
                 opm = COALESCE(NULLIF($4, ''), opm),
                 telefone = COALESCE(NULLIF($5, ''), telefone),
-                motorista = COALESCE(NULLIF($7, ''), motorista)
+                motorista = $7
               WHERE id_militar = $6`,
               [nomeGuerra, posto, rgpm, opm, formatPhone(telefone), existing.id_militar, motorista]
             );
@@ -817,10 +866,12 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         );
 
         // Cria o usuário no sistema com senha padrão = CPF
-        await db.run(
-          'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING',
-          [matricula, cpf]
-        );
+            await db.run(
+              `INSERT INTO users (numero_ordem, password, is_admin)
+               VALUES ($1, $2, 0)
+               ON CONFLICT (numero_ordem) DO UPDATE SET password = EXCLUDED.password WHERE users.password IS NULL`,
+              [matricula, cpf]
+            );
 
         stats.imported++;
 
@@ -989,11 +1040,6 @@ app.delete('/api/servicos/:id', async (req, res) => {
 
 // --- NOVAS ROTAS DE IMPORTAÇÃO DE SERVIÇOS (FT) ---
 
-function cleanCPF(cpf) {
-  if (!cpf) return '';
-  // Limpeza absoluta: remove qualquer prefixo ("CPF:"), pontuação e mantém apenas DÍGITOS.
-  return String(cpf).replace(/\D/g, '');
-}
 app.post('/api/servicos/import/preview', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
   try {
@@ -1003,21 +1049,48 @@ app.post('/api/servicos/import/preview', upload.single('file'), (req, res) => {
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Lista de colunas esperadas para identificar o cabeçalho real
-    const targetKeys = ['PG', 'NOME', 'CPF', 'DATA', 'CMD', 'OPM', 'MODALIDADE', 'GUARNICAO'];
+    // Detecção de arquivos HTML (Web Page) incompletos/wrappers
+    if (rows.length < 5 && rows.some(r => r && r.some(c => String(c).includes('&lt;') || String(c).includes('v:fill')))) {
+        return res.status(400).json({ 
+            error: "O arquivo enviado parece ser uma página web ou atalho incompleto. " +
+                   "Para importar, abra este arquivo no Excel e salve-o como 'Pasta de Trabalho do Excel (.xlsx)' antes de enviar." 
+        });
+    }
 
-    let bestHeaderIndex = 0;
+    // Lista de colunas esperadas para identificar o cabeçalho real (muito mais abrangente)
+    const targetKeys = [
+        'PG', 'POSTO', 'GRADUACAO', 'POSTOGRAD', 'POSTOGRADUACAO', 
+        'NOME', 'NOMEDEGUERRA', 'NOMEPARAGUERRA', 
+        'CPF', 'DATA', 'CMD', 'OPM', 'UNIDADE', 'UNID', 'REPARTICAO', 'SIGLA',
+        'MODALIDADE', 'GUARNICAO', 'DESCRICAO'
+    ];
+
+    let bestHeaderIndex = -1;
     let maxMatches = 0;
 
-    // Escaneia as primeiras 20 linhas para achar a que mais se parece com o cabeçalho
-    for (let i = 0; i < Math.min(rows.length, 20); i++) {
-      const normalizedRow = rows[i].map(cell => normalizeKey(String(cell || '')));
-      const matches = normalizedRow.filter(k => targetKeys.includes(k)).length;
-      if (matches > maxMatches) {
-        maxMatches = matches;
-        bestHeaderIndex = i;
-      }
+    // Escaneia as primeiras 30 linhas para achar a que mais se parece com o cabeçalho
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+        const rowData = rows[i];
+        if (!rowData || rowData.length === 0) continue;
+
+        const normalizedRow = rowData.map(cell => normalizeKey(cell));
+        const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
+        
+        // Critério de desempate: preferir a linha que tenha "CPF" e "NOME"
+        let bonus = 0;
+        if (normalizedRow.includes('CPF')) bonus += 2;
+        if (normalizedRow.includes('NOME')) bonus += 1;
+        
+        const score = matches + bonus;
+
+        if (score > maxMatches) {
+            maxMatches = score;
+            bestHeaderIndex = i;
+        }
     }
+
+    // Se não encontrou cabeçalho minimamente válido, tenta a linha 0
+    if (bestHeaderIndex === -1) bestHeaderIndex = 0;
 
     const headers = rows[bestHeaderIndex] || [];
     const firstDataRow = rows[bestHeaderIndex + 1] || [];
@@ -1056,20 +1129,39 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    const targetKeys = ['PG', 'NOME', 'CPF', 'DATA', 'CMD', 'OPM', 'MODALIDADE', 'GUARNICAO'];
-    let headerIndex = 0;
-    let maxMatches = 0;
-
-    for (let i = 0; i < Math.min(rows.length, 20); i++) {
-      const normalizedRow = rows[i].map(cell => normalizeKey(String(cell || '')));
-      const matches = normalizedRow.filter(k => targetKeys.includes(k)).length;
-      if (matches > maxMatches) {
-        maxMatches = matches;
-        headerIndex = i;
-      }
+    if (rows.length < 5 && rows.some(r => r && r.some(c => String(c).includes('&lt;') || String(c).includes('v:fill')))) {
+        return res.status(400).json({ 
+            error: "O arquivo enviado parece ser uma página web ou atalho incompleto. " +
+                   "Para importar, abra este arquivo no Excel e salve-o como 'Pasta de Trabalho do Excel (.xlsx)' antes de enviar." 
+        });
     }
 
-    const headers = rows[headerIndex].map(h => normalizeKey(String(h || '').replace(/&[a-z0-9#]+;/gi, ' ')));
+    // Re-calcula o melhor cabeçalho para a importação real (mesma lógica do preview)
+    const targetKeys = [
+        'PG', 'POSTO', 'GRADUACAO', 'POSTOGRAD', 'POSTOGRADUACAO', 
+        'NOME', 'NOMEDEGUERRA', 'NOMEPARAGUERRA', 
+        'CPF', 'DATA', 'CMD', 'OPM', 'UNIDADE', 'UNID', 'REPARTICAO', 'SIGLA',
+        'MODALIDADE', 'GUARNICAO', 'DESCRICAO'
+    ];
+    let headerIndex = -1;
+    let maxMatches = 0;
+
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+        if (!rows[i]) continue;
+        const normalizedRow = rows[i].map(cell => normalizeKey(cell));
+        const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
+        let bonus = 0;
+        if (normalizedRow.includes('CPF')) bonus += 2;
+        if (normalizedRow.includes('NOME')) bonus += 1;
+        const score = matches + bonus;
+        if (score > maxMatches) {
+            maxMatches = score;
+            headerIndex = i;
+        }
+    }
+    if (headerIndex === -1) headerIndex = 0;
+
+    const headers = rows[headerIndex].map(h => normalizeKey(h));
     const dataRows = rows.slice(headerIndex + 1);
 
     let stats = { imported: 0, skipped: 0, errors: 0 };
@@ -1094,15 +1186,15 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
           if (k === 'CPF') cpfRaw = val;
           else if (k === 'DATA') dataServico = val;
-          else if (k === 'PG') pg = val;
-          else if (k === 'NOME') nome = val;
+          else if (['PG', 'POSTO', 'GRADUACAO', 'POSTOGRAD', 'POSTOGRADUACAO'].includes(k)) pg = val;
+          else if (['NOME', 'NOMEDEGUERRA', 'NOMEPARAGUERRA'].includes(k)) nome = val;
           else if (k === 'CMD') cmd = val;
-          else if (k === 'OPM') opm = val;
+          else if (['OPM', 'UNIDADE', 'UNID', 'REPARTICAO', 'SIGLA'].includes(k)) opm = val;
           else if (k === 'MODALIDADE') modalidade = val;
-          else if (k === 'GUARNICAO') guarnicao = val;
+          else if (['GUARNICAO', 'DESCRICAO'].includes(k)) guarnicao = val;
         });
 
-        const cpf = cleanCPF(cpfRaw);
+        const cpf = padCpf(cpfRaw);
         if (!cpf || !dataServico) {
           stats.skipped++;
           continue;

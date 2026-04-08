@@ -163,7 +163,7 @@ export function EfetivoManager() {
                   <td>{m.nome_guerra || '-'}</td>
                   <td style={{ fontSize: '0.9rem' }}>{m.nome_completo}</td>
                   <td><code>{m.matricula}</code></td>
-                  <td style={{ fontSize: '0.8rem' }}>{m.cpf}</td>
+                  <td style={{ fontSize: '0.8rem' }}>{m.cpf ? String(m.cpf).padStart(11, '0') : '-'}</td>
                   <td>{formatPhone(m.telefone)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -233,7 +233,20 @@ export function EfetivoManager() {
                 
                 <div>
                   <label className="form-label">CPF *</label>
-                  <input className="form-input" value={formData.cpf} onChange={e => setFormData({ ...formData, cpf: e.target.value.replace(/\D/g, '') })} required placeholder="Apenas números" maxLength={11} />
+                  <input 
+                    className="form-input" 
+                    value={formData.cpf} 
+                    onChange={e => setFormData({ ...formData, cpf: e.target.value.replace(/\D/g, '') })} 
+                    onBlur={e => {
+                      const padded = e.target.value.padStart(11, '0');
+                      if (e.target.value && e.target.value.length < 11) {
+                        setFormData({ ...formData, cpf: padded });
+                      }
+                    }}
+                    required 
+                    placeholder="Apenas números" 
+                    maxLength={11} 
+                  />
                 </div>
                 
                 <div>
