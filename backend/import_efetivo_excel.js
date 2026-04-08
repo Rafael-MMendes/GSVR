@@ -28,28 +28,29 @@ async function importFromEfetivoExcel() {
       // Mapeamento dinâmico baseado em nomes de colunas comuns
       const nome_completo = row['Nome'] || row['Nome Completo'] || row['NOME COMPLETO'] || row['nome_completo'];
       const matricula = String(row['Matrícula'] || row['Matricula'] || row['MATRICULA'] || row['n_ordem'] || '').trim();
+      const numero_ordem = String(row['Nº Ordem'] || row['Numero Ordem'] || row['NÚMERO ORDEM'] || '').trim();
       const cpf = String(row['CPF'] || row['Cpf'] || '').trim();
       const posto_graduacao = row['Posto/Graduação'] || row['Posto'] || row['Graduacão'] || row['RANK'] || row['POSTO'];
-      const nome_guerra = row['Nome de Guerra'] || row['Guerra'] || row['NOME DE GUERRA'] || '';
+      const nome_guerra = row['Nome de Guerra'] || row['Guerra'] || row['NOME DE GUERRA'] || row['Nome Guerra'] || '';
       const telefone = String(row['Telefone'] || row['Celular'] || '');
       const opm = row['Unidade'] || row['OPM'] || row['ORGANIZAÇÃO'] || '';
 
-      if (matricula && cpf && nome_completo) {
+      if ((matricula || numero_ordem) && cpf && nome_completo) {
         try {
-          // Upsert no banco de dados (EFETIVO)
           await db.run(
-            `INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, opm, telefone)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
-             ON CONFLICT (matricula) 
+            `INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf, opm, telefone)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT (cpf) 
              DO UPDATE SET 
                nome_completo = EXCLUDED.nome_completo,
                nome_guerra = EXCLUDED.nome_guerra,
                posto_graduacao = EXCLUDED.posto_graduacao,
-               cpf = EXCLUDED.cpf,
+               matricula = COALESCE(EXCLUDED.matricula, EFETIVO.matricula),
+               numero_ordem = COALESCE(EXCLUDED.numero_ordem, EFETIVO.numero_ordem),
                opm = EXCLUDED.opm,
                telefone = EXCLUDED.telefone,
                status_ativo = TRUE`,
-            [nome_completo, nome_guerra, posto_graduacao || 'Militar', matricula, cpf, opm, telefone]
+            [nome_completo, nome_guerra, posto_graduacao || 'Militar', matricula || null, numero_ordem || null, cpf, opm, telefone]
           );
 
           // Criar usuário para login caso não exista (Matrícula / CPF)

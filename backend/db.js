@@ -102,9 +102,10 @@ async function setupDB() {
           CREATE TABLE IF NOT EXISTS EFETIVO (
               id_militar SERIAL PRIMARY KEY,
               nome_completo VARCHAR(255) NOT NULL,
-              nome_guerra VARCHAR(100), -- Mantido para compatibilidade frontend
+              nome_guerra VARCHAR(100),
               posto_graduacao VARCHAR(50) NOT NULL,
-              matricula VARCHAR(50) UNIQUE NOT NULL,
+              matricula VARCHAR(50),
+              numero_ordem VARCHAR(50),
               cpf VARCHAR(14) UNIQUE NOT NULL,
               rgpm VARCHAR(20),
               opm VARCHAR(100),

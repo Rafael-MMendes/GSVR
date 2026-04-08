@@ -2,20 +2,6 @@
 
 Documento dedicado ao acompanhamento de todas as atualizações, novas configurações e resoluções de problemas (bugfixes) implementados no projeto.
 
-## v1.13.0 — 2026-04-07
-**Autor:** Alan Kleber
-**Email:** alan.kleber@example.com
-
-### Mudanças:
-- **Módulo de Importação FT (Planilha)**: Implementada a funcionalidade de importação automática de serviços executados a partir da planilha "Planilha_FT_RB_DESCRICAO", permitindo a carga massiva de dados históricos e operacionais.
-- **Resiliência na Importação de Excel**: O backend foi aprimorado com inteligência para detectar automaticamente a linha de cabeçalho real (ignorando linhas de lixo ou metadados no topo da planilha). Implementado suporte a "falsos XLS" (HTML salvo como Excel) através da limpeza de entidades HTML (`&#171;`, `&lt;`, etc) nos cabeçalhos.
-- **Backend — Processamento de Excel**: Criação dos endpoints `/api/servicos/import` e `/api/servicos/import/preview`. Implementada lógica robusta via Regex para limpeza de CPF (removendo prefixos como "CPF:" e pontuação), busca de militar no efetivo e vinculação automática ao Ciclo Operacional correspondente.
-- **Banco de Dados — Evolução do Schema**: Atualizada a tabela `SERVICOS_EXECUTADOS` no PostgreSQL para incluir campos específicos da planilha: `cmd`, `opm_origem`, `modalidade` e `guarnicao`.
-- **Frontend — UI de Importação**: Desenvolvido o componente `ServicosImport.jsx` com sistema de pré-visualização de colunas mapeadas, análise de registros e relatório detalhado de erros (ex: militares não cadastrados).
-- **Navegação e Integração**: Adicionado link direto na Navbar lateral e botão de atalho "Importar FT" na tela de gestão de serviços executados, utilizando eventos customizados para navegação fluida entre componentes.
-
----
-
 ## v1.12.0 — 2026-04-07
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

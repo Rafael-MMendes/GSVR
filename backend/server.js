@@ -519,7 +519,13 @@ app.get('/api/volunteers', async (req, res) => {
   res.json(rows.map(v => ({ ...v, availability: v.availability_json || {} })));
 });
 
-app.get('/api/months', async (req, res) => { res.json(await db.all('SELECT month_key, month_name FROM months ORDER BY month_key DESC')); });
+app.get('/api/months', async (req, res) => {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const monthName = getMonthName(currentMonth);
+  await db.run('INSERT INTO months (month_key, month_name) VALUES (?, ?) ON CONFLICT (month_key) DO NOTHING', [currentMonth, monthName]);
+  res.json(await db.all('SELECT month_key, month_name FROM months ORDER BY month_key DESC'));
+});
 
 app.post('/api/volunteers', async (req, res) => {
   const { numero_ordem, name, availability } = req.body;
@@ -1316,15 +1322,40 @@ app.get('/api/financeiro/detalhado', async (req, res) => {
 // PDF IMPORT (Requerimentos via PDF)
 // ============================================================
 function processMarksLine(line, shiftCode, data) {
-  let cleanLine = line.trim();
-  if (!cleanLine) return;
+  if (!line || line.length === 0) return;
+  
+  // NÃO usar trim() - preservar todos os espaços para manter posições
+  const chars = line.split('');
+  
+  console.log(`  processMarksLine: "${line.trim()}"`);
+  console.log(`    Total caracteres: ${chars.length}`);
+  
+  // Posição 0 = MOTORISTA
+  const motoristChar = chars[0];
+  data.motorist = (motoristChar && motoristChar.toUpperCase() === 'X') ? 'Sim' : 'Nao';
+  console.log(`    Motorista: ${data.motorist}`);
+  
+  // Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
   let dayCounter = 0;
-  for (let i = 0; i < cleanLine.length; i++) {
-    const char = cleanLine[i];
-    if (char === ' ') continue;
-    if (dayCounter === 0) { data.motorist = (char.toUpperCase() === 'X') ? 'Sim' : 'Nao'; dayCounter++; }
-    else { const dayStr = String(dayCounter).padStart(2, '0'); if (char.toUpperCase() === 'X') { if (!data.availability[dayStr]) data.availability[dayStr] = []; if (!data.availability[dayStr].includes(shiftCode)) data.availability[dayStr].push(shiftCode); } dayCounter++; if (dayCounter > 31) break; }
+  
+  for (let pos = 1; pos < chars.length && dayCounter < 31; pos++) {
+    const char = chars[pos];
+    dayCounter++;
+    const dayStr = String(dayCounter).padStart(2, '0');
+    
+    // Disponível: "X". Não disponível: " " (espaço) ou "S"
+    const isAvailable = (char && char.toUpperCase() === 'X');
+    
+    if (isAvailable) {
+      if (!data.availability[dayStr]) data.availability[dayStr] = [];
+      if (!data.availability[dayStr].includes(shiftCode)) {
+        data.availability[dayStr].push(shiftCode);
+        console.log(`    Dia ${dayStr}: disponível`);
+      }
+    }
   }
+  
+  console.log(`    Total dias processados: ${dayCounter}`);
 }
 
 async function parseRequerimentoPDF(text, db) {
@@ -1333,42 +1364,79 @@ async function parseRequerimentoPDF(text, db) {
   if (match) data.numero_ordem = match[1];
   if (data.numero_ordem && db) {
     try {
-      const r = await db.query('SELECT posto_graduacao, nome_guerra, telefone FROM EFETIVO WHERE matricula = $1', [data.numero_ordem]);
+      const r = await db.query('SELECT posto_graduacao, nome_guerra, telefone FROM EFETIVO WHERE numero_ordem = $1 OR matricula = $1', [data.numero_ordem]);
       if (r.rows.length) { data.rank = r.rows[0].posto_graduacao; data.name = r.rows[0].nome_guerra; data.phone = r.rows[0].telefone || ''; }
     } catch (e) { console.error(e); }
   }
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].trim(); const nl = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
-    if (l.includes('07:00') && nl === '13:00') processMarksLine(lines[i + 2]?.trim() || '', '07:00 ÀS 13:00', data);
-    if (l.includes('13:00') && nl === '19:00') processMarksLine(lines[i + 2]?.trim() || '', '13:00 ÀS 19:00', data);
-    if (l.includes('19:00') && nl === '01:00') processMarksLine(lines[i + 2]?.trim() || '', '19:00 ÀS 01:00', data);
-    if (l.includes('01:00') && nl === '07:00') processMarksLine(lines[i + 2]?.trim() || '', '01:00 ÀS 07:00', data);
+    const l = lines[i].trim();
+    const nl = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+    if (l === '07:00 ÀS' && nl === '13:00') { console.log('Turno manha detectado'); processMarksLine(lines[i + 2]?.trim() || '', '07:00 ÀS 13:00', data); }
+    if (l === '13:00 ÀS' && nl === '19:00') { console.log('Turno tarde detectado'); processMarksLine(lines[i + 2]?.trim() || '', '13:00 ÀS 19:00', data); }
+    if (l === '19:00 ÀS' && nl === '01:00') { console.log('Turno noite detectada'); processMarksLine(lines[i + 2]?.trim() || '', '19:00 ÀS 01:00', data); }
+    if (l === '01:00 ÀS' && nl === '07:00') { console.log('Turno madrugada detectada'); processMarksLine(lines[i + 2]?.trim() || '', '01:00 ÀS 07:00', data); }
+  }
+  if (Object.keys(data.availability).length === 0) {
+    console.log('Nenhum turno detectado no primeiro método, tentando método alternativo');
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i].trim();
+      if (l.includes('07:00') && l.includes('13:00') && l.length < 20) {
+        const nextLine = lines[i + 1]?.trim() || '';
+        if (nextLine.length > 10) processMarksLine(nextLine, '07:00 ÀS 13:00', data);
+      }
+      if (l.includes('13:00') && l.includes('19:00') && l.length < 20) {
+        const nextLine = lines[i + 1]?.trim() || '';
+        if (nextLine.length > 10) processMarksLine(nextLine, '13:00 ÀS 19:00', data);
+      }
+      if (l.includes('19:00') && l.includes('01:00') && l.length < 20) {
+        const nextLine = lines[i + 1]?.trim() || '';
+        if (nextLine.length > 10) processMarksLine(nextLine, '19:00 ÀS 01:00', data);
+      }
+      if (l.includes('01:00') && l.includes('07:00') && l.length < 20) {
+        const nextLine = lines[i + 1]?.trim() || '';
+        if (nextLine.length > 10) processMarksLine(nextLine, '01:00 ÀS 07:00', data);
+      }
+    }
   }
   return data;
 }
 
 app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
   const { month_key } = req.body;
+  console.log('Import request:', { month_key, filesCount: req.files?.length });
   if (!req.files || !month_key) return res.status(400).json({ error: "Invalid request" });
   try {
     const volunteers = [], errors = [];
     for (const file of req.files) {
       try {
+        console.log('Processing file:', file.originalname);
         const pdf = await pdfParser(file.buffer);
+        console.log('PDF text length:', pdf.text.length);
         const parsed = await parseRequerimentoPDF(pdf.text, db);
+        console.log('Parsed data:', JSON.stringify(parsed));
         parsed.month_key = month_key;
         if (parsed.numero_ordem) volunteers.push(parsed);
         else errors.push({ file: file.originalname, error: "Nao encontrou numero" });
-      } catch (e) { errors.push({ file: file.originalname, error: e.message }); }
+      } catch (e) { console.error('Error processing file:', e); errors.push({ file: file.originalname, error: e.message }); }
     }
+    console.log('Volunteers parsed:', volunteers.length, 'Errors:', errors.length);
     const results = [];
     for (const item of volunteers) {
       try {
-        const m = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = $1', [item.numero_ordem]);
+        console.log('Saving volunteer:', item.numero_ordem, item.month_key);
+        const m = await db.get('SELECT id_militar FROM EFETIVO WHERE numero_ordem = $1 OR matricula = $1', [item.numero_ordem]);
+        console.log('Militar found:', m);
         if (!m) { results.push({ numero_ordem: item.numero_ordem, success: false, error: "Militar nao encontrado" }); continue; }
-        const c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
-        if (!c) { results.push({ numero_ordem: item.numero_ordem, success: false, error: "Ciclo nao encontrado" }); continue; }
+        let c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
+        if (!c) {
+          const [year, month] = item.month_key.split('-');
+          const firstDay = new Date(parseInt(year), parseInt(month) - 1, 1);
+          const lastDay = new Date(parseInt(year), parseInt(month), 0);
+          await db.run('INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES (1, $1, $2, $3, $4)', [item.month_key, firstDay.toISOString().split('T')[0], lastDay.toISOString().split('T')[0], 'Aberto']);
+          c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
+        }
+        console.log('Ciclo found:', c);
         const existing = await db.get('SELECT id_requerimento FROM REQUERIMENTOS r JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE r.id_militar = $1 AND c.referencia_mes_ano = $2', [m.id_militar, item.month_key]);
         let id_req;
         if (existing) {

@@ -1,0 +1,38 @@
+TURNO 07:00-13:00 (linha 40): S XXS XXS XXS XXS XXS XXS XXS
+TURNO 13:00-19:00 (linha 44): S XXS XXS XXS XXS XXS XXS XXS
+TURNO 19:00-01:00 (linha 48): S  XS  XS  XS  XS  XS  XS  XS
+TURNO 01:00-07:00 (linha 52): S XXS XXS XXS XXS XXS  XS XXS
+
+Letra por letra:
+0 " "
+1 " "
+2 "S"
+3 " "
+4 "X"
+5 "X"
+6 "S"
+7 " "
+8 "X"
+9 "X"
+10 "S"
+11 " "
+12 "X"
+13 "X"
+14 "S"
+15 " "
+16 "X"
+17 "X"
+18 "S"
+19 " "
+20 "X"
+21 "X"
+22 "S"
+23 " "
+24 "X"
+25 "X"
+26 "S"
+27 " "
+28 "X"
+29 "X"
+30 "S"
+31 " "
