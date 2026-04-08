@@ -289,7 +289,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     }
 
     // Busca dados militares e permissões
-    const military = await db.get('SELECT posto_graduacao, nome_guerra, nome_completo, telefone FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
+    const military = await db.get('SELECT posto_graduacao, nome_guerra, nome_completo, telefone, motorista FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
     const permissions = await getUserPermissions(user.id);
     const roles = await getUserRoles(user.id);
 
@@ -326,7 +326,9 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         rank: normalizeRank(military?.posto_graduacao),
         nome_guerra: military?.nome_guerra || '',
         nome_completo: military?.nome_completo || '',
-        phone: military?.telefone || ''
+        phone: military?.telefone || '',
+        // Normalizar motorista: true/1/'Sim' → 'Sim', caso contrário → 'Não'
+        motorista: (military?.motorista === true || military?.motorista === 1 || military?.motorista === 'true' || military?.motorista === '1' || military?.motorista === 'Sim') ? 'Sim' : 'Não'
       }
     });
   } catch (e) { res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: e.message } }); }

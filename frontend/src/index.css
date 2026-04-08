@@ -407,8 +407,8 @@ h3 { font-size: 1.25rem; }
 
 @media (min-width: 1024px) {
   .dashboard-grid {
-    grid-template-columns: 320px 1fr;
-    gap: 2rem;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 1rem;
     height: calc(100vh - 120px);
   }
 }
@@ -444,10 +444,22 @@ h3 { font-size: 1.25rem; }
 
 .schedules-area {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.5rem;
   overflow-y: auto;
   padding-right: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .schedules-area {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .schedules-area {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .patrol-column {
@@ -505,7 +517,7 @@ h3 { font-size: 1.25rem; }
     background: white;
     color: black;
   }
-  .navbar, .volunteers-list, .btn, .dashboard-grid > div:first-child {
+  .navbar, .volunteers-list, .btn {
     display: none !important;
   }
   .dashboard-grid {

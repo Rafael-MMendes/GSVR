@@ -1,3 +1,15 @@
+## v1.12.17 — 2026-04-08
+**Autor:** Rafael Monteiro
+**Email:** rafael.monteiro@example.com
+
+### Mudanças:
+- **Ajuste do Planejamento de Escala**: Reorganizado o dashboard administrativo para manter o painel lateral `Planejamento` e remover menus duplicados do topo.
+- **Guarnições Mais Legíveis**: Os cards das guarnições agora ocupam mais espaço na grade e exibem os componentes em linhas verticais para melhorar a leitura dos nomes.
+- **Padrão de Nome Atualizado**: O nome padrão das guarnições foi normalizado para `FORÇA TAREFA`, com compatibilidade para dados antigos carregados do backend.
+- **Ações no Sidebar**: Os botões `Salvar`, `Nova Guarnição` e `Imprimir` foram movidos para o menu lateral direito.
+
+---
+
 ## v1.12.16 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com

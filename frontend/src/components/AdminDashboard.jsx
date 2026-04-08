@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -14,6 +14,16 @@ const SHIFTS = [
   '19:00 ÀS 01:00',
   '01:00 ÀS 07:00',
 ];
+
+const MAX_MEMBERS = 3; // Máximo de militares por guarnição
+
+const normalizePatrolName = (name) => {
+  const value = String(name || '').trim();
+  if (!value) return 'FORÇA TAREFA';
+  if (/^força tarefa$/i.test(value)) return 'FORÇA TAREFA';
+  if (/^guarni[cç]ão\s*\d+$/i.test(value) || /^guarnicao\s*\d+$/i.test(value)) return 'FORÇA TAREFA';
+  return value;
+};
 
 
 const getTimeOptions = (durationStr) => {
@@ -34,13 +44,16 @@ export function AdminDashboard() {
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedDate, setSelectedDate] = useState('1');
   const [selectedShift, setSelectedShift] = useState('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSlot, setActiveSlot] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(null); // { patrolId, selectedMembers: [] }
+  const [selectedMembers, setSelectedMembers] = useState([]); // Militares selecionados no modal
 
-  
   const [state, setState] = useState({
     pool: [],
     patrols: Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
-      name: `Guarnição ${i+1}`, 
+      name: 'FORÇA TAREFA', 
       duration: '6h',
       timeSpan: '',
       members: [] 
@@ -79,16 +92,13 @@ export function AdminDashboard() {
     console.log('Loading schedule data for:', { monthKey, dateVal, volunteersCount: volunteersData.length });
 
     const availablePeople = volunteersData.filter(v => {
-      // DEBUG: Se precisar debugar um militar específico descomente:
-      // if (v.numero_ordem === 'SEU_NUMERO') console.log('DEBUG Availability:', v.name, v.availability);
-      
       if (!v.availability) return false;
       
-      const keys = Object.keys(v.availability).map(k => String(k).replace(/^0+/, ''));
-      const targetStr = String(selectedDateNum);
-      const targetPadded = String(selectedDateNum).padStart(2, '0');
+      // Verificar tanto versão com zero quanto sem zero
+      const dayKey1 = String(selectedDateNum);
+      const dayKey2 = String(selectedDateNum).padStart(2, '0');
       
-      const hasDay = keys.includes(targetStr) || keys.includes(targetPadded);
+      const hasDay = v.availability[dayKey1] || v.availability[dayKey2] || v.availability[parseInt(selectedDateNum)];
       return hasDay;
     });
 
@@ -96,18 +106,22 @@ export function AdminDashboard() {
 
     const patrols = (schedulesData.length > 0 && schedulesData[0].patrols) ? schedulesData[0].patrols : Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
-      name: `Guarnição ${i+1}`, 
+      name: 'FORÇA TAREFA', 
       duration: '6h',
       timeSpan: '',
       members: [] 
+    })).map((patrol, index) => ({
+      ...patrol,
+      name: normalizePatrolName(patrol.name),
+      id: patrol.id || `p${index + 1}`,
     }));
 
     const assignedIds = new Set();
     patrols.forEach(patrol => {
-      if (patrol.members) {
+      if (patrol.members && Array.isArray(patrol.members)) {
         patrol.members.forEach(m => {
-          if (m.id) assignedIds.add(String(m.id));
-          if (m.id_militar) assignedIds.add(`m${m.id_militar}`);
+          if (m && m.id) assignedIds.add(String(m.id));
+          if (m && m.id_militar) assignedIds.add(`m${m.id_militar}`);
         });
       }
     });
@@ -152,6 +166,129 @@ export function AdminDashboard() {
       console.error(error);
       alert('Erro ao salvar escala.');
     }
+  };
+
+  // POOL FILTRADO COM useMemo
+  const filteredPool = useMemo(() => {
+    return state.pool.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (p.numero_ordem && p.numero_ordem.includes(searchTerm));
+      
+      if (selectedShift === 'Todos') return matchesSearch;
+      
+      const targetDay = String(selectedDate).padStart(2, '0');
+      const dayShifts = p.availability?.[targetDay] || p.availability?.[parseInt(selectedDate)] || [];
+      return matchesSearch && dayShifts.some(s => s && s.includes(selectedShift.split(' ')[0]));
+    });
+  }, [state.pool, searchTerm, selectedShift, selectedDate]);
+
+  // FUNÇÃO DE ATRIBUIÇÃO RÁPIDA (Click-to-Assign)
+  const assignToActiveSlot = (person) => {
+    if (!activeSlot) return;
+
+    setState(prev => {
+      const newState = {
+        pool: prev.pool.filter(p => p.id !== person.id),
+        patrols: prev.patrols.map(p => {
+          if (p.id === activeSlot.patrolId) {
+            const newMembers = [...p.members];
+            if (newMembers[activeSlot.roleIndex]) {
+              prev.pool.push(newMembers[activeSlot.roleIndex]);
+            }
+            newMembers[activeSlot.roleIndex] = person;
+            return { ...p, members: newMembers };
+          }
+          return p;
+        })
+      };
+      return newState;
+    });
+    setActiveSlot(null);
+  };
+
+  const removeFromSlot = (patrolId, roleIndex) => {
+    setState(prev => {
+      const newPatrols = prev.patrols.map(p => {
+        if (p.id === patrolId) {
+          const newMembers = [...p.members];
+          const removedPerson = newMembers[roleIndex];
+          newMembers[roleIndex] = null;
+          return { ...p, members: newMembers };
+        }
+        return p;
+      });
+      
+      const removedPerson = prev.patrols.find(p => p.id === patrolId)?.members[roleIndex];
+      const newPool = removedPerson ? [...prev.pool, removedPerson] : prev.pool;
+      
+      return { pool: newPool, patrols: newPatrols };
+    });
+  };
+
+  // MODAL DE SELEÇÃO DE MILITARES
+  const openSelectionModal = (patrolId) => {
+    setSelectionMode({ patrolId, selectedMembers: [] });
+    setSelectedMembers([]);
+  };
+
+  const toggleMemberSelection = (member) => {
+    const isSelected = selectedMembers.some(m => m.id === member.id);
+    if (isSelected) {
+      setSelectedMembers(prev => prev.filter(m => m.id !== member.id));
+    } else if (selectedMembers.length < MAX_MEMBERS) {
+      setSelectedMembers(prev => [...prev, member]);
+    }
+  };
+
+  const confirmSelection = () => {
+    if (!selectionMode) return;
+    
+    setState(prev => {
+      const newPatrols = prev.patrols.map(p => {
+        if (p.id === selectionMode.patrolId) {
+          // Criar array com até 3 posições, preenchendo com null onde não há membro
+          const newMembers = [null, null, null];
+          selectedMembers.forEach((m, idx) => {
+            newMembers[idx] = m;
+          });
+          return { ...p, members: newMembers };
+        }
+        return p;
+      });
+      
+      // Remover selecionados do pool
+      const selectedIds = selectedMembers.map(m => m.id);
+      const newPool = prev.pool.filter(p => !selectedIds.includes(p.id));
+      
+      return { pool: newPool, patrols: newPatrols };
+    });
+    
+    setSelectionMode(null);
+    setSelectedMembers([]);
+  };
+
+  const closeSelectionModal = () => {
+    setSelectionMode(null);
+    setSelectedMembers([]);
+  };
+
+  // Mover militar entre posições (drag and drop simples)
+  const moveMember = (patrolId, fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    
+    setState(prev => {
+      const newPatrols = prev.patrols.map(p => {
+        if (p.id === patrolId) {
+          const newMembers = [...p.members];
+          const temp = newMembers[fromIndex];
+          newMembers[fromIndex] = newMembers[toIndex];
+          newMembers[toIndex] = temp;
+          return { ...p, members: newMembers };
+        }
+        return p;
+      });
+      return { ...prev, patrols: newPatrols };
+    });
   };
 
   const generatePDF = async () => {
@@ -263,14 +400,13 @@ export function AdminDashboard() {
 
   const addPatrol = () => {
     setState(prev => {
-      const nextNum = prev.patrols.length + 1;
       return {
         ...prev,
         patrols: [
           ...prev.patrols,
           {
             id: `p${Date.now()}`,
-            name: `Guarnição ${nextNum}`,
+            name: 'FORÇA TAREFA',
             duration: '6h',
             timeSpan: '',
             members: []
@@ -375,188 +511,9 @@ export function AdminDashboard() {
 
   return (
     <div className="container" style={{ paddingTop: '1rem', maxWidth: '100%' }}>
-      <div className="admin-controls-header" style={{ 
-          display: 'flex', 
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          gap: '1rem',
-          marginBottom: '1.5rem', 
-          background: 'white', 
-          padding: '1rem', 
-          borderRadius: '12px', 
-          border: '1px solid var(--border-color)', 
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)' 
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Mês:</label>
-            <select 
-              className="form-control" 
-              style={{ width: '130px', margin: 0, padding: '0.4rem' }}
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-            >
-              {months.map(m => (
-                <option key={m.id_ciclo} value={m.referencia_mes_ano}>{m.referencia_mes_ano}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Dia:</label>
-            <select 
-              className="form-control" 
-              style={{ width: '90px', margin: 0, padding: '0.4rem' }}
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-            >
-              {Array.from({length: 31}, (_, i) => i+1).map(d => (
-                <option key={d} value={d}>Dia {d}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <label style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Turno:</label>
-            <select
-              className="form-control"
-              style={{ width: '160px', margin: 0, padding: '0.4rem' }}
-              value={selectedShift}
-              onChange={e => setSelectedShift(e.target.value)}
-            >
-              <option value="Todos">Todos</option>
-              {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
-            </select>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', gap: '0.75rem', marginLeft: 'auto' }}>
-          <button className="btn btn-outline" onClick={saveConfig} style={{ padding: '0.4rem 1rem' }}>
-            Salvar
-          </button>
-          <button className="btn btn-primary" onClick={generatePDF} style={{ padding: '0.4rem 1rem' }}>
-            <Printer size={18} />
-            PDF
-          </button>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        {/* Pool Column */}
-        <div className="glass-panel" 
-             onDragOver={handleDragOver} 
-             onDrop={(e) => handleDrop(e, 'pool')}
-        >
-          <h3 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-            Militares Disponíveis ({(() => {
-              const base = state.pool;
-              return base.filter(p => {
-                if (selectedShift === 'Todos') return true;
-                if (!p.availability) return false;
-                
-                const targetDayKey = String(selectedDateNum);
-                const targetDayPadded = targetDayKey.padStart(2, '0');
-                
-                const dayShifts = p.availability[targetDayKey] || p.availability[targetDayPadded] || [];
-                if (!Array.isArray(dayShifts)) return false;
-                
-                return dayShifts.some(s => 
-                  String(s).toLowerCase().trim().includes(selectedShift.toLowerCase().trim())
-                );
-              }).length;
-            })()})
-          </h3>
-          <div className="volunteers-list">
-            {state.pool
-              .filter(p => {
-                if (selectedShift === 'Todos') return true;
-                if (!p.availability) return false;
-
-                const targetDayKey = String(selectedDateNum);
-                const targetDayPadded = targetDayKey.padStart(2, '0');
-                
-                const dayShifts = p.availability[targetDayKey] || p.availability[targetDayPadded] || [];
-                if (!Array.isArray(dayShifts)) return false;
-
-                return dayShifts.some(s => 
-                  String(s).toLowerCase().trim().includes(selectedShift.toLowerCase().trim())
-                );
-              })
-              .map(p => {
-              const dateKey = String(selectedDate);
-              const dateNum = parseInt(selectedDate);
-              const paddedKey = dateKey.padStart(2, '0');
-              const prefShifts = (p.availability && (p.availability[dateKey] || p.availability[dateNum] || p.availability[paddedKey])) || [];
-              return (
-                <div 
-                  key={p.id} 
-                  className="volunteer-card"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, p.id, 'pool')}
-                >
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ background: '#f1f5f9', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', border: '1px solid #e2e8f0' }}>Nº {p.numero_ordem}</div>
-                    <div style={{ fontWeight: 600 }}>{p.rank} {p.name}</div>
-                    
-                    {/* Contador de Serviços */}
-                    <div style={{ 
-                      background: p.service_count >= 8 ? '#fecaca' : (p.service_count >= 6 ? '#ffedd5' : '#dcfce7'), 
-                      color: p.service_count >= 8 ? '#991b1b' : (p.service_count >= 6 ? '#9a3412' : '#166534'), 
-                      padding: '0.1rem 0.6rem', 
-                      borderRadius: '12px', 
-                      fontSize: '0.7rem', 
-                      fontWeight: '800',
-                      border: `1px solid ${p.service_count >= 8 ? '#f87171' : (p.service_count >= 6 ? '#fb923c' : '#4ade80')}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      SERV. {p.service_count}/8
-                      {p.service_count >= 8 && <AlertTriangle size={10} />}
-                    </div>
-
-                    {p.motorista === 'Sim' && (
-                      <div style={{ background: '#10b981', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>MOTORISTA</div>
-                    )}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    <span style={{ fontWeight: 600 }}>Turnos marcados:</span> {prefShifts.length > 0 ? prefShifts.join(' | ') : 'Qualquer'}
-                  </div>
-                </div>
-              );
-            })}
-            {state.pool.length === 0 && <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>Nenhum militar pendente.</p>}
-          </div>
-        </div>
-
-        {/* Patrols Column (The printable area) */}
+      <div className="dashboard-grid" style={{ gap: '1rem' }}>
         <div className="glass-panel" style={{ padding: '0', background: 'transparent', border: 'none', boxShadow: 'none' }}>
-          
-          <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', padding: '0 1.5rem' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>Planejamento de Escala</h2>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button 
-                onClick={addPatrol}
-                className="glass-button secondary"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.5rem',
-                  padding: '0.5rem 1rem'
-                }}
-              >
-                <Plus size={18} /> Adicionar Guarnição
-              </button>
-              <button onClick={generatePDF} className="glass-button primary">
-                <Printer size={18} /> Imprimir Escala
-              </button>
-            </div>
-          </div>
-
           <div ref={printRef} style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', minHeight: '100%' }}>
-            
             <div className="print-only print-header" style={{ 
               backgroundColor: '#0D3878', 
               color: '#ffffff', 
@@ -570,19 +527,16 @@ export function AdminDashboard() {
             }}>
               <div style={{ position: 'absolute', bottom: '3px', left: 0, right: 0, height: '3px', backgroundColor: '#009C3B' }}></div>
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', backgroundColor: '#FFDF00' }}></div>
-              
               <img src="/brasao_municipio.png" alt="Brasão Alagoas" style={{ height: '60px', zIndex: 10, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
-              
               <div style={{ textAlign: 'center', zIndex: 10, flex: 1, padding: '0 10px' }}>
                 <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#ffffff', fontWeight: 'bold' }}>POLÍCIA MILITAR DE ALAGOAS</h2>
                 <h3 style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: '#ffffff', fontWeight: 'normal' }}>9º Batalhão de Polícia Militar - Batalhão de Divisas</h3>
                 <h4 style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#c8dcff', fontStyle: 'italic', fontWeight: 'normal' }}>Escala Operacional da Força Tarefa (Dia {selectedDate})</h4>
               </div>
-              
               <img src="/brasao_9bpm.png" alt="9º BPM" style={{ height: '60px', zIndex: 10, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
             </div>
-            
-            <div className="schedules-area" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
+
+            <div className="schedules-area">
               {state.patrols.map(patrol => (
                 <div 
                   key={patrol.id} 
@@ -593,29 +547,29 @@ export function AdminDashboard() {
                   <div className="patrol-header" style={{ justifyContent: 'center', position: 'relative' }}>
                     <input 
                       type="text" 
-                      value={patrol.name} 
-                      onChange={e => handlePatrolSettingChange(patrol.id, 'name', e.target.value)} 
+                      value={normalizePatrolName(patrol.name)} 
+                      onChange={e => handlePatrolSettingChange(patrol.id, 'name', normalizePatrolName(e.target.value))} 
                       style={{ border: 'none', background: 'transparent', fontSize: '1.125rem', fontWeight: 600, color: 'var(--primary)', width: 'auto', flex: 1, outline: 'none', textAlign: 'center' }} 
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                       <span className="patrol-count">{patrol.members.length}/3</span>
-                       <button 
-                         onClick={() => removePatrol(patrol.id)}
-                         className="no-print"
-                         style={{ 
-                           marginLeft: '8px',
-                           padding: '4px',
-                           color: '#ef4444',
-                           background: 'transparent',
-                           border: 'none',
-                           cursor: 'pointer',
-                           display: 'flex',
-                           alignItems: 'center'
-                         }}
-                         title="Remover Guarnição"
-                       >
-                         <Trash2 size={16} />
-                       </button>
+                      <span className="patrol-count">{patrol.members.length}/3</span>
+                      <button 
+                        onClick={() => removePatrol(patrol.id)}
+                        className="no-print"
+                        style={{ 
+                          marginLeft: '8px',
+                          padding: '4px',
+                          color: '#ef4444',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title="Remover Guarnição"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
@@ -640,7 +594,7 @@ export function AdminDashboard() {
                       >
                         <option value="">Selecione o Horário...</option>
                         {getTimeOptions(patrol.duration).map(opt => (
-                           <option key={opt} value={opt}>{opt}</option>
+                          <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
                     </div>
@@ -649,54 +603,321 @@ export function AdminDashboard() {
                   <div className="print-only" style={{ marginBottom: '1rem', padding: '0.2rem 0', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0' }}>
                     {patrol.timeSpan ? `Horário: ${patrol.timeSpan} (${patrol.duration})` : `Carga: ${patrol.duration}`}
                   </div>
-                  
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {Array.from({length: 3}).map((_, index) => {
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    {Array.from({ length: 3 }).map((_, index) => {
                       const m = patrol.members[index];
                       const roleName = ROLES[index];
-                      
+                      const isActive = activeSlot?.patrolId === patrol.id && activeSlot?.roleIndex === index;
+
                       if (m) {
                         return (
-                          <div 
-                            key={m.id} 
+                          <div
+                            key={m.id}
                             className="volunteer-card"
-                            style={{ padding: '0.5rem 0.75rem', flexDirection: 'row', alignItems: 'center' }}
                             draggable
                             onDragStart={(e) => handleDragStart(e, m.id, patrol.id)}
+                            style={{
+                              padding: '0.5rem',
+                              minHeight: '72px',
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.75rem'
+                            }}
                           >
-                            <div style={{ fontWeight: 'bold', color: 'var(--primary)', width: '90px', fontSize: '0.8rem' }}>
-                              {roleName}:
+                            <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '0.8rem', width: '94px', flexShrink: 0 }}>{roleName}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
+                              <span style={{ fontSize: '0.7rem', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>Nº {m.numero_ordem}</span>
+                              <div style={{ fontWeight: 500, fontSize: '0.85rem', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.rank} {m.name}</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <span style={{ fontSize: '0.7rem', background: '#e2e8f0', padding: '1px 4px', borderRadius: '3px' }}>Nº {m.numero_ordem}</span>
-                              <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{m.rank} {m.name}</div>
-                            </div>
-                          </div>
-                        );
-                      } else {
-                        return (
-                          <div key={`empty-${index}`} style={{ 
-                            border: '1px dashed var(--border-color)', 
-                            padding: '0.5rem', 
-                            borderRadius: '8px', 
-                            color: 'var(--text-muted)', 
-                            fontSize: '0.8rem',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <div style={{ width: '90px', fontWeight: 'bold' }}>{roleName}:</div>
-                            <div style={{ fontStyle: 'italic', opacity: 0.5 }}>Vazio...</div>
+                            <button onClick={() => removeFromSlot(patrol.id, index)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }} title="Remover">
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         );
                       }
+
+                      return (
+                        <div
+                          key={`empty-${index}`}
+                          onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })}
+                          style={{
+                            border: isActive ? '2px solid #0D3878' : '1px dashed var(--border-color)',
+                            borderRadius: '8px',
+                            minHeight: '72px',
+                            padding: '0.5rem',
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.75rem',
+                            cursor: 'pointer',
+                            background: isActive ? '#f0f7ff' : 'transparent',
+                            color: 'var(--text-muted)',
+                            textAlign: 'left'
+                          }}
+                        >
+                          <div style={{ fontWeight: 'bold', fontSize: '0.8rem', color: 'var(--primary)', width: '94px', flexShrink: 0 }}>{roleName}</div>
+                          <div style={{ flex: 1, fontStyle: 'italic', opacity: isActive ? 1 : 0.6, fontSize: '0.75rem' }}>
+                            {isActive ? <span style={{ color: '#0D3878', display: 'flex', alignItems: 'center', gap: '4px' }}><MousePointer2 size={14} /> Clique</span> : 'Vazio'}
+                          </div>
+                        </div>
+                      );
                     })}
                   </div>
+
+                  <button 
+                    onClick={() => openSelectionModal(patrol.id)}
+                    style={{
+                      marginTop: '0.75rem',
+                      padding: '0.5rem',
+                      background: '#0D3878',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 600,
+                      width: '100%',
+                      gridColumn: '1 / -1'
+                    }}
+                  >
+                    <Users size={16} /> Adicionar Militares
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
+        {/* Painel Lateral Planejamento */}
+        <aside style={{ width: '260px', background: 'white', borderRadius: '12px', padding: '1rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '1rem', height: 'fit-content', position: 'sticky', top: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0D3878', borderBottom: '2px solid #0D3878', paddingBottom: '0.5rem' }}>
+            <Users size={20} />
+            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Planejamento</h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <button onClick={saveConfig} style={{ padding: '0.5rem 0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <Check size={18} /> Salvar
+            </button>
+            <button onClick={addPatrol} style={{ padding: '0.5rem 0.75rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <Plus size={18} /> Nova Guarnição
+            </button>
+            <button onClick={generatePDF} style={{ padding: '0.5rem 0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+              <Printer size={18} /> Imprimir
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div>
+              <label style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Mês</label>
+              <select className="form-control" style={{ margin: 0 }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
+                {months.map(m => <option key={m.id_ciclo} value={m.referencia_mes_ano}>{m.referencia_mes_ano}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Dia</label>
+              <select className="form-control" style={{ margin: 0 }} value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
+                {Array.from({length: 31}, (_, i) => i+1).map(d => <option key={d} value={d}>Dia {d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Turno</label>
+              <select className="form-control" style={{ margin: 0 }} value={selectedShift} onChange={e => setSelectedShift(e.target.value)}>
+                <option value="Todos">Todos</option>
+                {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 'auto', padding: '0.75rem', background: '#f8fafc', borderRadius: '8px', fontSize: '0.8rem', color: '#64748b' }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Disponíveis</div>
+            <div>{filteredPool.length} militares</div>
+          </div>
+        </aside>
       </div>
+      {/* MODAL DE SELEÇÃO DE MILITARES */}
+      {selectionMode && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header do Modal */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#0D3878',
+              color: 'white'
+            }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Selecionar Militares</h3>
+                <p style={{ margin: '0.25rem 0 0 0', opacity: 0.8, fontSize: '0.9rem' }}>
+                  Selecione até {MAX_MEMBERS} militares para esta guarnição
+                </p>
+              </div>
+              <button onClick={closeSelectionModal} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Lista de seleção */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Buscar por nome ou Nº..." 
+                  className="form-control"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                {filteredPool
+                  .filter(p => {
+                    // Filtrar também por turno se necessário
+                    if (selectedShift === 'Todos') return true;
+                    const targetDay = String(selectedDate).padStart(2, '0');
+                    const dayShifts = p.availability?.[targetDay] || p.availability?.[parseInt(selectedDate)] || [];
+                    return dayShifts.some(s => s && s.includes(selectedShift.split(' ')[0]));
+                  })
+                  .map(p => {
+                    const isSelected = selectedMembers.some(m => m.id === p.id);
+                    const isDisabled = !isSelected && selectedMembers.length >= MAX_MEMBERS;
+                    
+                    return (
+                      <div 
+                        key={p.id}
+                        onClick={() => !isDisabled && toggleMemberSelection(p)}
+                        style={{
+                          padding: '1rem',
+                          border: isSelected ? '2px solid #0D3878' : isDisabled ? '1px solid #e2e8f0' : '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          background: isSelected ? '#f0f7ff' : isDisabled ? '#f8fafc' : 'white',
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1rem',
+                          opacity: isDisabled && !isSelected ? 0.5 : 1,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          width: '24px', height: '24px',
+                          borderRadius: '50%',
+                          border: isSelected ? '2px solid #0D3878' : '2px solid #cbd5e1',
+                          background: isSelected ? '#0D3878' : 'transparent',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {isSelected && <Check size={14} color="white" />}
+                        </div>
+                        
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                            {p.rank} {p.name}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            Nº {p.numero_ordem}
+                          </div>
+                        </div>
+                        
+                        <div style={{
+                          background: p.service_count >= 8 ? '#fecaca' : p.service_count >= 6 ? '#ffedd5' : '#dcfce7',
+                          color: p.service_count >= 8 ? '#991b1b' : p.service_count >= 6 ? '#9a3412' : '#166534',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '12px',
+                          fontSize: '0.7rem',
+                          fontWeight: 700
+                        }}>
+                          {p.service_count}/8
+                        </div>
+                        
+                        {p.motorista === 'Sim' && (
+                          <div style={{ background: '#10b981', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                            MOT
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Footer com ações */}
+            <div style={{
+              padding: '1.5rem',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#f8fafc'
+            }}>
+              <div style={{ fontSize: '0.9rem', color: '#64748b' }}>
+                <strong>{selectedMembers.length}</strong> / {MAX_MEMBERS} selecionados
+              </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  onClick={closeSelectionModal}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: 'white',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmSelection}
+                  disabled={selectedMembers.length === 0}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    background: selectedMembers.length > 0 ? '#0D3878' : '#94a3b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: selectedMembers.length > 0 ? 'pointer' : 'not-allowed',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Check size={18} /> Confirmar {selectedMembers.length > 0 && `(${selectedMembers.length})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

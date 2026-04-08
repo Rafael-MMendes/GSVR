@@ -41,7 +41,8 @@ export function VolunteerForm({ userData }) {
         name: userData.nome_guerra || '',
         rank: userData.rank || 'Soldado PM',
         phone: userData.phone || '',
-        motorista: userData.motorista || 'Não',
+        // Normalizar motorista: aceitar 'Sim', true, 1, 'true', '1'
+        motorista: (userData.motorista === 'Sim' || userData.motorista === true || userData.motorista === 'true' || userData.motorista === 1 || userData.motorista === '1') ? 'Sim' : 'Não',
         availability: {}
       };
     }
