@@ -7,7 +7,9 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/ap
 export function EfetivoImport() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [result, setResult] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
 
   const handleFileChange = (e) => {
@@ -20,6 +22,25 @@ export function EfetivoImport() {
         setFile(selectedFile);
         setError(null);
         setResult(null);
+        setPreview(null);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!file) return;
+    setPreviewing(true);
+    setError(null);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API_URL}/efetivo/import/preview`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPreview(res.data);
+    } catch (err) {
+      setError(err.response?.data?.error || "Erro ao pré-visualizar colunas.");
+    } finally {
+      setPreviewing(false);
     }
   };
 
@@ -38,6 +59,7 @@ export function EfetivoImport() {
       });
       setResult(response.data);
       setFile(null);
+      setPreview(null);
     } catch (err) {
       setError(err.response?.data?.error || "Erro ao processar a importação.");
     } finally {
@@ -195,24 +217,66 @@ export function EfetivoImport() {
         )}
 
         {!result && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                <button 
-                    className="btn btn-primary" 
+            <>
+              {/* Tabela de preview das colunas detectadas */}
+              {preview && (
+                <div style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                      📋 Colunas Detectadas — {preview.total_rows} registros na planilha
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Aba: {preview.sheet}</span>
+                  </div>
+                  <div style={{ overflowX: 'auto', maxHeight: '220px', overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9' }}>
+                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>#</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Coluna (planilha)</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Chave detectada</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Exemplo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.colunas.map((col) => (
+                          <tr key={col.index} style={{ borderTop: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '5px 12px', color: '#94a3b8' }}>{col.index}</td>
+                            <td style={{ padding: '5px 12px', fontWeight: 500, color: '#1e293b' }}>{col.header}</td>
+                            <td style={{ padding: '5px 12px' }}>
+                              <code style={{ background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>{col.normalizado}</code>
+                            </td>
+                            <td style={{ padding: '5px 12px', color: '#64748b', fontStyle: 'italic' }}>{String(col.exemplo)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <button
+                    className="btn btn-secondary"
+                    disabled={!file || previewing}
+                    onClick={handlePreview}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                    {previewing ? <><Loader2 size={16} className="animate-spin" /> Analisando...</> : <>Ver Colunas</>}
+                </button>
+                <button
+                    className="btn btn-primary"
                     disabled={!file || loading}
                     onClick={handleUpload}
                     style={{ minWidth: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 >
                     {loading ? (
-                        <>
-                            <Loader2 size={18} className="animate-spin" /> Processando...
-                        </>
+                        <><Loader2 size={18} className="animate-spin" /> Processando...</>
                     ) : (
-                        <>
-                            Iniciar Importação <ArrowRight size={18} />
-                        </>
+                        <>Iniciar Importação <ArrowRight size={18} /></>
                     )}
                 </button>
-            </div>
+              </div>
+            </>
         )}
       </div>
     </div>

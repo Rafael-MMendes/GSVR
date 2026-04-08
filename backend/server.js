@@ -78,7 +78,7 @@ app.delete('/api/volunteers/:id', async (req, res) => {
 app.get('/api/efetivo', async (req, res) => {
   try {
     res.json(await db.all('SELECT * FROM EFETIVO ORDER BY nome_completo ASC'));
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/efetivo', async (req, res) => {
@@ -91,7 +91,7 @@ app.post('/api/efetivo', async (req, res) => {
     );
     await db.run('INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING', [matricula, cpf]);
     res.status(201).json({ success: true, id_militar: r.lastID });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/efetivo/:id', async (req, res) => {
@@ -102,7 +102,7 @@ app.put('/api/efetivo/:id', async (req, res) => {
       [nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm || null, opm || null, telefone || null, status_ativo, req.params.id]
     );
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/efetivo/:id', async (req, res) => {
@@ -114,7 +114,41 @@ app.delete('/api/efetivo/:id', async (req, res) => {
     await db.run('DELETE FROM EFETIVO WHERE id_militar = $1', [req.params.id]);
     await db.run('DELETE FROM users WHERE numero_ordem = (SELECT matricula FROM EFETIVO WHERE id_militar = $1)', [req.params.id]);
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Função utilitária: normaliza chave de coluna Excel → string sem acentos/espaços para comparação
+function normalizeKey(key) {
+  return String(key).toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+// Função utilitária: verifica se o valor é vazio/placeholder
+function isEmpty(val) {
+  const s = String(val ?? '').trim();
+  return !s || s === '-' || s === '--' || s === 'null' || s === 'undefined';
+}
+
+// Rota de preview: retorna os cabeçalhos e primeira linha para diagnóstico sem importar
+app.post('/api/efetivo/import/preview', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    const headers = rawRows[0] || [];
+    const firstRow = rawRows[1] || [];
+    const preview = headers.map((h, i) => ({
+      index: i,
+      header: h,
+      normalizado: normalizeKey(h),
+      exemplo: firstRow[i] ?? ''
+    }));
+    res.json({ sheet: sheetName, total_rows: rawRows.length - 1, colunas: preview });
+  } catch (e) {
+    res.status(500).json({ error: "Falha ao ler o arquivo: " + e.message });
+  }
 });
 
 app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
@@ -125,53 +159,170 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    let stats = { imported: 0, existing: 0, errors: 0 };
+    if (data.length === 0) {
+      return res.status(400).json({ error: "Arquivo vazio ou sem dados reconhecíveis." });
+    }
+
+    // Log das colunas detectadas (ajuda no debug sem travar o sistema)
+    const primeiraChave = Object.keys(data[0]);
+    console.log('[IMPORT] Colunas detectadas:', primeiraChave.map(k => `"${k}" → "${normalizeKey(k)}"`).join(', '));
+
+    let stats = { imported: 0, existing: 0, skipped: 0, errors: 0 };
     let errorDetails = [];
 
     for (const row of data) {
-      try {
-        const matricula = String(row['MATRÍCULA'] || row['Matrícula'] || row['MATRICULA'] || row['Matricula'] || '').trim();
-        const cpf = String(row['CPF'] || row['Cpf'] || '').replace(/\D/g, '').trim();
-        const nome = String(row['NOME COMPLETO'] || row['Nome'] || row['Nome Completo'] || '').trim();
-        const nomeGuerra = String(row['NOME DE GUERRA'] || row['Nome de Guerra'] || row['NOME_GUERRA'] || nome).trim();
-        const posto = String(row['POSTO/GRAD'] || row['Posto'] || row['Graduação'] || 'Militar').trim();
+      let matricula = '', nrOrdem = '', cpf = '', nome = '', nomeGuerra = '', posto = 'Militar';
+      let rgpm = null, opm = null, telefone = null, statusAtivo = true;
 
+      try {
+        // Mapear cada coluna pela chave normalizada
+        Object.keys(row).forEach(key => {
+          const k = normalizeKey(key);
+          const rawVal = row[key];
+          if (isEmpty(rawVal)) return;
+          const val = String(rawVal).trim();
+
+          // Matrícula (campo principal de identificação)
+          if (k === 'MATRICULA' || k.startsWith('MATRICUL'))
+            matricula = val;
+
+          // Nº Ordem (campo secundário — usado como fallback se MATRICULA estiver ausente)
+          else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM')
+            nrOrdem = val;
+
+          // CPF
+          else if (k === 'CPF')
+            cpf = val.replace(/\D/g, '');
+
+          // Nome completo
+          else if (k === 'NOMECOMPLETO' || k === 'NOME')
+            nome = val;
+
+          // Nome de Guerra
+          else if (k.includes('GUERRA'))
+            nomeGuerra = val;
+
+          // Posto/Graduação: PG, POSTO, GRAD, POSTOGRAD, POSTOGRADUACAO
+          else if (k === 'PG' || k === 'POSTOGRAD' || k === 'POSTOGRADUACAO' ||
+                   k.startsWith('POSTO') || k.startsWith('GRAD'))
+            posto = val;
+
+          // RGPM
+          else if (k === 'RGPM' || k === 'RG' || k === 'RGPOLICIAL' || k === 'REGISTROGERAL')
+            rgpm = val;
+
+          // OPM / Lotação
+          else if (k === 'OPM' || k === 'LOTACAO' || k === 'UNIDADE' || k === 'SUBUNIDADE')
+            opm = val;
+
+          // Telefone
+          else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE')
+            telefone = val;
+
+          // Status Ativo
+          else if (k === 'STATUS' || k === 'SITUACAO' || k === 'CONDICAO') {
+            const v = val.toUpperCase();
+            statusAtivo = (v === 'ATIVO' || v === 'ATIVA' || v === '1' || v === 'SIM' || v === 'TRUE');
+          }
+        });
+
+        // Nº Ordem como fallback de matrícula (se MATRICULA não existir na planilha)
+        if (!matricula && nrOrdem) matricula = nrOrdem;
+
+        // Fallback nome de guerra → primeiro nome do nome completo
+        if (!nomeGuerra && nome) {
+          nomeGuerra = nome.split(' ')[0];
+        }
+        // Garante que nomeGuerra não seja hífen vazio
+        if (nomeGuerra === '-' || nomeGuerra === '--') {
+          nomeGuerra = nome ? nome.split(' ')[0] : '';
+        }
+
+        // Validação dos campos obrigatórios
         if (!matricula || !cpf || !nome) {
-          stats.errors++;
-          errorDetails.push({ militar: nome || 'Desconhecido', error: "Dados obrigatórios ausentes (Matrícula, CPF ou Nome)." });
+          stats.skipped++;
+          if (nome || matricula) {
+            errorDetails.push({
+              militar: nome || `Matrícula ${matricula}` || 'Linha sem dados',
+              error: `Campos obrigatórios ausentes — Matrícula: "${matricula}", CPF: "${cpf}", Nome: "${nome}"`
+            });
+            stats.errors++;
+          }
           continue;
         }
 
-        const check = await db.get('SELECT 1 FROM EFETIVO WHERE matricula = $1', [matricula]);
-        if (check) { stats.existing++; continue; }
-
-        await db.run(
-          'INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, cpf) VALUES ($1, $2, $3, $4, $5)',
-          [nome, nomeGuerra, posto, matricula, cpf]
+        // Verifica existência por matrícula OU cpf
+        const existing = await db.get(
+          'SELECT id_militar, nome_guerra, posto_graduacao FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
+          [matricula, cpf]
         );
+
+        if (existing) {
+          // UPSERT: atualiza campos que estão vazios/padrão com os dados corretos da planilha
+          const needsUpdate =
+            (!existing.nome_guerra || existing.nome_guerra === '-' || existing.nome_guerra === '' || existing.nome_guerra === existing.nome_guerra?.split(' ')[0]) ||
+            (!existing.posto_graduacao || existing.posto_graduacao === 'Militar');
+
+          if (needsUpdate) {
+            await db.run(
+              `UPDATE EFETIVO SET
+                nome_guerra = COALESCE(NULLIF($1, ''), nome_guerra),
+                posto_graduacao = CASE WHEN posto_graduacao IS NULL OR posto_graduacao = 'Militar' THEN $2 ELSE posto_graduacao END,
+                rgpm = COALESCE(NULLIF($3, ''), rgpm),
+                opm = COALESCE(NULLIF($4, ''), opm),
+                telefone = COALESCE(NULLIF($5, ''), telefone)
+              WHERE id_militar = $6`,
+              [nomeGuerra, posto, rgpm, opm, telefone, existing.id_militar]
+            );
+            stats.imported++; // conta como atualizado
+          } else {
+            stats.existing++;
+          }
+          continue;
+        }
+
+        // Inserção completa com todos os campos da tabela EFETIVO
+        await db.run(
+          `INSERT INTO EFETIVO
+            (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, status_ativo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, telefone, statusAtivo]
+        );
+
+        // Cria o usuário no sistema com senha padrão = CPF
         await db.run(
           'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, 0) ON CONFLICT (numero_ordem) DO NOTHING',
           [matricula, cpf]
         );
+
         stats.imported++;
+
       } catch (err) {
         stats.errors++;
-        errorDetails.push({ militar: String(row['NOME COMPLETO'] || 'Indefinido'), error: err.message });
+        console.error('[IMPORT ERROR]', nome || matricula, err.message);
+        errorDetails.push({ militar: nome || `Matrícula ${matricula}` || 'Indefinido', error: err.message });
       }
     }
 
-    res.json({ success: true, message: `${stats.imported} militares importados com sucesso.`, stats, errorDetails });
+    res.json({
+      success: true,
+      message: `${stats.imported} militares importados com sucesso.`,
+      stats,
+      errorDetails: errorDetails.slice(0, 50) // Limita a 50 erros exibidos
+    });
   } catch (e) {
-    res.status(500).json({ error: "Falha ao ler o arquivo Excel." });
+    console.error('[IMPORT FATAL]', e.message);
+    res.status(500).json({ error: "Falha ao ler o arquivo Excel: " + e.message });
   }
 });
+
 
 // ============================================================
 // OPM
 // ============================================================
 app.get('/api/opms', async (req, res) => {
   try { res.json(await db.all('SELECT * FROM OPM ORDER BY sigla ASC')); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/opms', async (req, res) => {
@@ -183,7 +334,7 @@ app.post('/api/opms', async (req, res) => {
       [descricao, sigla, endereco || null, telefone || null, email || null]
     );
     res.status(201).json({ success: true, id_opm: r.lastID });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/opms/:id', async (req, res) => {
@@ -195,7 +346,7 @@ app.put('/api/opms/:id', async (req, res) => {
       [descricao, sigla, endereco || null, telefone || null, email || null, req.params.id]
     );
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/opms/:id', async (req, res) => {
@@ -204,7 +355,7 @@ app.delete('/api/opms/:id', async (req, res) => {
     if (hasCiclos) return res.status(400).json({ error: "Não é possível excluir: OPM possui ciclos de escala vinculados." });
     await db.run('DELETE FROM OPM WHERE id_opm = $1', [req.params.id]);
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -212,7 +363,7 @@ app.delete('/api/opms/:id', async (req, res) => {
 // ============================================================
 app.get('/api/ciclos', async (req, res) => {
   try { res.json(await db.all('SELECT * FROM vw_detalhes_ciclos ORDER BY referencia_mes_ano DESC')); }
-  catch(e) { res.status(500).json({ error: e.message }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/ciclos', async (req, res) => {
@@ -224,7 +375,7 @@ app.post('/api/ciclos', async (req, res) => {
       [id_opm || null, referencia_mes_ano, data_inicio, data_fim, status || 'Aberto']
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/ciclos/:id', async (req, res) => {
@@ -236,7 +387,7 @@ app.put('/api/ciclos/:id', async (req, res) => {
       [id_opm || null, referencia_mes_ano, data_inicio, data_fim, status || 'Aberto', req.params.id]
     );
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/ciclos/:id', async (req, res) => {
@@ -247,7 +398,7 @@ app.delete('/api/ciclos/:id', async (req, res) => {
     if (hasEscala) return res.status(400).json({ error: "Não é possível excluir: Ciclo possui escalas registradas." });
     await db.run('DELETE FROM CICLOS WHERE id_ciclo = $1', [req.params.id]);
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -271,7 +422,7 @@ app.get('/api/servicos', async (req, res) => {
     q += ' ORDER BY se.data_execucao DESC';
     const { rows } = await db.query(q, params);
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/servicos', async (req, res) => {
@@ -287,7 +438,7 @@ app.post('/api/servicos', async (req, res) => {
       [id_ciclo, id_militar, id_escala || null, data_execucao, dia_semana || new Date(data_execucao).getDay(), eh_feriado || false, carga_horaria, valor, status_presenca]
     );
     res.status(201).json({ success: true, id_execucao: r.lastID });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/servicos/:id', async (req, res) => {
@@ -299,14 +450,14 @@ app.put('/api/servicos/:id', async (req, res) => {
       [data_execucao, dia_semana || new Date(data_execucao).getDay(), eh_feriado || false, carga_horaria, valor, status_presenca, req.params.id]
     );
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/servicos/:id', async (req, res) => {
   try {
     await db.run('DELETE FROM SERVICOS_EXECUTADOS WHERE id_execucao = $1', [req.params.id]);
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -322,7 +473,7 @@ app.get('/api/usuarios', async (req, res) => {
       ORDER BY u.is_admin DESC, e.nome_completo ASC
     `);
     res.json(rows);
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/usuarios/:id/admin', async (req, res) => {
@@ -330,7 +481,7 @@ app.put('/api/usuarios/:id/admin', async (req, res) => {
     const { is_admin } = req.body;
     await db.run('UPDATE users SET is_admin=$1 WHERE id=$2', [is_admin ? 1 : 0, req.params.id]);
     res.json({ success: true });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/usuarios/:id/senha', async (req, res) => {
@@ -342,7 +493,7 @@ app.put('/api/usuarios/:id/senha', async (req, res) => {
     if (!efetivo) return res.status(404).json({ error: "Militar não encontrado." });
     await db.run('UPDATE users SET password=$1 WHERE id=$2', [efetivo.cpf, req.params.id]);
     res.json({ success: true, message: "Senha resetada para o CPF do militar." });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
