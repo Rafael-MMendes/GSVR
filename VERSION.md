@@ -2,6 +2,20 @@
 
 Documento dedicado ao acompanhamento de todas as atualizações, novas configurações e resoluções de problemas (bugfixes) implementados no projeto.
 
+## v1.12.0 — 2026-04-07
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Integração Completa BD ↔ Frontend**: Análise profunda e integração das 7 tabelas do banco de dados PostgreSQL com o frontend React, eliminando todos os GAPs identificados.
+- **Backend — Reescrita Completa do server.js**: Corrigidos todos os placeholders SQL `?` (SQLite) para `$n` (PostgreSQL) em todas as rotas (login, volunteers POST/DELETE, efetivo, ciclos, OPM). Adicionadas rotas `PUT` e `DELETE` para OPM e CICLOS que estavam completamente ausentes.
+- **Novo Módulo: SERVICOS_EXECUTADOS**: Implementação completa com 4 endpoints REST (`GET`, `POST`, `PUT`, `DELETE`). O frontend recebeu o novo componente `ServicosExecutadosManager.jsx` com listagem filtrada, cards de resumo e formulário de registro de execução de serviços.
+- **Novo Módulo: Gestão de Usuários**: Implementado `UserManager.jsx` com listagem de todos os usuários do sistema divididos por nível de acesso (admin/regular), ações de promoção/rebaixamento de administrador e reset de senha para o CPF padrão.
+- **Correção de Bug no Import de Efetivo**: Corrigido o INSERT que copiava `nome_completo` para o campo `nome_guerra` (`$1` duplicado). Agora o campo `nome_guerra` é lido corretamente da coluna da planilha.
+- **Navbar Expandida**: Adicionados os novos módulos "Serviços Executados" e "Gestão de Usuários" no menu de navegação do sistema com ícones correspondentes.
+
+---
+
 ## v1.11.2 — 2026-04-07
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
