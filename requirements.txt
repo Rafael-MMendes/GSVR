@@ -2,7 +2,7 @@
 
 Docker Desktop 24+
 Docker Compose v2
-Node.js 21+ (apenas para execucao local fora do Docker)
+Node.js 21+ apenas para execucao local fora do Docker
 npm 10+
 Git
 
@@ -12,6 +12,17 @@ Git
 5050
 9000
 
+# Variaveis principais
+DB_HOST
+DB_USER
+DB_PASSWORD
+DB_NAME
+DB_PORT
+PORT
+NODE_ENV
+VITE_API_URL
+
 # Observacoes
-Bind mount habilitado no Docker para desenvolvimento local.
-Compartilhamento de arquivos configurado no sistema operacional, se necessario.
+Use os arquivos `backend/.env` e `frontend/.env`.
+Mantenha `package-lock.json` para fixar as versoes.
+No Docker, `node_modules` fica em volume nomeado.
