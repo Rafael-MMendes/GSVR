@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Base Database (Isolated)
+  # Base Database
   postgres:
     image: postgres:16-alpine
     container_name: ft-postgres-prod
@@ -46,13 +46,14 @@ services:
     networks:
       - ft-frontend-net
 
-  # API Backend
+  # API Backend with hot reload
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: ft-backend-prod
     restart: always
+    command: node --watch server.js
     environment:
       DB_HOST: postgres
       DB_USER: ${DB_USER:-postgres}
@@ -60,24 +61,35 @@ services:
       DB_NAME: ${DB_NAME:-escala_ft}
       DB_PORT: 5432
       PORT: 3001
-      NODE_ENV: production
+      NODE_ENV: development
     depends_on:
       - postgres
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/usr/src/app
+      - backend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-backend-net
       - ft-frontend-net
 
-  # Web Frontend
+  # Web Frontend with hot reload
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     container_name: ft-frontend-prod
     restart: always
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_URL: http://localhost:3001
     ports:
-      - "80:80"
+      - "5173:5173"
     depends_on:
       - backend
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-frontend-net
 
@@ -90,3 +102,5 @@ networks:
 volumes:
   pgdata_prod:
   portainer_data_prod:
+  backend_node_modules:
+  frontend_node_modules:

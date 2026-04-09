@@ -55,6 +55,7 @@ services:
       dockerfile: Dockerfile
     container_name: ft-backend
     restart: unless-stopped
+    command: npm run dev
     environment:
       DB_HOST: postgres
       DB_USER: ${DB_USER:-postgres}
@@ -67,6 +68,9 @@ services:
       - "3001:3001"
     depends_on:
       - postgres
+    volumes:
+      - ./backend:/usr/src/app
+      - backend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
 
@@ -77,12 +81,16 @@ services:
       dockerfile: Dockerfile
     container_name: ft-frontend
     restart: unless-stopped
+    command: npm run dev -- --host 0.0.0.0
     environment:
       VITE_API_URL: http://localhost:3001
     ports:
       - "5173:5173"
     depends_on:
       - backend
+    volumes:
+      - ./frontend:/usr/src/app
+      - frontend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
 
@@ -93,3 +101,5 @@ networks:
 volumes:
   pgdata:
   portainer_data:
+  backend_node_modules:
+  frontend_node_modules:
