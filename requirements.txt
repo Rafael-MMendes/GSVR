@@ -1,0 +1,17 @@
+# Requisitos do projeto
+
+Docker Desktop 24+
+Docker Compose v2
+Node.js 21+ (apenas para execucao local fora do Docker)
+npm 10+
+Git
+
+# Portas que precisam estar livres
+3001
+5173
+5050
+9000
+
+# Observacoes
+Bind mount habilitado no Docker para desenvolvimento local.
+Compartilhamento de arquivos configurado no sistema operacional, se necessario.
