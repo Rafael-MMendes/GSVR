@@ -1016,12 +1016,18 @@ app.post('/api/ciclos', async (req, res) => {
     const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
+    const resolvedStatus = status || 'Aberto';
+    if (resolvedStatus === 'Aberto') {
+      const active = await db.get("SELECT 1 FROM CICLOS WHERE status = 'Aberto'");
+      if (active) return res.status(400).json({ error: "Já existe um ciclo ativo. Feche o ciclo atual antes de criar ou abrir outro." });
+    }
+
     const dataInicioISO = formatDateToISO(data_inicio);
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
       'INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto) VALUES ($1, $2, $3, $4, $5, $6)',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', valor_total_previsto || 0]
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0]
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1032,12 +1038,18 @@ app.put('/api/ciclos/:id', async (req, res) => {
     const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
     if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
+    const resolvedStatus = status || 'Aberto';
+    if (resolvedStatus === 'Aberto') {
+      const active = await db.get("SELECT 1 FROM CICLOS WHERE status = 'Aberto' AND id_ciclo != $1", [req.params.id]);
+      if (active) return res.status(400).json({ error: "Já existe um ciclo ativo. Feche o ciclo atual antes de ativar este." });
+    }
+
     const dataInicioISO = formatDateToISO(data_inicio);
     const dataFimISO = formatDateToISO(data_fim);
     
     await db.run(
       'UPDATE CICLOS SET id_opm=$1, referencia_mes_ano=$2, data_inicio=$3, data_fim=$4, status=$5, valor_total_previsto=$6 WHERE id_ciclo=$7',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, status || 'Aberto', valor_total_previsto || 0, req.params.id]
+      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1797,38 +1809,74 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   async function parseRequerimentoPDF(text, db) {
     const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '' };
 
-    // Extrair Nº de Ordem
-    const ordMatch = text.match(/N\.ORD\.\s*(\d{5,6})/);
+    // Extrair Nº de Ordem ou Matrícula (mais flexível)
+    // Busca por N.ORD, ORDEM, MATRICULA, MATR acompanhado de 3 a 10 dígitos
+    const ordMatch = text.match(/(?:N[º\.]?\s*ORD[A-Z\.]*|MATR\w*|ORDEM|MATRÍCULA)\s*[:\.]?\s*(\d{3,10})/i);
     if (ordMatch) data.numero_ordem = ordMatch[1];
 
+    // Extrair CPF (11 dígitos, opcionalmente com separadores)
+    const cpfMatch = text.match(/(?:CPF|C\.P\.F)\s*[:\.]?\s*([\d\.\-]{11,14})/i);
+    if (cpfMatch) data.cpf = cpfMatch[1].replace(/\D/g, '');
+
     // Tentar extrair Posto/Graduação (ex: SD PM, CB PM, 1º SGT PM, etc)
-    const rankRegex = /(CEL|TC|MAJ|CAP|1º TEN|2º TEN|SUB|1º SGT|2º SGT|3º SGT|CB|SD)\s+PM/i;
+    const rankRegex = /(?:CEL|TC|MAJ|CAP|1º\s*TEN|2º\s*TEN|SUB|1º\s*SGT|2º\s*SGT|3º\s*SGT|CB|SD)\s+PM/i;
     const rankMatch = text.match(rankRegex);
     if (rankMatch) {
-      data.rank = rankMatch[0].toUpperCase();
+      data.rank = rankMatch[0].toUpperCase().replace(/\s+/g, ' ');
     } else {
-      // Tentar match mais generico sem o PM no final se falhar
-      const rankRegexAlt = /(CORONEL|TENENTE CORONEL|MAJOR|CAPITÃO|CAPITAO|TENENTE|SUBTENENTE|SARGENTO|CABO|SOLDADO)/i;
+      const rankRegexAlt = /(?:CORONEL|TENENTE\s*CORONEL|MAJOR|CAPIT[ÃA]O|TENENTE|SUBTENENTE|SARGENTO|CABO|SOLDADO)/i;
       const rankMatchAlt = text.match(rankRegexAlt);
       if (rankMatchAlt) data.rank = rankMatchAlt[0].toUpperCase();
     }
 
+    // Tentar extrair Nome de Guerra ou Nome Completo (mais agressivo)
+    // Padrão Alagoas: "EU, [POSTO] [MATRICULA] [NOME]" ou campos de tabela
+    // Ex: "2º SGT PM 178586 JOÃO DA SILVA"
+    const nameMatch = text.match(/(?:NOME(?:\s*COMPLETO)?|MILITAR|MATR\w*\s*\d+)\s*[:\.\-]?\s*([A-ZÀ-Ú\s]{3,45})/i);
+    if (nameMatch) {
+      let n = nameMatch[1].trim().replace(/\s+/g, ' ');
+      // Limpeza de lixo de cabeçalho
+      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO/gi, '')
+           .replace(/^\s*DE\s+/, '').trim();
+           
+      if (n.length > 3) data.name = n;
+    }
+    
+    if (!data.name && data.rank) {
+      const rankClean = data.rank.replace(' PM', '').trim();
+      const afterRankRegex = new RegExp(`${rankClean}\\s*(?:PM)?\\s*(?:\\d{3,10})?\\s*[:\\-]?\\s*([A-ZÀ-Ú\\s]{3,40})`, 'i');
+      const afterRankMatch = text.match(afterRankRegex);
+      if (afterRankMatch) {
+        let n = afterRankMatch[1].trim();
+        n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO/gi, '')
+             .replace(/^\s*DE\s+/, '').trim();
+        if (n.length > 3) data.name = n;
+      }
+    }
+
     if (data.numero_ordem && db) {
       try {
-        const cleanMatricula = data.numero_ordem.replace(/\D/g, '');
-        // Busca flexível: exata ou ignorando formatação
+        // Preserva letras mas remove separadores comuns
+        const cleanMatricula = data.numero_ordem.replace(/[\.\-\ ]/g, '').toUpperCase();
+        
+        // Tenta encontrar por matrícula exata, ou por número sem zeros à esquerda
+        const searchValNumeric = cleanMatricula.replace(/^0+/, '');
+        
         const militar = await db.get(`
-        SELECT posto_graduacao, nome_guerra, telefone 
-        FROM EFETIVO 
-        WHERE numero_ordem = $1 OR matricula = $1
-           OR REPLACE(REPLACE(matricula, '.', ''), '-', '') = $1
-           OR REPLACE(REPLACE(numero_ordem, '.', ''), '-', '') = $1
-      `, [cleanMatricula]);
+            SELECT id_militar, posto_graduacao, nome_guerra, telefone 
+            FROM EFETIVO 
+            WHERE 
+               (TRIM(UPPER(numero_ordem)) = $1 OR TRIM(UPPER(matricula)) = $1 
+                OR TRIM(UPPER(REPLACE(REPLACE(matricula, '.', ''), '-', ''))) = $1 
+                OR TRIM(UPPER(REPLACE(REPLACE(numero_ordem, '.', ''), '-', ''))) = $1
+                OR (numero_ordem ~ $3) OR (matricula ~ $3) OR (rgpm ~ $3))
+               OR ($2 != '' AND cpf = $2)
+          `, [cleanMatricula, data.cpf || '', `^0*${searchValNumeric}$`]);
 
         if (militar) {
-          // Se extraiu do PDF, usa o do PDF (mais atual), senão usa o do banco
+          data.id_militar = militar.id_militar;
           if (!data.rank) data.rank = militar.posto_graduacao;
-          data.name = militar.nome_guerra;
+          if (!data.name) data.name = militar.nome_guerra;
           data.phone = militar.telefone || '';
         }
       } catch (e) { console.error('Erro no lookup do militar via PDF:', e); }
@@ -1889,10 +1937,67 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       const results = [];
       for (const item of volunteers) {
         try {
-          console.log('Saving volunteer:', item.numero_ordem, item.month_key);
-          const m = await db.get('SELECT id_militar FROM EFETIVO WHERE numero_ordem = $1 OR matricula = $1', [item.numero_ordem]);
-          console.log('Militar found:', m);
-          if (!m) { results.push({ numero_ordem: item.numero_ordem, success: false, error: "Militar nao encontrado" }); continue; }
+          let m;
+          if (item.id_militar) {
+            m = { id_militar: item.id_militar };
+          } else {
+            const cleanMat = item.numero_ordem.replace(/[\.\-\ ]/g, '').toUpperCase();
+            const cleanCpf = item.cpf || '';
+            const searchValNumeric = cleanMat.replace(/^0+/, '');
+            
+            m = await db.get(`
+              SELECT id_militar FROM EFETIVO 
+              WHERE (TRIM(UPPER(numero_ordem)) = $1 OR TRIM(UPPER(matricula)) = $1 
+                  OR TRIM(UPPER(REPLACE(REPLACE(matricula, '.', ''), '-', ''))) = $1 
+                  OR TRIM(UPPER(REPLACE(REPLACE(numero_ordem, '.', ''), '-', ''))) = $1
+                  OR (numero_ordem ~ $3) OR (matricula ~ $3) OR (rgpm ~ $3))
+                 OR ($2 != '' AND cpf = $2)
+            `, [cleanMat, cleanCpf, `^0*${searchValNumeric}$`]);
+          }
+
+          if (!m) { 
+            // AUTO-REGISTRO: Se tiver CPF e Nome, cadastra o militar automaticamente
+            if (item.cpf && item.cpf.length === 11) {
+              try {
+                const nomeProv = item.name && item.name !== 'Desconhecido' ? item.name : `MILITAR ${item.numero_ordem}`;
+                const postoProv = item.rank || 'SOLDADO PM';
+                
+                // Insere no Efetivo
+                const newMilitar = await db.run(
+                  `INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf)
+                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id_militar`,
+                  [nomeProv, nomeProv.split(' ')[0], postoProv, item.numero_ordem, item.numero_ordem, item.cpf]
+                );
+
+                m = { id_militar: newMilitar.id_militar };
+                
+                // Cria usuário
+                await db.run(
+                   `INSERT INTO users (numero_ordem, password, is_admin)
+                    VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
+                   [item.numero_ordem, item.cpf]
+                );
+                
+                console.log(`[AUTO-REG] Criado militar ${item.numero_ordem} / CPF ${item.cpf}`);
+              } catch (regErr) {
+                results.push({ 
+                  numero_ordem: item.numero_ordem, 
+                  name: item.name || 'Desconhecido',
+                  success: false, 
+                  error: "Erro ao cadastrar militar automaticamente: " + regErr.message 
+                }); 
+                continue;
+              }
+            } else {
+              results.push({ 
+                numero_ordem: item.numero_ordem, 
+                name: item.name || 'Desconhecido',
+                success: false, 
+                error: "Militar não cadastrado e PDF sem CPF válido para auto-registro." 
+              }); 
+              continue;
+            }
+          }
 
           // Atualizar informação de motorista e POSTO vinda do PDF
           await db.run('UPDATE EFETIVO SET motorista = $1, posto_graduacao = COALESCE(NULLIF($2, \'\'), posto_graduacao) WHERE id_militar = $3', [item.motorist, item.rank, m.id_militar]);

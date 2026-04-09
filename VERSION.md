@@ -1,3 +1,18 @@
+## v1.13.0 — 2026-04-09
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Auto-Registro de Militares no Importador**: Implementada funcionalidade que cadastra automaticamente militares novos no banco de dados durante a importação de requerimentos em PDF (caso possuam CPF válido no documento). Isso elimina falhas de identificação por falta de cadastro prévio no Efetivo.
+- **Sincronização Automática de Usuários**: Militares auto-cadastrados agora recebem automaticamente uma conta de acesso ao sistema com senha padrão (CPF), permitindo login imediato.
+- **Refinamento do OCR de Nomes**: Aprimorada a extração de nomes em PDFs da PMAL, com limpeza agressiva de "lixo" vindo de cabeçalhos institucionais (ex: "POLÍCIA MILITAR", "COMANDO").
+- **Busca Ultra-Robusta**: O motor de busca de militares foi expandido para consultar as colunas `Matrícula`, `Nº de Ordem` e `RGPM` simultaneamente, com suporte a `TRIM` e tratamento de variantes de zeros à esquerda.
+- **Estabilização da UI de Importação**: 
+  - Corrigida a cor do botão "Iniciar Importação" para Verde Militar (`#166534`) com alta visualizacão.
+  - Otimizada a lógica do botão para garantir que ele seja liberado automaticamente assim que os arquivos são carregados para o Ciclo Ativo.
+
+---
+
 ## v1.12.17 — 2026-04-08
 **Autor:** Rafael Monteiro
 **Email:** rafael.monteiro@example.com
