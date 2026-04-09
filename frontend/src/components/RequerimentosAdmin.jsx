@@ -23,6 +23,7 @@ export function RequerimentosAdmin() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [activeCycle, setActiveCycle] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState(null);
@@ -59,10 +60,21 @@ export function RequerimentosAdmin() {
 
   const fetchMonths = async () => {
     try {
-      const res = await axios.get(`${API_URL}/months`);
-      setMonths(res.data);
-      if (res.data.length > 0) {
-        setSelectedMonth(res.data[0].month_key);
+      const res = await axios.get(`${API_URL}/ciclos`);
+      const ciclos = res.data.map(c => ({
+        month_key: c.referencia_mes_ano,
+        month_name: `${c.referencia_mes_ano} (${c.status})`,
+        status: c.status
+      }));
+      setMonths(ciclos);
+      
+      const cicloAtivo = ciclos.find(c => c.status === 'Aberto');
+      if (cicloAtivo) {
+        setSelectedMonth(cicloAtivo.month_key);
+        setActiveCycle(cicloAtivo);
+      } else {
+        setSelectedMonth('');
+        setActiveCycle(null);
       }
     } catch (e) {
       console.error(e);
@@ -70,6 +82,10 @@ export function RequerimentosAdmin() {
   };
 
   const fetchVolunteers = async () => {
+    if (!selectedMonth) {
+      setVolunteers([]);
+      return;
+    }
     try {
       const res = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
       setVolunteers(res.data);
@@ -253,11 +269,11 @@ export function RequerimentosAdmin() {
       }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gerenciamento de Requerimentos</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={openFolderModal} style={{ width: 'auto' }}>
+          <button className="btn btn-secondary" onClick={openFolderModal} disabled={!activeCycle} style={{ width: 'auto' }}>
             <FolderOpen size={18} style={{ marginRight: '0.5rem' }} />
             <span>Importar PDF</span>
           </button>
-          <button className="btn btn-primary" onClick={openAddModal} style={{ width: 'auto' }}>
+          <button className="btn btn-primary" onClick={openAddModal} disabled={!activeCycle} style={{ width: 'auto' }}>
             <Plus size={18} style={{ marginRight: '0.5rem' }} />
             <span>Novo</span>
           </button>
@@ -267,17 +283,9 @@ export function RequerimentosAdmin() {
       <div className="glass-panel">
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 auto' }}>
-            <label style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Mês:</label>
-            <select 
-              className="form-control" 
-              style={{ width: '150px', margin: 0, padding: '0.4rem' }}
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-            >
-              {months.map(m => (
-                <option key={m.month_key} value={m.month_key}>{m.month_name}</option>
-              ))}
-            </select>
+            <strong style={{ color: activeCycle ? 'var(--primary)' : 'var(--danger)', fontSize: '1.1rem' }}>
+              Ciclo Ativo: {activeCycle ? activeCycle.month_name : 'Nenhum ciclo aberto'}
+            </strong>
           </div>
           <div style={{ position: 'relative', flex: '1 1 300px' }}>
             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -588,82 +596,200 @@ export function RequerimentosAdmin() {
               </button>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Selecione o Mês:</label>
-              <select 
-                className="form-control"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-              >
-                <option value="">Selecione...</option>
-                {months.map(m => (
-                  <option key={m.month_key} value={m.month_key}>{m.month_name}</option>
-                ))}
-              </select>
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Header do Modal com Status do Ciclo */}
+              <div style={{ 
+                background: 'rgba(56, 189, 248, 0.05)', 
+                borderLeft: '4px solid var(--accent)', 
+                padding: '1rem',
+                borderRadius: '0 8px 8px 0'
+              }}>
+                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <i className="fas fa-calendar-check"></i> Ciclo de Destino
+                </h4>
+                <div style={{ marginTop: '0.4rem', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                  {activeCycle ? activeCycle.month_name : 'Nenhum ciclo ativo selecionado'}
+                </div>
+                <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                  Todos os arquivos processados serão vinculados automaticamente a este período.
+                </p>
+              </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Selecione os Arquivos PDF:</label>
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept=".pdf"
-                multiple
+              {/* Seletor de Arquivos Customizado */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
                 style={{ 
-                  display: 'block',
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px dashed var(--border-color)',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
+                  border: '2px dashed var(--border-color)', 
+                  borderRadius: '12px', 
+                  padding: '2rem', 
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: 'rgba(255,255,255,0.02)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '1rem'
                 }}
-              />
+                onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+              >
+                <div style={{ fontSize: '2.5rem', opacity: 0.5 }}>📂</div>
+                <div>
+                  <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Selecionar PDFs dos Voluntários</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Clique ou arraste vários arquivos simultâneos</div>
+                </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept=".pdf"
+                  multiple
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {/* Lista Suspensa de Arquivos Selecionados */}
               {selectedFiles.length > 0 && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--success)' }}>
-                  {selectedFiles.length} arquivo(s) selecionado(s): {selectedFiles.map(f => f.name).join(', ')}
+                <div style={{ maxHeight: '120px', overflowY: 'auto', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {selectedFiles.map((f, i) => (
+                      <span key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.6rem', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-secondary)' }}>
+                        📄 {f.name.length > 15 ? f.name.substring(0, 12) + '...' : f.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Painel de Resultados (Apenas após processamento) */}
+              {importResult && (
+                <div style={{ 
+                  borderRadius: '12px', 
+                  overflow: 'hidden', 
+                  border: `1px solid ${importResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                  background: 'rgba(0,0,0,0.2)'
+                }}>
+                  <div style={{ 
+                    padding: '1rem', 
+                    background: importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: `1px solid ${importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}`
+                  }}>
+                    <strong style={{ color: importResult.success ? 'var(--success)' : 'var(--danger)' }}>
+                      {importResult.success ? '✓ Resultado do Processamento' : '⚠️ Problemas Detectados'}
+                    </strong>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {importResult.processed} arquivos lidos
+                    </span>
+                  </div>
+
+                  <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Lista Curta de Sucessos */}
+                    {importResult.results && importResult.results.some(r => r.success) && (
+                      <div>
+                        <div style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                          ✓ Militar(es) Vinculado(s):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                          {importResult.results.filter(r => r.success).map(r => (
+                            <span key={r.numero_ordem} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                              #{r.numero_ordem}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Falhas de Identificação - Destaque */}
+                    {importResult.results && importResult.results.some(r => !r.success) && (
+                      <div style={{ animation: 'shake 0.4s ease-in-out' }}>
+                        <div style={{ color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                          ❌ Não Encontrados no Efetivo ({importResult.results.filter(r => !r.success).length}):
+                        </div>
+                        <div style={{ 
+                          maxHeight: '150px', 
+                          overflowY: 'auto', 
+                          background: 'rgba(239, 68, 68, 0.05)', 
+                          padding: '0.8rem', 
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem'
+                        }}>
+                          {importResult.results.filter(r => !r.success).map((r, i) => (
+                            <div key={i} style={{ padding: '0.5rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: 'var(--text-primary)' }}>Nº <strong>{r.numero_ordem}</strong> ({r.name || 'Nome não identificado'})</span>
+                              <span style={{ color: 'var(--danger)', fontSize: '0.7rem' }}>{r.error}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Erros Gerais */}
+                    {importResult.errors && importResult.errors.length > 0 && (
+                      <details>
+                        <summary style={{ cursor: 'pointer', color: 'var(--warning)', fontSize: '0.85rem' }}>Ver erros de cabeçalho/leitura ({importResult.errors.length})</summary>
+                        <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+                          {importResult.errors.map((e, i) => (
+                            <div key={i} style={{ marginBottom: '0.2rem' }}>• {e.file}: {e.error}</div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            {importResult && (
-              <div style={{ 
-                marginBottom: '1.5rem', 
-                padding: '1rem', 
-                background: importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                borderRadius: '8px',
-                border: `1px solid ${importResult.success ? 'var(--success)' : 'var(--danger)'}`
-              }}>
-                <strong>Resultado:</strong>
-                <p style={{ margin: '0.5rem 0' }}>{importResult.processed} requerimentos processados.</p>
-                {importResult.results && importResult.results.length > 0 && (
-                  <div style={{ fontSize: '0.85rem', maxHeight: '100px', overflowY: 'auto' }}>
-                    {importResult.results.filter(r => r.success).map(r => (
-                      <span key={r.numero_ordem} style={{ marginRight: '0.5rem', color: 'var(--success)' }}>✓ {r.numero_ordem}</span>
-                    ))}
-                  </div>
-                )}
-                {importResult.errors && importResult.errors.length > 0 && (
-                  <details style={{ marginTop: '0.5rem' }}>
-                    <summary style={{ cursor: 'pointer', color: 'var(--danger)' }}>Ver erros ({importResult.errors.length})</summary>
-                    <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1rem', fontSize: '0.8rem' }}>
-                      {importResult.errors.slice(0, 5).map((e, i) => (
-                        <li key={i} style={{ color: 'var(--danger)' }}>{e.file}: {e.error}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-              <button className="btn btn-outline" onClick={() => setShowFolderModal(false)}>Cancelar</button>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              <button 
+                className="btn btn-outline" 
+                onClick={() => { setShowFolderModal(false); setSelectedFiles([]); setImportResult(null); }}
+                style={{ 
+                  padding: '0.75rem 1.5rem', 
+                  minWidth: '120px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                Cancelar
+              </button>
               <button 
                 className="btn btn-primary" 
-                onClick={() => { console.log('Importar clicked:', { selectedFiles: selectedFiles.length, selectedMonth, importing }); handleImportFromFiles(); }} 
-                disabled={importing || selectedFiles.length === 0 || !selectedMonth}
+                onClick={handleImportFromFiles} 
+                disabled={importing || selectedFiles.length === 0 || (!selectedMonth && !activeCycle)}
+                style={{ 
+                  padding: '0.75rem 2rem', 
+                  minWidth: '150px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  justifyContent: 'center',
+                  background: '#166534', // VERDE ESCURO MAIS FORTE
+                  backgroundColor: '#166534',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 12px rgba(22, 101, 52, 0.4)',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
-                {importing ? 'Importando...' : 'Importar'}
+                {importing ? (
+                  <>
+                    <div className="spinner-small"></div>
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-file-import"></i>
+                    Iniciar Importação
+                  </>
+                )}
               </button>
             </div>
           </div>
