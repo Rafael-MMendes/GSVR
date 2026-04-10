@@ -38,7 +38,13 @@ VALUES (1, TO_CHAR(CURRENT_DATE + INTERVAL '1 month', 'YYYY-MM'), DATE_TRUNC('mo
 -- Legado
 INSERT INTO months (month_key, month_name) VALUES (TO_CHAR(CURRENT_DATE, 'YYYY-MM'), TO_CHAR(CURRENT_DATE, 'MM-YYYY'));
 
--- 5. Requerimentos e Disponibilidades (Cap Alan - ID 1)
+-- 5. Tipos de Serviço (Obrigatório para o sistema novo)
+INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao, ativo) VALUES 
+('SERVIÇO 06 HORAS', 6, 120.00, TRUE),
+('SERVIÇO 12 HORAS', 12, 240.00, TRUE),
+('SERVIÇO 24 HORAS', 24, 480.00, TRUE);
+
+-- 6. Requerimentos e Disponibilidades (Cap Alan - ID 1)
 INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES (1, 1);
 INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES (1, 1, '07:00 ÀS 13:00', TRUE);
 INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES (1, 2, '13:00 ÀS 19:00', TRUE);
@@ -62,8 +68,8 @@ INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turn
 INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES (4, 10, '07:00 ÀS 13:00', TRUE);
 
 -- 6. Escala de Planejamento (Exemplo Dia 1)
-INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, local_embarque, funcao) 
-VALUES (1, 1, 1, DATE_TRUNC('month', CURRENT_DATE), '07:00 ÀS 13:00 (6h)', 'Guarnição FT 01', 'Comandante');
+--INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, nome_recurso, funcao) 
+--VALUES (1, 1, 1, DATE_TRUNC('month', CURRENT_DATE), '07:00 ÀS 13:00 (6h)', 'Guarnição FT 01', 'Comandante');
 
-INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, local_embarque, funcao) 
-VALUES (1, 2, 7, DATE_TRUNC('month', CURRENT_DATE), '07:00 ÀS 13:00 (6h)', 'Guarnição FT 01', 'Patrulheiro');
+--INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, nome_recurso, funcao) 
+--VALUES (1, 2, 7, DATE_TRUNC('month', CURRENT_DATE), '07:00 ÀS 13:00 (6h)', 'Guarnição FT 01', 'Patrulheiro');

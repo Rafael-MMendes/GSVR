@@ -1,3 +1,27 @@
+## v1.14.0 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[DB] Migração e Persistência Automática**: Implementada migração automática no startup para converter `local_embarque` em `nome_recurso` na tabela `ESCALA_PLANEJAMENTO`, resolvendo falhas de salvamento e garantindo integridade com o novo schema.
+- **[UX/UI] Badge de Disponibilidade Dinâmico**: Adicionado contador de "Militares Disponíveis" em tempo real no cabeçalho do `AdminDashboardV2` e no modal de seleção, utilizando a identidade visual padrão do projeto (Azul Petróleo e badges de alto contraste).
+- **[UI] Maximização de Espaço no Dashboard V2**: Removida a barra lateral (pool) em favor de uma área de planejamento de largura total (100%), centralizando a escalação através do novo modal aprimorado.
+- **[REPORT] Layout Vertical em Escalas Planejadas**: Ajustada a visualização do relatório impresso/digital para que as guarnições sejam exibidas uma abaixo da outra, facilitando a leitura sequencial das equipes.
+
+---
+
+## v1.13.9 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[FEATURE] Novo Layout de Planejamento de Escala (V2)**: Introduzida uma opção de interface moderna e alternativa (`AdminDashboardV2.jsx`) para o planejamento das guarnições da Força Tarefa.
+- **[UX/UI] Estética Renovada**: A nova tela conta com *glassmorphism*, layout em Kanban fluido, cards redesenhados para a seleção de militares e organização aprimorada, priorizando a usabilidade e o estilo "fuja do óbvio" da paleta de cores original (Azul PMAL e Verde).
+- **[FUNCTIONS] Preservação Funcional**: O layout alternativo utiliza os exatos mesmos endpoints (`/api/schedules` refatorados recentemente), preservando totalmente as regras de negócio de filtragem de voluntários, escala de turnos, arrastar-e-soltar e geração de relatórios PDF.
+- **[SYSTEM] Navegação In-App**: Atualizado `App.jsx` e o menu dropdown sob *Gestão Operacional* para permitir o acesso fácil a ambas as versões de planejamento (Original e V2).
+
+---
+
 ## v1.13.8 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -5,7 +29,7 @@
 ### Mudanças:
 - **[REFACTOR] Migração de `schedules` → `ESCALA_PLANEJAMENTO`**: Removida a tabela legada `schedules` (JSON blob) e os endpoints agora operam diretamente sobre `ESCALA_PLANEJAMENTO`, garantindo integridade referencial com FK para `CICLOS`, `EFETIVO` e `TIPOS_SERVICO`.
 - **[BACKEND] `GET /api/schedules`**: Reescrito para reconstruir a estrutura de patrulhas agrupando por `cartao_viatura`, com JOIN em `EFETIVO`, `REQUERIMENTOS` e `TIPOS_SERVICO`. Mapeia `funcao` → slot do PATROL_ROLES `[Comandante, Motorista, Patrulheiro]`.
-- **[BACKEND] `POST /api/schedules`**: Reescrito para deletar as escalas do dia e reinserir na `ESCALA_PLANEJAMENTO`. Trigger `fn_valida_escala` não bloqueia pois `id_disponibilidade = NULL` é permitido. Erros parciais são reportados como `warnings` sem derrubar o salvamento.
+- **[BACKEND] `POST /api/schedules`**: Reescrito para deletar as escalas do dia e reinserir na `ESCALA_PLANEJAMENTO`. Para respeitar a integridade, o sistema agora faz o resgate do `id_disponibilidade` cruzando o turno selecionado, evitando inserções com `NULL` (a menos que seja escalação compulsória). Erros parciais são reportados como `warnings` sem derrubar o salvamento.
 - **[DB] `db.js`**: Substituída a criação da tabela `schedules` por `DROP TABLE IF EXISTS schedules CASCADE` como passo de migração automática no startup.
 
 ---

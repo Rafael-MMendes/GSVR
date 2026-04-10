@@ -159,6 +159,17 @@ async function setupDB() {
               ativo BOOLEAN DEFAULT TRUE
           );
 
+          -- Migração para a nova estrutura de Escala (Unificação de Viatura/Local para Nome do Recurso)
+          DO $$ 
+          BEGIN 
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='local_embarque') THEN
+               ALTER TABLE ESCALA_PLANEJAMENTO RENAME COLUMN local_embarque TO nome_recurso;
+            END IF;
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='cartao_viatura') THEN
+               ALTER TABLE ESCALA_PLANEJAMENTO DROP COLUMN cartao_viatura;
+            END IF;
+          END $$;
+
           -- 6. Tabela ESCALA_PLANEJAMENTO (Substitui schedules)
           CREATE TABLE IF NOT EXISTS ESCALA_PLANEJAMENTO (
               id_escala SERIAL PRIMARY KEY,
@@ -169,8 +180,7 @@ async function setupDB() {
               data_servico DATE NOT NULL,
               horario_servico VARCHAR(50) NOT NULL,
               horario_embarque VARCHAR(50),
-              local_embarque VARCHAR(100),
-              cartao_viatura VARCHAR(100),
+              nome_recurso VARCHAR(100),
               funcao VARCHAR(50),
               observacoes TEXT
           );

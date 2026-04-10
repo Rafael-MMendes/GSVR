@@ -4,6 +4,8 @@ import './index.css';
 import { VolunteerForm } from './components/VolunteerForm';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminDashboardV2 } from './components/AdminDashboardV2';
+import { EscalasPlanejadas } from './components/EscalasPlanejadas';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { RequerimentosAdmin } from './components/RequerimentosAdmin';
 import { FinanceiroDashboard } from './components/FinanceiroDashboard';
@@ -142,6 +144,16 @@ function App() {
                     </a>
                   )}
                   {hasPermission('escalas:read') && (
+                    <a href="#" className={`dropdown-item ${currentView === 'admin-v2' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('admin-v2'); }}>
+                      <LayoutDashboard size={16} color="#0D3878" /> Planejamento (V2)
+                    </a>
+                  )}
+                  {hasPermission('escalas:read') && (
+                    <a href="#" className={`dropdown-item ${currentView === 'escalas-planejadas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('escalas-planejadas'); }}>
+                      <FileText size={16} /> Escalas Planejadas
+                    </a>
+                  )}
+                  {hasPermission('escalas:read') && (
                     <a href="#" className={`dropdown-item ${currentView === 'requerimentos' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('requerimentos'); }}>
                       <FileText size={16} /> Gestão de Requerimentos
                     </a>
@@ -266,6 +278,8 @@ function App() {
 
         {/* Rotas administrativas — protegidas por permissão */}
         {currentView === 'admin' && (isAdmin || isGerente) && <AdminDashboard />}
+        {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
+        {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <EscalasPlanejadas />}
         {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}

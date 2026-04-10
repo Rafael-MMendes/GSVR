@@ -1678,8 +1678,8 @@ app.get('/api/schedules', async (req, res) => {
         ep.id_militar,
         ep.funcao,
         ep.horario_servico,
-        ep.cartao_viatura   AS patrol_id,
-        ep.local_embarque   AS patrol_name,
+        ep.nome_recurso   AS patrol_id,
+        ep.nome_recurso   AS patrol_name,
         ep.observacoes      AS patrol_duration,
         e.nome_guerra       AS name,
         e.posto_graduacao   AS rank,
@@ -1704,7 +1704,7 @@ app.get('/api/schedules', async (req, res) => {
         ON ep.id_tipo_servico = ts.id_tipo_servico
       WHERE ep.id_ciclo    = $1
         AND ep.data_servico = $2
-      ORDER BY ep.cartao_viatura, ep.funcao
+      ORDER BY ep.nome_recurso, ep.funcao
     `, [ciclo.id_ciclo, dataServico]);
 
     if (rows.length === 0) return res.json([]);
@@ -1749,6 +1749,38 @@ app.get('/api/schedules', async (req, res) => {
 
   } catch (e) {
     console.error('[API] Error fetching schedules:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/reports/escalas-planejadas', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT 
+        ep.id_escala, 
+        TO_CHAR(ep.data_servico, 'DD/MM/YYYY') as data_formatada,
+        ep.data_servico,
+        ep.horario_servico, 
+        ep.nome_recurso, 
+        ep.funcao,
+        e.matricula, 
+        e.posto_graduacao, 
+        e.nome_guerra, 
+        c.referencia_mes_ano as ciclo,
+        c.status as status_ciclo,
+        ts.descricao as tipo_servico,
+        ts.carga_horaria,
+        ts.valor_remuneracao,
+        CASE WHEN ep.id_disponibilidade IS NOT NULL THEN 'Voluntário' ELSE 'Compulsório' END as tipo_escalacao
+      FROM ESCALA_PLANEJAMENTO ep
+      JOIN EFETIVO e ON ep.id_militar = e.id_militar
+      JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+      LEFT JOIN TIPOS_SERVICO ts ON ep.id_tipo_servico = ts.id_tipo_servico
+      ORDER BY c.referencia_mes_ano DESC, ep.data_servico DESC, ep.nome_recurso ASC, ep.funcao ASC
+    `);
+    res.json(rows);
+  } catch (e) {
+    console.error('[API] Erro detalhado escalas:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -1812,23 +1844,55 @@ app.post('/api/schedules', async (req, res) => {
             continue;
           }
 
+          // Busca se o militar tem disponibilidade exata para este dia e turno
+          let reqMilitar = await db.get(
+            `SELECT dr.id_disponibilidade 
+             FROM REQUERIMENTOS r
+             JOIN DISPONIBILIDADE_REQUERIMENTO dr ON r.id_requerimento = dr.id_requerimento
+             WHERE r.id_militar = $1 
+               AND r.id_ciclo = $2 
+               AND dr.dia_mes = $3 
+               AND LOWER(TRIM(dr.horario_turno)) = LOWER(TRIM($4))
+               AND dr.marcado_disponivel = TRUE 
+               AND dr.ativo = TRUE 
+             LIMIT 1`,
+            [member.id_militar, ciclo.id_ciclo, parseInt(date, 10), horarioServico]
+          );
+
+          // Fallback: se o turno não bater perfeitamente devido à nomenclatura, pega a primeira disponibilidade do militar para aquele dia
+          if (!reqMilitar) {
+            reqMilitar = await db.get(
+              `SELECT dr.id_disponibilidade 
+               FROM REQUERIMENTOS r
+               JOIN DISPONIBILIDADE_REQUERIMENTO dr ON r.id_requerimento = dr.id_requerimento
+               WHERE r.id_militar = $1 
+                 AND r.id_ciclo = $2 
+                 AND dr.dia_mes = $3 
+                 AND dr.marcado_disponivel = TRUE 
+                 AND dr.ativo = TRUE 
+               LIMIT 1`,
+              [member.id_militar, ciclo.id_ciclo, parseInt(date, 10)]
+            );
+          }
+
+          const idDisponibilidade = reqMilitar ? reqMilitar.id_disponibilidade : null;
+
           await db.run(`
             INSERT INTO ESCALA_PLANEJAMENTO
               (id_ciclo, id_militar, id_tipo_servico, id_disponibilidade,
                data_servico, horario_servico, funcao,
-               cartao_viatura, local_embarque, observacoes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               nome_recurso, observacoes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           `, [
-            ciclo.id_ciclo,
-            member.id_militar,
-            idTipoServico,
-            null,             // id_disponibilidade = NULL → trigger fn_valida_escala não bloqueia
+            parseInt(ciclo.id_ciclo, 10),
+            parseInt(member.id_militar, 10),
+            idTipoServico ? parseInt(idTipoServico, 10) : null,
+            idDisponibilidade ? parseInt(idDisponibilidade, 10) : null, 
             dataServico,
             horarioServico,
             funcao,
-            patrol.id,        // cartao_viatura identifica a guarnição (p1, p2, …)
-            patrol.name || 'FORÇA TAREFA', // local_embarque reutilizado como nome da guarnição
-            patrol.duration || '6h'        // observacoes armazena a duração configurada
+            patrol.name || 'FORÇA TAREFA', 
+            patrol.duration || '6h'        
           ]);
 
           inserted++;
@@ -1840,14 +1904,18 @@ app.post('/api/schedules', async (req, res) => {
     }
 
     if (errors.length > 0 && inserted === 0) {
-      return res.status(500).json({ error: "Nenhum registro salvo.", details: errors });
+      console.error('[API] Falha total no salvamento:', errors);
+      return res.status(500).json({ 
+        error: `Nenhum registro salvo. Detalhe do primeiro erro: ${errors[0]}`, 
+        details: errors 
+      });
     }
 
     res.json({ success: true, inserted, warnings: errors.length > 0 ? errors : undefined });
 
   } catch (e) {
     console.error('[API] Error saving schedules:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Erro interno no servidor: ' + e.message });
   }
 });
 

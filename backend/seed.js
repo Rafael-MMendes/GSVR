@@ -93,7 +93,7 @@ async function seed() {
       for (let i = 0; i < Math.min(3, disponibilidades.length); i++) {
         const disp = disponibilidades[i];
         await db.run(
-          `INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, local_embarque, funcao) 
+          `INSERT INTO ESCALA_PLANEJAMENTO (id_ciclo, id_militar, id_disponibilidade, data_servico, horario_servico, nome_recurso, funcao) 
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [idCiclo, disp.id_militar, disp.id_disponibilidade, dia1, '07:00 ÀS 13:00 (6h)', 'Guarnição Seed', i === 0 ? 'Comandante' : 'Patrulheiro']
         );
