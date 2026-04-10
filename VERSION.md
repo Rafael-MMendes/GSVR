@@ -1,3 +1,12 @@
+## v1.14.3 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UX/UI] Fechamento Inteligente de Menus**: Implementada lógica de detecção de clique externo ("click outside") para recolher automaticamente menus dropdown e o menu mobile. Melhora significativamente a experiência de uso ao evitar que menus fiquem abertos desnecessariamente na tela.
+
+---
+
 ## v1.14.2 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

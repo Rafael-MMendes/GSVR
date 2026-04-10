@@ -58,6 +58,23 @@ function App() {
     return () => window.removeEventListener('navigate', handleNavigate);
   }, [user]);
 
+  // Fecha dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Se clicar fora de um grupo de navegação, fecha o dropdown ativo
+      if (activeDropdown && !event.target.closest('.nav-group')) {
+        setActiveDropdown(null);
+      }
+      // Se clicar fora da navbar link e o menu mobile estiver aberto, fecha-o
+      if (isMenuOpen && !event.target.closest('.nav-links') && !event.target.closest('.mobile-menu-btn')) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdown, isMenuOpen]);
+
   const handleLogin = (userData) => {
     setUser(userData);
     setCurrentView(userData.is_admin ? 'admin' : 'form');
