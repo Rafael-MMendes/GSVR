@@ -1,3 +1,12 @@
+## v1.14.7 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Relacionamento Ternário N:N**: Introduzida a tabela `ESCALA_EFETIVO_SERVICO` para permitir o mapeamento complexo entre escalas planejadas, militares e serviços efetivamente executados. Isso possibilita auditorias detalhadas e flexibilidade na correspondência entre o que foi planejado e o que foi realizado.
+
+---
+
 ## v1.14.6 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

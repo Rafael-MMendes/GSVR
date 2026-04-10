@@ -242,6 +242,15 @@ async function setupDB() {
                 descricao VARCHAR(255)
             );
 
+           -- 8. Tabela de Relacionamento N:N (Ternária) entre Planejamento, Efetivo e Execução
+           CREATE TABLE IF NOT EXISTS ESCALA_EFETIVO_SERVICO (
+               id_escala INTEGER NOT NULL REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE CASCADE,
+               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar) ON DELETE CASCADE,
+               id_execucao INTEGER NOT NULL REFERENCES SERVICOS_EXECUTADOS(id_execucao) ON DELETE CASCADE,
+               data_vinculo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+               PRIMARY KEY (id_escala, id_militar, id_execucao)
+           );
+
             -- Migration: remover tabela schedules legada (substituída por ESCALA_PLANEJAMENTO)
             DROP TABLE IF EXISTS schedules CASCADE;
 
