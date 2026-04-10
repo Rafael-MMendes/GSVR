@@ -288,7 +288,7 @@ function App() {
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
         {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
         {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
-        {currentView === 'import-servicos' && isAdmin && <ServicosImport />}
+        {currentView === 'import-servicos' && isAdmin && <ServicosImport onBack={() => navigateTo('servicos')} />}
         {currentView === 'servicos' && isAdmin && <ServicosExecutadosManager />}
         {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
         {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}

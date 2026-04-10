@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Info, ArrowRight, ClipboardCheck } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Info, ArrowRight, ClipboardCheck, ArrowLeft } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
-export function ServicosImport() {
+export function ServicosImport({ onBack }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -71,7 +71,30 @@ export function ServicosImport() {
     <div className="container" style={{ maxWidth: '800px', margin: '1rem auto' }}>
       <div className="glass-panel" style={{ padding: '1.5rem 1rem' }}>
         <header style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+            {onBack && (
+              <button 
+                onClick={onBack}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '8px',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  marginLeft: '-8px'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#64748b'; }}
+                title="Voltar"
+              >
+                <ArrowLeft size={20} />
+              </button>
+            )}
             <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: '#10b981' }}>
               <ClipboardCheck size={24} />
             </div>

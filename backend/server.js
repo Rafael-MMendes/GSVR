@@ -1126,10 +1126,10 @@ app.delete('/api/ciclos/:id', async (req, res) => {
 // ============================================================
 app.get('/api/servicos', async (req, res) => {
   try {
-    const { ciclo_id, militar_id } = req.query;
+    const { ciclo_id, militar_id, data_inicio, data_fim } = req.query;
     let q = `
       SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, c.referencia_mes_ano,
-             ep.horario_servico, ep.funcao, ep.local_embarque
+             ep.horario_servico, ep.funcao, ep.nome_recurso
       FROM SERVICOS_EXECUTADOS se
       JOIN EFETIVO e ON se.id_militar = e.id_militar
       JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
@@ -1139,6 +1139,9 @@ app.get('/api/servicos', async (req, res) => {
     const params = [];
     if (ciclo_id) { params.push(ciclo_id); q += ` AND se.id_ciclo = $${params.length}`; }
     if (militar_id) { params.push(militar_id); q += ` AND se.id_militar = $${params.length}`; }
+    if (data_inicio) { params.push(data_inicio); q += ` AND se.data_execucao >= $${params.length}`; }
+    if (data_fim) { params.push(data_fim); q += ` AND se.data_execucao <= $${params.length}`; }
+    
     q += ' ORDER BY se.data_execucao DESC';
     const { rows } = await db.query(q, params);
     res.json(rows);

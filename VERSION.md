@@ -1,3 +1,12 @@
+## v1.14.1 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UX/UI] Botão de Voltar em Importação**: Implementado botão de retorno em `ServicosImport.jsx` para facilitar a navegação de volta à lista de Serviços Executados. O botão utiliza o ícone `ArrowLeft` e segue a estética *glassmorphism* do projeto.
+
+---
+
 ## v1.14.0 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
