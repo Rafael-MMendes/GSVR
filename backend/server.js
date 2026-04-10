@@ -884,15 +884,9 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE')
             telefone = val;
 
-          // Status Ativo (Padrão: Ativo)
+          // Status Ativo - Forçado como verdadeiro conforme solicitado
           else if (k === 'STATUS' || k === 'SITUACAO' || k === 'CONDICAO') {
-            const v = val.toUpperCase().trim();
-            // Só marca como inativo se for explicitamente indicado
-            if (v === 'INATIVO' || v === 'INATIVA' || v === '0' || v === 'NAO' || v === 'FALSE') {
-              statusAtivo = false;
-            } else {
-              statusAtivo = true;
-            }
+            statusAtivo = true;
           }
 
           // Motorista / Condutor
@@ -939,31 +933,8 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         );
 
         if (existing) {
-          // UPSERT: atualiza se houver mudanças relevantes no nome de guerra, posto ou motorista
-          const needsUpdate =
-            (nomeGuerra && existing.nome_guerra !== nomeGuerra) ||
-            (posto && existing.posto_graduacao !== posto) ||
-            (motorista && existing.motorista !== motorista) ||
-            (!existing.rgpm && rgpm) || (!existing.opm && opm);
-
-          if (needsUpdate || (nrOrdem && existing.numero_ordem !== nrOrdem)) {
-            await db.run(
-              `UPDATE EFETIVO SET
-                nome_guerra = COALESCE(NULLIF($1, ''), nome_guerra),
-                posto_graduacao = COALESCE(NULLIF($2, ''), posto_graduacao),
-                rgpm = COALESCE(NULLIF($3, ''), rgpm),
-                opm = COALESCE(NULLIF($4, ''), opm),
-                telefone = COALESCE(NULLIF($5, ''), telefone),
-                motorista = $7,
-                numero_ordem = COALESCE(NULLIF($8, ''), numero_ordem)
-              WHERE id_militar = $6`,
-              [nomeGuerra, posto, rgpm, opm, formatPhone(telefone), existing.id_militar, motorista, nrOrdem]
-            );
-            stats.imported++; // conta como atualizado
-          } else {
-            stats.existing++;
-          }
-          continue;
+          stats.existing++;
+          continue; // Pula militares já cadastrados conforme solicitado
         }
 
         // Inserção completa com todos os campos da tabela EFETIVO

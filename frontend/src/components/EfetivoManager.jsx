@@ -100,7 +100,7 @@ export function EfetivoManager() {
     setIsModalOpen(true);
   };
 
-  const filteredEfetivo = efetivo.filter(m => 
+  const filteredEfetivo = efetivo.filter(m =>
     m.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.matricula.includes(searchTerm) ||
     m.numero_ordem?.includes(searchTerm) ||
@@ -109,12 +109,12 @@ export function EfetivoManager() {
 
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
-      <header style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '2.5rem', 
-        flexWrap: 'wrap', 
+      <header style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '2.5rem',
+        flexWrap: 'wrap',
         gap: '1.5rem',
         background: 'white',
         padding: '1.5rem',
@@ -130,44 +130,46 @@ export function EfetivoManager() {
           </h2>
           <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '1rem' }}>Gerencie o cadastro de militares e identificações do batalhão</p>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Nome, matrícula ou ordem..." 
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Nome, matrícula ou ordem..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '40px', width: '280px', height: '44px', borderRadius: '12px' }}
             />
           </div>
-          
-          <button 
-            className="btn btn-outline" 
+
+          <button
+            className="btn btn-outline"
             onClick={() => setIsImportModalOpen(true)}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              height: '44px', 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              height: '44px',
               borderRadius: '12px',
-              borderColor: '#e2e8f0',
-              color: '#475569'
+              borderColor: '#ffffffff',
+              backgroundColor: '#1ABC9C',
+              color: '#ffffffff'
+
             }}
           >
-            <FileSpreadsheet size={18} /> Importar Excel
+            <FileSpreadsheet size={18} /> Importar Efetivo
           </button>
-          
-          <button 
-            className="btn btn-primary" 
-            onClick={() => { setEditingMilitar(null); resetForm(); setIsModalOpen(true); }} 
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              height: '44px', 
+
+          <button
+            className="btn btn-primary"
+            onClick={() => { setEditingMilitar(null); resetForm(); setIsModalOpen(true); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              height: '44px',
               borderRadius: '12px',
               boxShadow: '0 4px 12px rgba(30, 58, 138, 0.2)'
             }}
@@ -197,9 +199,9 @@ export function EfetivoManager() {
               {filteredEfetivo.map(m => (
                 <tr key={m.id_militar} style={{ borderBottom: '1px solid #f1f5f9', transition: '0.2s' }} className="table-row-hover">
                   <td>
-                    <span style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
                       gap: '6px',
                       padding: '4px 10px',
                       borderRadius: '20px',
@@ -224,20 +226,20 @@ export function EfetivoManager() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ fontFamily: 'monospace', color: '#475569' }}>{m.cpf ? String(m.cpf).padStart(11, '0') : '-'}</td>
+                  <td style={{ color: '#475569' }}>{m.cpf ? String(m.cpf).padStart(11, '0') : '-'}</td>
                   <td style={{ color: '#475569' }}>{formatPhone(m.telefone)}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => openEdit(m)} 
+                      <button
+                        className="btn-icon"
+                        onClick={() => openEdit(m)}
                         style={{ color: '#3b82f6', background: '#eff6ff', border: 'none', padding: '8px', borderRadius: '10px' }}
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => handleDelete(m.id_militar)} 
+                      <button
+                        className="btn-icon"
+                        onClick={() => handleDelete(m.id_militar)}
                         style={{ color: '#ef4444', background: '#fef2f2', border: 'none', padding: '8px', borderRadius: '10px' }}
                       >
                         <Trash2 size={16} />
@@ -258,10 +260,10 @@ export function EfetivoManager() {
       {isImportModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '850px', width: '95%', padding: 0, overflow: 'hidden' }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
               padding: '1.25rem 1.5rem',
               borderBottom: '1px solid #f1f5f9',
               background: '#f8fafc'
@@ -322,7 +324,7 @@ export function EfetivoManager() {
                     <option value="SD PM">SOLDADO PM</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="form-label">Matrícula (Login) *</label>
                   <input className="form-input" value={formData.matricula} onChange={e => setFormData({ ...formData, matricula: e.target.value })} required />
@@ -333,14 +335,14 @@ export function EfetivoManager() {
                 </div>
                 <div>
                   <label className="form-label">CPF *</label>
-                  <input 
-                    className="form-input" 
-                    value={formData.cpf} 
+                  <input
+                    className="form-input"
+                    value={formData.cpf}
                     onChange={e => {
                       const val = e.target.value.replace(/\D/g, '').substring(0, 11);
                       setFormData({ ...formData, cpf: val });
-                    }} 
-                    required 
+                    }}
+                    required
                     placeholder="Somente números"
                   />
                 </div>
@@ -368,13 +370,40 @@ export function EfetivoManager() {
       )}
 
       <style>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+          backdrop-filter: blur(4px);
+          padding: 1rem;
+        }
+        .modal-content {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          width: 100%;
+          max-width: 700px;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
+          animation: modalAppear 0.3s ease-out;
+          padding: 2rem;
+        }
+        @keyframes modalAppear {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .admin-table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 1rem;
           background: white;
-          overflow: hidden;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         .admin-table th {
           background: #f8fafc;
@@ -384,45 +413,28 @@ export function EfetivoManager() {
           text-transform: uppercase;
           color: #64748b;
           font-weight: 600;
-          border-bottom: 1px solid #e2e8f0;
+          border-bottom: 2px solid #f1f5f9;
         }
         .admin-table td {
           padding: 12px 16px;
           border-bottom: 1px solid #f1f5f9;
-          color: #1e293b;
+          vertical-align: middle;
         }
-        .admin-table tr:last-child td {
-          border-bottom: none;
-        }
-        .admin-table tr:hover {
-          background: #f8fafc;
+        .table-row-hover:hover {
+          background-color: #f8fafc !important;
         }
         .btn-icon {
-          padding: 6px;
-          border-radius: 6px;
-          border: 1px solid #e2e8f0;
-          background: white;
-          color: #3b82f6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          border-radius: 10px;
+          border: none;
           cursor: pointer;
           transition: all 0.2s;
         }
         .btn-icon:hover {
-          background: #3b82f6;
-          color: white;
-        }
-        .btn-icon-danger {
-          color: #ef4444;
-        }
-        .btn-icon-danger:hover {
-          background: #ef4444;
-          color: white;
-        }
-        code {
-          background: #f1f5f9;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-family: monospace;
-          color: #0f172a;
+          transform: scale(1.1);
         }
       `}</style>
     </div>
