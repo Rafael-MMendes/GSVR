@@ -1504,11 +1504,21 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
+        // 4. Verificar se já existe este serviço registrado (Evitar Duplicados)
+        const exists = await db.get(
+          'SELECT 1 FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',
+          [military.id_militar, isoDate]
+        );
+
+        if (exists) {
+            stats.skipped++;
+            continue;
+        }
+
         await db.run(
           `INSERT INTO SERVICOS_EXECUTADOS 
             (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-           ON CONFLICT DO NOTHING`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, feriado, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
         );
 

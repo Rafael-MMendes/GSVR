@@ -1,3 +1,13 @@
+## v1.14.5 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Back/Front] Proteção contra Duplicatas**: Implementada validação rigorosa na importação de serviços executados (FT). O sistema agora detecta se o militar já possui escala registrada na mesma data e ignora automaticamente esses registros para evitar duplicidade de pagamentos e inconsistências financeiras.
+- **[UX/UI] Feedback de Importação**: Melhorada a comunicação visual no `ServicosImport.jsx`, exibindo explicitamente o contador de registros ignorados/duplicados.
+
+---
+
 ## v1.14.4 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

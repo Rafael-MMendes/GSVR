@@ -159,8 +159,9 @@ export function ServicosImport({ onBack }) {
             }}>
               <Info size={20} style={{ flexShrink: 0, color: '#10b981' }} />
               <div>
-                O sistema identificará os militares pelo <strong>CPF</strong> e vinculará os serviços ao <strong>Ciclo Operacional</strong> correspondente à data informada na planilha.
-                Certifique-se de que o Ciclo já esteja criado.
+                O sistema identificará os militares pelo <strong>CPF</strong> e vinculará os serviços ao <strong>Ciclo Operacional</strong> correspondente à data informada. 
+                <br /><br />
+                <strong>Validação Automática:</strong> Registros onde o militar já possui serviço cadastrado na mesma data serão <strong>ignorados automaticamente</strong> para evitar duplicidade.
               </div>
             </div>
           </div>
@@ -201,8 +202,8 @@ export function ServicosImport({ onBack }) {
                     <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>{result.stats.imported}</div>
                 </div>
                 <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Pulados</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#64748b' }}>{result.stats.skipped || 0}</div>
+                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Duplicados/S.Dados</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>{result.stats.skipped || 0}</div>
                 </div>
                 <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Erros</div>
