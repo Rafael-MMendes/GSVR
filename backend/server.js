@@ -1128,12 +1128,10 @@ app.get('/api/servicos', async (req, res) => {
   try {
     const { ciclo_id, militar_id, data_inicio, data_fim } = req.query;
     let q = `
-      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, c.referencia_mes_ano,
-             ep.horario_servico, ep.funcao, ep.nome_recurso
+      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, c.referencia_mes_ano
       FROM SERVICOS_EXECUTADOS se
       JOIN EFETIVO e ON se.id_militar = e.id_militar
       JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
-      LEFT JOIN ESCALA_PLANEJAMENTO ep ON se.id_escala = ep.id_escala
       WHERE 1=1
     `;
     const params = [];
@@ -1150,7 +1148,7 @@ app.get('/api/servicos', async (req, res) => {
 
 app.post('/api/servicos', async (req, res) => {
   try {
-    const { id_ciclo, id_militar, id_escala, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca } = req.body;
+    const { id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca } = req.body;
     if (!id_ciclo || !id_militar || !data_execucao || !status_presenca) {
       return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     }
@@ -1163,8 +1161,8 @@ app.post('/api/servicos', async (req, res) => {
     const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
     
     const r = await db.run(
-      'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, id_escala, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [id_ciclo, id_militar, id_escala || null, data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca]
+      'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+      [id_ciclo, id_militar, data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca]
     );
     res.status(201).json({ success: true, id_execucao: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1474,7 +1472,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 3. Obter Tipo de Serviço (por default usaremos o primeiro de 6h a menos que especificado, pois antes era fixo)
+        // 3. Obter Tipo de Serviço
         // Isso pode ser refinado futuramente criando a seleção de TIPO via frontend/planilha
         const defaultTipo = await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO WHERE descricao LIKE '%6h%' AND ativo = true LIMIT 1") || await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO LIMIT 1");
 
@@ -1794,16 +1792,15 @@ app.get('/api/reports/escalas-planejadas', async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error('[API] Erro detalhado escalas:', e);
-    res.status(500).json({ error: e.message });
   }
 });
 
 app.post('/api/schedules', async (req, res) => {
-  try {
-    const { date, month_key, patrols } = req.body;
-    if (!date || !month_key || !patrols) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+    try {
+      const { date, month_key, patrols } = req.body;
+      if (!date || !month_key || !patrols) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
 
     // Constrói data ISO YYYY-MM-DD
     const dataServico = `${month_key}-${String(date).padStart(2, '0')}`;

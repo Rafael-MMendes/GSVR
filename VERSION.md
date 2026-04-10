@@ -1,3 +1,13 @@
+## v1.14.6 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Depreciação de `id_escala`**: Removida a coluna `id_escala` da tabela `SERVICOS_EXECUTADOS`. A vinculação entre o planejamento e a execução agora é baseada exclusivamente na lógica de negócio (Data + Militar), simplificando o esquema e removendo dependências rígidas que dificultavam a importação manual de planilhas.
+- **[Backend] Refatoração de Endpoints**: Atualizados os métodos GET, POST e PUT de serviços para ignorar a coluna removida, mantendo a compatibilidade total com o novo esquema.
+
+---
+
 ## v1.14.5 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
