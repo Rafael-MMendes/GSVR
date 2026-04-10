@@ -6,7 +6,7 @@ Projeto com backend Node, frontend Vite e stack Docker.
 
 1. Leia `requirements.md`.
 2. Suba o ambiente com `docker compose up --build`.
-3. Para desenvolvimento com bind mount e hot reload, use `docker compose -f docker-compose.prod.yml up --build`.
+3. Para o stack alternativo com hot reload, use `docker compose -f docker-compose.prod.yml up --build`.
 
 ## Documentacao
 
@@ -19,3 +19,8 @@ Projeto com backend Node, frontend Vite e stack Docker.
 - Frontend: `http://localhost:5173`
 - pgAdmin: `http://localhost:5050`
 - Portainer: `http://localhost:9000`
+
+## Arquivos de ambiente
+
+- Backend: `backend/.env` ou `backend/.env.docker`
+- Frontend: `frontend/.env`
