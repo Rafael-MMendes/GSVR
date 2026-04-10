@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { DollarSign, TrendingUp, TrendingDown, PieChart, Calendar, Users, Wallet, AlertTriangle, Activity } from 'lucide-react';
 
@@ -40,11 +40,17 @@ export function FinanceiroDashboard() {
         aValue = parseFloat(aValue) || 0;
         bValue = parseFloat(bValue) || 0;
       } else if (sortConfig.key === 'data') {
-        // Assume DD/MM/YYYY
-        const [da, ma, ya] = aValue.split('/');
-        const [db, mb, yb] = bValue.split('/');
-        aValue = new Date(ya, ma - 1, da).getTime();
-        bValue = new Date(yb, mb - 1, db).getTime();
+        // Formato esperado DD/MM conforme retornado pelo backend (TO_CHAR)
+        const partsA = aValue.split('/');
+        const partsB = bValue.split('/');
+        const da = parseInt(partsA[0]) || 0;
+        const ma = parseInt(partsA[1]) || 0;
+        const db = parseInt(partsB[0]) || 0;
+        const mb = parseInt(partsB[1]) || 0;
+        
+        // Criar um marcador numérico MMDD para comparação correta
+        aValue = ma * 100 + da;
+        bValue = mb * 100 + db;
       }
 
       if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;

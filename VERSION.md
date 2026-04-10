@@ -1,3 +1,14 @@
+## v1.13.5 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Correção da Tela Branca (FinanceiroDashboard)**: Identificada e corrigida a falha crítica de renderização causada pela ausência do import `useMemo`.
+- **Estabilização de Ordenação Financeira**: Ajustada a lógica de ordenação por data para suportar o formato "DD/MM" retornado pelo banco de dados, evitando erros de lógica no frontend.
+- **Remoção de Módulo Obsoleto**: Removido integralmente o módulo de **Relatório Hierárquico** (frontend e navegação) conforme solicitado, simplificando a interface e focando nos relatórios consolidados do Dashboard Financeiro.
+
+---
+
 ## v1.13.4 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
