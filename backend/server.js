@@ -884,10 +884,15 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE')
             telefone = val;
 
-          // Status Ativo
+          // Status Ativo (Padrão: Ativo)
           else if (k === 'STATUS' || k === 'SITUACAO' || k === 'CONDICAO') {
-            const v = val.toUpperCase();
-            statusAtivo = (v === 'ATIVO' || v === 'ATIVA' || v === '1' || v === 'SIM' || v === 'TRUE');
+            const v = val.toUpperCase().trim();
+            // Só marca como inativo se for explicitamente indicado
+            if (v === 'INATIVO' || v === 'INATIVA' || v === '0' || v === 'NAO' || v === 'FALSE') {
+              statusAtivo = false;
+            } else {
+              statusAtivo = true;
+            }
           }
 
           // Motorista / Condutor

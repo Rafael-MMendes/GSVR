@@ -4,7 +4,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Info, Arro
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
-export function EfetivoImport() {
+export function EfetivoImport({ onComplete }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -60,6 +60,7 @@ export function EfetivoImport() {
       setResult(response.data);
       setFile(null);
       setPreview(null);
+      if (onComplete) onComplete();
     } catch (err) {
       setError(err.response?.data?.error || "Erro ao processar a importação.");
     } finally {
@@ -68,7 +69,7 @@ export function EfetivoImport() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '800px', margin: '1rem auto' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div className="glass-panel" style={{ padding: '1.5rem 1rem' }}>
         <header style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>

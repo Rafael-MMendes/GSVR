@@ -1,3 +1,15 @@
+## v1.13.2 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Redesign da Gestão de Efetivo**: Interface administrativa do efetivo totalmente modernizada com novo cabeçalho, badges de status em estilo "pill" e tipografia otimizada.
+- **Importação Integrada (Modal)**: O módulo de importação via Excel foi movido de um menu separado para dentro da tela de Gestão de Efetivo, acessível via botão modal para um fluxo de trabalho mais ágil.
+- **Importação Ativa por Padrão**: Ajustada a lógica de backend para que todos os militares importados sejam marcados como "Ativo" por padrão, a menos que a planilha indique explicitamente o contrário.
+- **Limpeza de Navegação**: Removido item redundante do menu de configurações, simplificando a arquitetura de informação do sistema.
+
+---
+
 ## v1.13.1 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

@@ -213,11 +213,6 @@ function App() {
                         <Users2 size={16} /> Gestão de Efetivo
                       </a>
                     )}
-                    {hasPermission('efetivo:import') && (
-                      <a href="#" className={`dropdown-item ${currentView === 'import-efetivo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('import-efetivo'); }}>
-                        <UserPlus size={16} /> Importar Efetivo (Excel)
-                      </a>
-                    )}
                     {hasPermission('usuarios:admin') && (
                       <a href="#" className={`dropdown-item ${currentView === 'usuarios' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('usuarios'); }}>
                         <Shield size={16} /> Gestão de Usuários
