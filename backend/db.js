@@ -245,15 +245,17 @@ async function setupDB() {
                 descricao VARCHAR(255)
             );
 
-           -- 8. Tabela de Relacionamento N:N (Ternária) entre Planejamento, Efetivo e Execução
-           CREATE TABLE IF NOT EXISTS ESCALA_EFETIVO_SERVICO (
-               id_escala INTEGER NOT NULL REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE CASCADE,
-               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar) ON DELETE CASCADE,
-               id_execucao INTEGER NOT NULL REFERENCES SERVICOS_EXECUTADOS(id_execucao) ON DELETE CASCADE,
-               data_vinculo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-               editado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-               PRIMARY KEY (id_escala, id_militar, id_execucao)
-           );
+            -- 8. Tabela de Relacionamento Ternário com Surrogate Key e Status
+            DROP TABLE IF EXISTS ESCALA_EFETIVO_SERVICO CASCADE;
+            CREATE TABLE ESCALA_EFETIVO_SERVICO (
+                id_vinculo SERIAL PRIMARY KEY,
+                id_escala INTEGER REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE CASCADE,
+                id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar) ON DELETE CASCADE,
+                id_execucao INTEGER REFERENCES SERVICOS_EXECUTADOS(id_execucao) ON DELETE CASCADE,
+                status VARCHAR(50) NOT NULL,
+                data_vinculo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                editado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
 
            -- Migration: Adicionar editado_em se não existir
            ALTER TABLE ESCALA_EFETIVO_SERVICO ADD COLUMN IF NOT EXISTS editado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
@@ -509,24 +511,21 @@ async function setupDB() {
           DROP VIEW IF EXISTS vw_relatorio_operacional_completo CASCADE;
           CREATE VIEW vw_relatorio_operacional_completo AS
           SELECT 
-              o.id_opm, o.sigla AS opm_sigla, o.descricao AS opm_descricao,
-              c.id_ciclo, c.referencia_mes_ano, c.status AS ciclo_status, c.valor_total_previsto AS ciclo_valor_teto,
-              e.id_militar, e.nome_completo, e.nome_guerra, e.posto_graduacao, e.matricula, e.cpf,
-              req.id_requerimento, req.numero_requerimento,
-              dr.id_disponibilidade, dr.dia_mes AS disponibilidade_dia, dr.horario_turno AS disponibilidade_turno,
-              ep.id_escala, ep.data_servico AS escala_data, ep.horario_servico AS escala_turno, ep.funcao AS escala_funcao,
-              ts_pl.descricao AS escala_tipo_servico_desc, ts_pl.valor_remuneracao AS escala_valor_previsto,
-              se.id_execucao, se.data_execucao AS execucao_data, se.carga_horaria AS execucao_carga_horaria, se.valor_remuneracao AS execucao_valor_remuneracao, se.status_presenca AS execucao_presenca,
+              ees.id_vinculo,
+              ees.status AS vinculo_status,
+              e.id_militar, e.matricula, e.nome_completo, e.nome_guerra, e.posto_graduacao,
+              c.referencia_mes_ano,
+              ep.data_servico AS planejamento_data, ep.horario_servico AS planejamento_horario, ep.nome_recurso AS planejamento_recurso,
+              ts_pl.descricao AS planejamento_tipo_servico_desc,
+              se.data_execucao AS execucao_data, se.valor_remuneracao AS execucao_valor, se.carga_horaria AS execucao_carga,
               ts_ex.descricao AS execucao_tipo_servico_desc
-          FROM EFETIVO e
-          LEFT JOIN REQUERIMENTOS req ON e.id_militar = req.id_militar
-          LEFT JOIN DISPONIBILIDADE_REQUERIMENTO dr ON req.id_requerimento = dr.id_requerimento
-          LEFT JOIN ESCALA_PLANEJAMENTO ep ON e.id_militar = ep.id_militar
+          FROM ESCALA_EFETIVO_SERVICO ees
+          JOIN EFETIVO e ON ees.id_militar = e.id_militar
+          LEFT JOIN ESCALA_PLANEJAMENTO ep ON ees.id_escala = ep.id_escala
           LEFT JOIN TIPOS_SERVICO ts_pl ON ep.id_tipo_servico = ts_pl.id_tipo_servico
-          LEFT JOIN ESCALA_EFETIVO_SERVICO ees ON ep.id_escala = ees.id_escala
           LEFT JOIN SERVICOS_EXECUTADOS se ON ees.id_execucao = se.id_execucao
           LEFT JOIN TIPOS_SERVICO ts_ex ON se.id_tipo_servico = ts_ex.id_tipo_servico
-          LEFT JOIN CICLOS c ON (ep.id_ciclo = c.id_ciclo OR se.id_ciclo = c.id_ciclo OR req.id_ciclo = c.id_ciclo)
+          LEFT JOIN CICLOS c ON (ep.id_ciclo = c.id_ciclo OR se.id_ciclo = c.id_ciclo)
           LEFT JOIN OPM o ON c.id_opm = o.id_opm;
 
           DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
@@ -729,6 +728,79 @@ async function setupDB() {
           return pool.query(text, params);
         }
       };
+
+      // ============================================================
+      // CONFIGURAÇÃO DE TRIGGERS (Automação da Tabela Ternária)
+      // ============================================================
+      const clientTrg = await pool.connect();
+      try {
+        await clientTrg.query(`
+          -- Trigger para Planejamento: Cria registro inicial
+          CREATE OR REPLACE FUNCTION trg_planejamento_ternaria()
+          RETURNS TRIGGER AS $$
+          BEGIN
+              INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
+              VALUES (NEW.id_escala, NEW.id_militar, 'Planejado e não executado');
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_planejamento_after_insert ON ESCALA_PLANEJAMENTO;
+          CREATE TRIGGER trg_planejamento_after_insert
+          AFTER INSERT ON ESCALA_PLANEJAMENTO
+          FOR EACH ROW EXECUTE FUNCTION trg_planejamento_ternaria();
+
+          -- Trigger para Execução: Vincula ao planejamento ou cria novo registro
+          CREATE OR REPLACE FUNCTION trg_execucao_ternaria()
+          RETURNS TRIGGER AS $$
+          DECLARE
+              v_id_escala INTEGER;
+              v_vinculo_id INTEGER;
+          BEGIN
+              -- 1. Busca se existe planejamento para este militar na mesma data
+              SELECT ep.id_escala INTO v_id_escala
+              FROM ESCALA_PLANEJAMENTO ep
+              WHERE ep.id_militar = NEW.id_militar
+                AND ep.data_servico = NEW.data_execucao
+              LIMIT 1;
+
+              IF v_id_escala IS NOT NULL THEN
+                  -- Localiza o registro na ternária que já tem o planejamento
+                  SELECT id_vinculo INTO v_vinculo_id
+                  FROM ESCALA_EFETIVO_SERVICO
+                  WHERE id_escala = v_id_escala AND id_militar = NEW.id_militar
+                  LIMIT 1;
+
+                  IF v_vinculo_id IS NOT NULL THEN
+                      UPDATE ESCALA_EFETIVO_SERVICO
+                      SET id_execucao = NEW.id_execucao,
+                          status = 'Planejado e executado',
+                          editado_em = CURRENT_TIMESTAMP
+                      WHERE id_vinculo = v_vinculo_id;
+                  ELSE
+                      -- Fallback caso o registro de planejamento tenha sido perdido na ternária
+                      INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, id_execucao, status)
+                      VALUES (v_id_escala, NEW.id_militar, NEW.id_execucao, 'Planejado e executado');
+                  END IF;
+              ELSE
+                  -- Sem Planejamento: Cria novo registro de execução avulsa
+                  INSERT INTO ESCALA_EFETIVO_SERVICO (id_execucao, id_militar, status)
+                  VALUES (NEW.id_execucao, NEW.id_militar, 'Apenas executado');
+              END IF;
+
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+
+          DROP TRIGGER IF EXISTS trg_execucao_after_insert ON SERVICOS_EXECUTADOS;
+          CREATE TRIGGER trg_execucao_after_insert
+          AFTER INSERT ON SERVICOS_EXECUTADOS
+          FOR EACH ROW EXECUTE FUNCTION trg_execucao_ternaria();
+        `);
+        console.log('[DB] Triggers de automação ternária configuradas com sucesso.');
+      } finally {
+        clientTrg.release();
+      }
 
       console.log("PostgreSQL Database system integrated with bd.sql schema.");
       return dbWrapper;

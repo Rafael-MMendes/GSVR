@@ -1,3 +1,17 @@
+## v1.15.0 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Refatoração Ternária N:N**: Reestruturação da tabela `ESCALA_EFETIVO_SERVICO` com Surrogate Key (`id_vinculo`) e colunas anuláveis para suportar o ciclo de vida completo do serviço.
+- **[Database] Automação de Status**: Implementação de Triggers PostgreSQL para gerenciamento automático da coluna `status`:
+    - `Planejado e não executado`: Criado automaticamente no planejamento.
+    - `Planejado e executado`: Vinculado automaticamente quando a execução coincide com a data planejada.
+    - `Apenas executado`: Criado automaticamente para importações/execuções sem planejamento prévio.
+- **[Database] View Operacional v3**: Atualizada `vw_relatorio_operacional_completo` para incluir o status do vínculo e otimizar auditorias de conformidade.
+
+---
+
 ## v1.14.9 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
