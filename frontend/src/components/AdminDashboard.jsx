@@ -98,8 +98,13 @@ export function AdminDashboard() {
       const dayKey1 = String(selectedDateNum);
       const dayKey2 = String(selectedDateNum).padStart(2, '0');
       
-      const hasDay = v.availability[dayKey1] || v.availability[dayKey2] || v.availability[parseInt(selectedDateNum)];
-      return hasDay;
+      // Busca robusta pela chave do dia (string simples, string com zero, ou número)
+      const availabilityForDay = 
+        v.availability?.[dayKey1] || 
+        v.availability?.[dayKey2] || 
+        v.availability?.[parseInt(selectedDateNum)];
+        
+      return !!availabilityForDay;
     });
 
     console.log(`[Dashboard] Pool: Total=${volunteersData.length}, Para o dia ${selectedDateNum}=${availablePeople.length}`);
@@ -176,9 +181,25 @@ export function AdminDashboard() {
       
       if (selectedShift === 'Todos') return matchesSearch;
       
-      const targetDay = String(selectedDate).padStart(2, '0');
-      const dayShifts = p.availability?.[targetDay] || p.availability?.[parseInt(selectedDate)] || [];
-      return matchesSearch && dayShifts.some(s => s && s.includes(selectedShift.split(' ')[0]));
+      const targetDaySimple = String(selectedDate);
+      const targetDayPadded = String(selectedDate).padStart(2, '0');
+      const dayShifts = p.availability?.[targetDaySimple] || p.availability?.[targetDayPadded] || p.availability?.[parseInt(selectedDate)] || [];
+      
+      // Mapeamento flexível de turnos
+      const shiftFragment = selectedShift.includes('(') ? selectedShift.split(' (')[1].split(')')[0].split(' às')[0] : selectedShift.split(' ')[0];
+      
+      return matchesSearch && dayShifts.some(s => {
+        if (!s) return false;
+        const dbShift = String(s).toUpperCase();
+        const selShift = selectedShift.toUpperCase();
+        
+        // Verifica por nome (MANHÃ) ou por horário (07:00)
+        return dbShift.includes(selShift.split(' ')[0]) || 
+               (selShift.includes('07') && dbShift.includes('07:00')) ||
+               (selShift.includes('13') && dbShift.includes('13:00')) ||
+               (selShift.includes('19') && dbShift.includes('19:00')) ||
+               (selShift.includes('01') && dbShift.includes('01:00'));
+      });
     });
   }, [state.pool, searchTerm, selectedShift, selectedDate]);
 
@@ -800,9 +821,28 @@ export function AdminDashboard() {
                   .filter(p => {
                     // Filtrar também por turno se necessário
                     if (selectedShift === 'Todos') return true;
-                    const targetDay = String(selectedDate).padStart(2, '0');
-                    const dayShifts = p.availability?.[targetDay] || p.availability?.[parseInt(selectedDate)] || [];
-                    return dayShifts.some(s => s && s.includes(selectedShift.split(' ')[0]));
+                    const targetDaySimple = String(selectedDate);
+                    const targetDayPadded = String(selectedDate).padStart(2, '0');
+                    const dayShifts = p.availability?.[targetDaySimple] || p.availability?.[targetDayPadded] || p.availability?.[parseInt(selectedDate)] || [];
+                    
+                    return dayShifts.some(s => {
+                      if (!s) return false;
+                      const dbShift = String(s).toUpperCase();
+                      const selShift = selectedShift.toUpperCase();
+                      return dbShift.includes(selShift.split(' ')[0]) || 
+                             (selShift.includes('07') && dbShift.includes('07:00')) ||
+                             (selShift.includes('13') && dbShift.includes('13:00')) ||
+                             (selShift.includes('19') && dbShift.includes('19:00')) ||
+                             (selShift.includes('01') && dbShift.includes('01:00'));
+                    });
+                  })
+                  .sort((a, b) => {
+                    // Ordenação: Posto/Grad depois Nome
+                    const rankOrder = { 'CEL PM': 1, 'TC PM': 2, 'MAJ PM': 3, 'CAP PM': 4, '1º TEN PM': 5, '2º TEN PM': 6, 'SUB PM': 7, '1º SGT PM': 8, '2º SGT PM': 9, '3º SGT PM': 10, 'CB PM': 11, 'SD PM': 12 };
+                    const rankA = rankOrder[a.rank] || 99;
+                    const rankB = rankOrder[b.rank] || 99;
+                    if (rankA !== rankB) return rankA - rankB;
+                    return a.name.localeCompare(b.name);
                   })
                   .map(p => {
                     const isSelected = selectedMembers.some(m => m.id === p.id);

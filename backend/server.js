@@ -101,8 +101,31 @@ const rankMap = {
 function normalizeRank(rank) {
   if (!rank) return 'SD PM';
   const r = String(rank).toUpperCase().trim();
-  // Se já é uma sigla padrão do rankMap, retorna a versão mapeada ou a própria r
-  return rankMap[r] || r; 
+  
+  // Mapeamento direto
+  if (rankMap[r]) return rankMap[r];
+  
+  // Buscas parciais robustas
+  if (r.includes('CORONEL') || r === 'CEL') return 'CEL PM';
+  if (r.includes('TENENTE CORONEL') || r.includes('TC PM') || r === 'TC') return 'TC PM';
+  if (r.includes('MAJOR') || r === 'MAJ') return 'MAJ PM';
+  if (r.includes('CAPIT') || r === 'CAP') return 'CAP PM'; // Captura Capitão e Capitão PM
+  if (r.match(/1.?\s*TEN/) || r.includes('PRIMEIRO TENENTE')) return '1º TEN PM';
+  if (r.match(/2.?\s*TEN/) || r.includes('SEGUNDO TENENTE')) return '2º TEN PM';
+  if (r.includes('ASPIRANTE') || r === 'ASP') return 'ASP PM';
+  if (r.includes('SUBTENENTE') || r.includes('SUB-TENENTE') || r === 'SUB') return 'SUB PM';
+  if (r.match(/1.?\s*SGT/) || r.includes('PRIMEIRO SARGENTO')) return '1º SGT PM';
+  if (r.match(/2.?\s*SGT/) || r.includes('SEGUNDO SARGENTO')) return '2º SGT PM';
+  if (r.match(/3.?\s*SGT/) || r.includes('TERCEIRO SARGENTO')) return '3º SGT PM';
+  if (r.includes('CABO') || r === 'CB') return 'CB PM';
+  if (r.includes('SOLDADO') || r === 'SD') return 'SD PM';
+
+  // Fallback baseado em números isolados (comum em OCR)
+  if (r.startsWith('1')) return '1º SGT PM';
+  if (r.startsWith('2')) return '2º SGT PM';
+  if (r.startsWith('3')) return '3º SGT PM';
+
+  return r; 
 }
 
 function padCpf(cpf) {
@@ -1851,13 +1874,12 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     }
 
     // Tentar extrair Nome de Guerra ou Nome Completo (mais agressivo)
-    // Padrão Alagoas: "EU, [POSTO] [MATRICULA] [NOME]" ou campos de tabela
-    // Ex: "2º SGT PM 178586 JOÃO DA SILVA"
-    const nameMatch = text.match(/(?:NOME(?:\s*COMPLETO)?|MILITAR|MATR\w*\s*\d+)\s*[:\.\-]?\s*([A-ZÀ-Ú\s]{3,45})/i);
+    // Mais restritivo contra cabeçalhos (mínimo 5 chars, remove palavras reservadas)
+    const nameMatch = text.match(/(?:NOME(?:\s*COMPLETO)?|MILITAR|MATR\w*\s*\d+)\s*[:\.\-]?\s*([A-ZÀ-Ú\s]{5,45})/i);
     if (nameMatch) {
       let n = nameMatch[1].trim().replace(/\s+/g, ' ');
-      // Limpeza de lixo de cabeçalho
-      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO|C\.P\.C|C\.P\.I|REGI[ÃA]O/gi, '')
+      // Limpeza profunda de lixo de cabeçalho
+      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|REGIÃO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO|C\.P\.C|C\.P\.I|REGI[ÃA]O|ESTADO|SECRETARIA/gi, '')
            .replace(/^\s*(?:DE\s+)?DA\s+/i, '') // Remove "DE DA" ou "DA" no início
            .replace(/^\s*DE\s+/, '').trim();
            
@@ -1885,7 +1907,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         const searchValNumeric = cleanMatricula.replace(/^0+/, '');
         
         const militar = await db.get(`
-            SELECT id_militar, posto_graduacao, nome_guerra, telefone 
+            SELECT id_militar, posto_graduacao, nome_completo, nome_guerra, telefone 
             FROM EFETIVO 
             WHERE 
                (TRIM(UPPER(numero_ordem)) = $1 OR TRIM(UPPER(matricula)) = $1 

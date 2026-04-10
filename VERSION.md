@@ -1,3 +1,17 @@
+## v1.13.4 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Refinamento na Importação de Requerimentos (PDF)**: 
+  - Aprimorada a extração de nomes via OCR com filtros agressivos contra cabeçalhos institucionais (corrigindo o erro "DE DA REGIÃO").
+  - Otimizada a query de busca de militares para garantir que o Nome Completo e o Posto/Graduação oficial do banco de dados (Efetivo) prevaleçam sobre os dados extraídos do PDF.
+- **Normalização Robusta de Patentes**: Atualizada a lógica de `normalizeRank` para lidar com variantes extensas de postos e graduações, garantindo que "2º SGT PM" e similares sejam mapeados corretamente para os registros do efetivo.
+- **Ordenação Hierárquica no Planejamento**: Implementada ordenação automática por Posto/Graduação seguido de Nome na lista de militares disponíveis para guarnições. Isso facilita a localização rápida de militares durante a montagem das escalas.
+- **Visualização de Ordenação nos Grids Administrativos**: Adicionados indicadores visuais e lógica de sorteio em cabeçalhos nos módulos de Requerimentos e Histórico de Serviços Executados que ainda não possuíam interação completa.
+
+---
+
 ## v1.13.3 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
