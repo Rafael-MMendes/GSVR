@@ -1,3 +1,24 @@
+## v1.14.9 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Deduplicação de Serviços**: Implementada trava de segurança que impede a importação de serviços duplicados para o mesmo militar na mesma data, garantindo integridade financeira.
+- **[Backend] Validação de API**: Adicionada verificação de existência na rota `POST /api/servicos` para manter consistência entre entradas manuais e via planilha.
+
+---
+
+## v1.14.8 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Estabilização de Schema e Views**: Refatoração completa das views operacionais (`vw_relatorio_operacional_completo`) para eliminar dependências de colunas obsoletas (`id_escala` em `SERVICOS_EXECUTADOS`).
+- **[Database] Migração Ternária N:N**: Finalização do vínculo entre `ESCALA_PLANEJAMENTO` e `SERVICOS_EXECUTADOS` através da tabela de relacionamento `ESCALA_EFETIVO_SERVICO`, resolvendo erros de inicialização (`column se.id_escala does not exist`).
+- **[Backend] Resiliência no Startup**: Implementado `DROP VIEW ... CASCADE` e `DROP COLUMN ... CASCADE` no `db.js` para garantir que migrações estruturais não causem falhas de dependência em cascata no PostgreSQL.
+
+---
+
 ## v1.14.7 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

@@ -51,6 +51,9 @@ async function setupDB() {
           DROP TABLE IF EXISTS user_profiles CASCADE;
           DROP TABLE IF EXISTS password_reset_tokens CASCADE;
           DROP TABLE IF EXISTS refresh_tokens CASCADE;
+          -- Drop views que possuem dependências de colunas que serão migradas
+          DROP VIEW IF EXISTS vw_relatorio_operacional_completo CASCADE;
+          DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
         `);
         console.log('[DB] Tabelas RBAC antigas removidas — serão recriadas com schema correto.');
 
@@ -230,7 +233,7 @@ async function setupDB() {
 
             -- Migration: remover id_escala de SERVICOS_EXECUTADOS
             IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_escala') THEN
-              ALTER TABLE SERVICOS_EXECUTADOS DROP COLUMN id_escala;
+              ALTER TABLE SERVICOS_EXECUTADOS DROP COLUMN id_escala CASCADE;
             END IF;
 
 
@@ -248,8 +251,12 @@ async function setupDB() {
                id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar) ON DELETE CASCADE,
                id_execucao INTEGER NOT NULL REFERENCES SERVICOS_EXECUTADOS(id_execucao) ON DELETE CASCADE,
                data_vinculo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+               editado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                PRIMARY KEY (id_escala, id_militar, id_execucao)
            );
+
+           -- Migration: Adicionar editado_em se não existir
+           ALTER TABLE ESCALA_EFETIVO_SERVICO ADD COLUMN IF NOT EXISTS editado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
             -- Migration: remover tabela schedules legada (substituída por ESCALA_PLANEJAMENTO)
             DROP TABLE IF EXISTS schedules CASCADE;
@@ -453,6 +460,35 @@ async function setupDB() {
           BEFORE UPDATE ON ESCALA_PLANEJAMENTO
           FOR EACH ROW EXECUTE FUNCTION fn_valida_escala();
 
+          -- Trigger para validar as datas entre planejamento e execução
+          CREATE OR REPLACE FUNCTION fn_valida_vinculo_planejamento_execucao()
+          RETURNS TRIGGER AS $$
+          DECLARE
+              v_data_planejada DATE;
+              v_data_executada DATE;
+          BEGIN
+              SELECT data_servico INTO v_data_planejada FROM ESCALA_PLANEJAMENTO WHERE id_escala = NEW.id_escala;
+              SELECT data_execucao INTO v_data_executada FROM SERVICOS_EXECUTADOS WHERE id_execucao = NEW.id_execucao;
+
+              IF v_data_planejada IS NOT NULL AND v_data_executada IS NOT NULL AND v_data_planejada != v_data_executada THEN
+                  RAISE EXCEPTION 'Discrepância de Datas: O serviço planejado para % não pode ser vinculado a uma execução de %.', v_data_planejada, v_data_executada;
+              END IF;
+
+              RETURN NEW;
+          END;
+          $$ LANGUAGE plpgsql;
+
+          -- Limpeza de possíveis triggers residuais em tabelas incorretas
+          DROP TRIGGER IF EXISTS trg_valida_vinculo_planejamento_execucao ON OPM;
+          DROP TRIGGER IF EXISTS trg_valida_vinculo_planejamento_execucao ON EFETIVO;
+          DROP TRIGGER IF EXISTS trg_valida_vinculo_planejamento_execucao ON CICLOS;
+          DROP TRIGGER IF EXISTS trg_valida_vinculo_planejamento_execucao ON SERVICOS_EXECUTADOS;
+
+          DROP TRIGGER IF EXISTS trg_valida_vinculo_planejamento_execucao ON ESCALA_EFETIVO_SERVICO;
+          CREATE TRIGGER trg_valida_vinculo_planejamento_execucao
+          BEFORE INSERT OR UPDATE ON ESCALA_EFETIVO_SERVICO
+          FOR EACH ROW EXECUTE FUNCTION fn_valida_vinculo_planejamento_execucao();
+
           DROP VIEW IF EXISTS vw_detalhes_ciclos;
           CREATE VIEW vw_detalhes_ciclos AS
           SELECT 
@@ -487,7 +523,8 @@ async function setupDB() {
           LEFT JOIN DISPONIBILIDADE_REQUERIMENTO dr ON req.id_requerimento = dr.id_requerimento
           LEFT JOIN ESCALA_PLANEJAMENTO ep ON e.id_militar = ep.id_militar
           LEFT JOIN TIPOS_SERVICO ts_pl ON ep.id_tipo_servico = ts_pl.id_tipo_servico
-          LEFT JOIN SERVICOS_EXECUTADOS se ON e.id_militar = se.id_militar AND (ep.id_escala = se.id_escala OR se.id_escala IS NULL)
+          LEFT JOIN ESCALA_EFETIVO_SERVICO ees ON ep.id_escala = ees.id_escala
+          LEFT JOIN SERVICOS_EXECUTADOS se ON ees.id_execucao = se.id_execucao
           LEFT JOIN TIPOS_SERVICO ts_ex ON se.id_tipo_servico = ts_ex.id_tipo_servico
           LEFT JOIN CICLOS c ON (ep.id_ciclo = c.id_ciclo OR se.id_ciclo = c.id_ciclo OR req.id_ciclo = c.id_ciclo)
           LEFT JOIN OPM o ON c.id_opm = o.id_opm;

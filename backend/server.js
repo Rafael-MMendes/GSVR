@@ -1152,17 +1152,27 @@ app.post('/api/servicos', async (req, res) => {
     if (!id_ciclo || !id_militar || !data_execucao || !status_presenca) {
       return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     }
+    // 1. Verificar Duplicidade (id_militar + data_execucao)
+    const exists = await db.get(
+      'SELECT 1 FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',
+      [id_militar, data_execucao]
+    );
+
+    if (exists) {
+      return res.status(409).json({ error: "Já existe um serviço registrado para este militar nesta data." });
+    }
+
     // Calcular automaticamente baseado no dia da semana e feriados
     const dateObj = new Date(data_execucao);
-    const diaSemana = dia_semana !== undefined ? dia_semana : dateObj.getDay();
-    const ehFeriado = eh_feriado !== undefined ? eh_feriado : isFeriado(dateObj);
-    const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || ehFeriado);
+    const v_diaSemana = dia_semana !== undefined ? dia_semana : dateObj.getDay();
+    const v_ehFeriado = eh_feriado !== undefined ? eh_feriado : isFeriado(dateObj);
+    const isExtras = (v_diaSemana === 0 || v_diaSemana === 5 || v_diaSemana === 6 || v_ehFeriado);
     const cargaCalc = carga_horaria || (isExtras ? 8 : 6);
     const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
-    
+
     const r = await db.run(
       'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [id_ciclo, id_militar, data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca]
+      [id_ciclo, id_militar, data_execucao, v_diaSemana, v_ehFeriado, cargaCalc, valorCalc, status_presenca]
     );
     res.status(201).json({ success: true, id_execucao: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1502,7 +1512,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 4. Verificar se já existe este serviço registrado (Evitar Duplicados)
+        // 4. Verificar se já existe este serviço registrado para este militar nesta data (Evitar Duplicados)
         const exists = await db.get(
           'SELECT 1 FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',
           [military.id_militar, isoDate]
@@ -1792,6 +1802,7 @@ app.get('/api/reports/escalas-planejadas', async (req, res) => {
     res.json(rows);
   } catch (e) {
     console.error('[API] Erro detalhado escalas:', e);
+    res.status(500).json({ error: e.message });
   }
 });
 
