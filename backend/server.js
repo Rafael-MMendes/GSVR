@@ -1323,6 +1323,8 @@ app.post('/api/servicos/import/preview', upload.single('file'), (req, res) => {
 app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
+  const { referencia_mes_ano } = req.body;
+
   try {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
@@ -1473,14 +1475,11 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        const monthKey = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+        const monthKey = referencia_mes_ano || `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
         const cycle = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [monthKey]);
 
-        if (!cycle) {
-          stats.errors++;
-          errorDetails.push({ militar: nome || cpf, error: `Ciclo operacional para ${monthKey} não encontrado.` });
-          continue;
-        }
+        // Se o ciclo não existir, não é erro bloqueante (id_ciclo é opcional no DB)
+        const idCiclo = cycle ? cycle.id_ciclo : null;
 
         // 3. Obter Tipo de Serviço
         // Isso pode ser refinado futuramente criando a seleção de TIPO via frontend/planilha
@@ -1504,9 +1503,9 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
         const { rows: somaRows } = await db.query('SELECT COALESCE(SUM(valor_remuneracao), 0) as total FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1', [cycle.id_ciclo]);
         const currentTotal = parseFloat(somaRows[0].total);
-        const teto = parseFloat(cycle.valor_total_previsto);
+        const teto = cycle ? parseFloat(cycle.valor_total_previsto) : 0;
 
-        if (teto > 0 && (currentTotal + valorRemuneracao) > teto) {
+        if (idCiclo && teto > 0 && (currentTotal + valorRemuneracao) > teto) {
           stats.errors++;
           errorDetails.push({ militar: nome || cpf, error: `Orçamento Estourado no ciclo ${monthKey}. Teto: ${teto}, Atual + Este: ${currentTotal + valorRemuneracao}` });
           continue;
@@ -1527,7 +1526,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           `INSERT INTO SERVICOS_EXECUTADOS 
             (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-          [cycle.id_ciclo, military.id_militar, isoDate, diaSemana, feriado, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
+          [idCiclo, military.id_militar, isoDate, diaSemana, feriado, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
         );
 
         stats.imported++;

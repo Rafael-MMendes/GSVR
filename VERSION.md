@@ -1,3 +1,14 @@
+## v1.15.2 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Ciclos Opcionais**: Removida a obrigatoriedade da coluna `id_ciclo` na tabela `SERVICOS_EXECUTADOS`, permitindo registros sem vínculo a períodos específicos.
+- **[Backend] Importação Flexível**: Atualizada a rota `/api/servicos/import` para aceitar `referencia_mes_ano` opcional e tratar a vinculação por data de forma graciosa.
+- **[Frontend] Seletor de Referência**: Adicionado campo de seleção de Mês/Ano na tela de importação, dando ao gestor o controle sobre o período de vinculação dos dados.
+
+---
+
 ## v1.15.0 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

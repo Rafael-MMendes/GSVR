@@ -191,7 +191,7 @@ async function setupDB() {
           -- 7. Tabela SERVICOS_EXECUTADOS
           CREATE TABLE IF NOT EXISTS SERVICOS_EXECUTADOS (
               id_execucao SERIAL PRIMARY KEY,
-              id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
+              id_ciclo INTEGER REFERENCES CICLOS(id_ciclo),
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico),
               data_execucao DATE NOT NULL,
@@ -234,6 +234,10 @@ async function setupDB() {
             -- Migration: remover id_escala de SERVICOS_EXECUTADOS
             IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_escala') THEN
               ALTER TABLE SERVICOS_EXECUTADOS DROP COLUMN id_escala CASCADE;
+            END IF;
+
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_ciclo' AND is_nullable='NO') THEN
+              ALTER TABLE SERVICOS_EXECUTADOS ALTER COLUMN id_ciclo DROP NOT NULL;
             END IF;
 
 

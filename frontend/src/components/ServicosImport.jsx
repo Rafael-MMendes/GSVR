@@ -11,6 +11,7 @@ export function ServicosImport({ onBack }) {
   const [result, setResult] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState(null);
+  const [referenciaMesAno, setReferenciaMesAno] = useState('');
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -52,6 +53,9 @@ export function ServicosImport({ onBack }) {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (referenciaMesAno) {
+        formData.append('referencia_mes_ano', referenciaMesAno);
+    }
 
     try {
       const response = await axios.post(`${API_URL}/servicos/import`, formData, {
@@ -104,6 +108,32 @@ export function ServicosImport({ onBack }) {
             Importe a planilha de descrição de serviços da Força Tarefa para o sistema.
           </p>
         </header>
+
+        {!result && (
+          <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: 600, color: '#475569' }}>
+                Ciclo de Referência (Opcional)
+              </label>
+              <input 
+                type="month"
+                value={referenciaMesAno}
+                onChange={(e) => setReferenciaMesAno(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.95rem',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#10b981'}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+              />
+            </div>
+          </div>
+        )}
 
         {!result && (
           <div style={{ marginBottom: '2.5rem' }}>
@@ -161,7 +191,7 @@ export function ServicosImport({ onBack }) {
               <div>
                 O sistema identificará os militares pelo <strong>CPF</strong> e vinculará os serviços ao <strong>Ciclo Operacional</strong> correspondente à data informada. 
                 <br /><br />
-                <strong>Validação Automática:</strong> Registros onde o militar já possui serviço cadastrado na mesma data serão <strong>ignorados automaticamente</strong> para evitar duplicidade.
+                <strong>Flexibilidade de Vínculo:</strong> Caso o Ciclo de Referência não seja informado, o sistema utilizará a data informada na planilha para vincular ao mês correspondente. Se o Ciclo não existir, a importação prosseguirá sem vínculo ou utilizará a data da transação conforme disponibilidade.
               </div>
             </div>
           </div>
