@@ -13,6 +13,7 @@ export function EfetivoManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingMilitar, setEditingMilitar] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'nome_completo', direction: 'asc' });
   const [formData, setFormData] = useState({
     nome_completo: '',
     nome_guerra: '',
@@ -105,7 +106,30 @@ export function EfetivoManager() {
     m.matricula.includes(searchTerm) ||
     m.numero_ordem?.includes(searchTerm) ||
     m.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let aVal = a[sortConfig.key];
+    let bVal = b[sortConfig.key];
+
+    // Tratamento especial para números
+    if (sortConfig.key === 'matricula' || sortConfig.key === 'numero_ordem') {
+        aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
+        bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;
+    }
+
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
@@ -186,10 +210,18 @@ export function EfetivoManager() {
           <table className="admin-table" style={{ border: 'none' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Posto/Grad</th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nome de Guerra</th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Identificação</th>
+                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('status_ativo')}>
+                  Status {sortConfig.key === 'status_ativo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                  Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                  Nome de Guerra {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_completo')}>
+                  Identificação {sortConfig.key === 'nome_completo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
                 <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CPF</th>
                 <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telefone</th>
                 <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>

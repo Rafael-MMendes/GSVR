@@ -19,6 +19,29 @@ export const RelatorioOperacional = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'referencia_mes_ano', direction: 'desc' });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedAgregado = [...agregado].sort((a, b) => {
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
+
+    if (['qtd_escalas', 'qtd_servicos_executados', 'total_carga_horaria_executada', 'total_remuneracao'].includes(sortConfig.key)) {
+      aValue = parseFloat(aValue) || 0;
+      bValue = parseFloat(bValue) || 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const fetchRelatorios = async () => {
     try {
@@ -88,17 +111,31 @@ export const RelatorioOperacional = () => {
           <table className="table">
             <thead>
               <tr>
-                <th>Ciclo</th>
-                <th>OPM</th>
-                <th>Militar</th>
-                <th>Escalas Planejadas</th>
-                <th>Serviços Executados</th>
-                <th>Carga Total (h)</th>
-                <th>Remuneração (R$)</th>
+                <th onClick={() => requestSort('referencia_mes_ano')} style={{ cursor: 'pointer' }}>
+                    Ciclo {sortConfig.key === 'referencia_mes_ano' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('opm_sigla')} style={{ cursor: 'pointer' }}>
+                    OPM {sortConfig.key === 'opm_sigla' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('nome_guerra')} style={{ cursor: 'pointer' }}>
+                    Militar {sortConfig.key === 'nome_guerra' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('qtd_escalas')} style={{ cursor: 'pointer' }}>
+                    Planejadas {sortConfig.key === 'qtd_escalas' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('qtd_servicos_executados')} style={{ cursor: 'pointer' }}>
+                    Executados {sortConfig.key === 'qtd_servicos_executados' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('total_carga_horaria_executada')} style={{ cursor: 'pointer' }}>
+                    Carga (h) {sortConfig.key === 'total_carga_horaria_executada' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('total_remuneracao')} style={{ cursor: 'pointer' }}>
+                    Remuneração {sortConfig.key === 'total_remuneracao' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {agregado.map((item, idx) => (
+              {sortedAgregado.map((item, idx) => (
                 <tr key={idx}>
                   <td>{item.referencia_mes_ano}</td>
                   <td>{item.opm_sigla}</td>

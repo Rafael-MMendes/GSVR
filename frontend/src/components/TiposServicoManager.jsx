@@ -12,13 +12,37 @@ export function TiposServicoManager() {
   const [formData, setFormData] = useState({
     descricao: '',
     carga_horaria: '',
+    carga_horaria: '',
     valor_remuneracao: '',
     ativo: true
   });
+  const [sortConfig, setSortConfig] = useState({ key: 'descricao', direction: 'asc' });
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedTipos = [...tipos].sort((a, b) => {
+    let aValue = a[sortConfig.key];
+    let bValue = b[sortConfig.key];
+
+    if (sortConfig.key === 'valor_remuneracao' || sortConfig.key === 'carga_horaria') {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+    }
+
+    if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const fetchData = async () => {
     setLoading(true);
@@ -97,15 +121,21 @@ export function TiposServicoManager() {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               <tr>
-                <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>Descrição Categoria</th>
-                <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>Carga Horária</th>
-                <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>Valor (R$)</th>
+                <th onClick={() => requestSort('descricao')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    Descrição Categoria {sortConfig.key === 'descricao' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('carga_horaria')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    Carga Horária {sortConfig.key === 'carga_horaria' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
+                <th onClick={() => requestSort('valor_remuneracao')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                    Valor (R$) {sortConfig.key === 'valor_remuneracao' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </th>
                 <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
                 <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', textAlign: 'end' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {tipos.map((tipo) => (
+              {sortedTipos.map((tipo) => (
                 <tr key={tipo.id_tipo_servico} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
                   <td style={{ padding: '1rem', fontWeight: 600, color: '#334155' }}>{tipo.descricao}</td>
                   <td style={{ padding: '1rem', color: '#64748b' }}>{tipo.carga_horaria}h</td>

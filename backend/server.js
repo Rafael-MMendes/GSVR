@@ -1857,7 +1857,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     if (nameMatch) {
       let n = nameMatch[1].trim().replace(/\s+/g, ' ');
       // Limpeza de lixo de cabeçalho
-      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO/gi, '')
+      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO|C\.P\.C|C\.P\.I|REGI[ÃA]O/gi, '')
+           .replace(/^\s*(?:DE\s+)?DA\s+/i, '') // Remove "DE DA" ou "DA" no início
            .replace(/^\s*DE\s+/, '').trim();
            
       if (n.length > 3) data.name = n;
@@ -1896,8 +1897,9 @@ app.get('/api/financeiro/resumo', async (req, res) => {
 
         if (militar) {
           data.id_militar = militar.id_militar;
-          if (!data.rank) data.rank = militar.posto_graduacao;
-          if (!data.name) data.name = militar.nome_guerra;
+          // SEMPRE PRIORIZAR O BANCO DE DADOS
+          data.rank = militar.posto_graduacao;
+          data.name = militar.nome_completo || militar.nome_guerra;
           data.phone = militar.telefone || '';
         }
       } catch (e) { console.error('Erro no lookup do militar via PDF:', e); }
@@ -2021,7 +2023,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           }
 
           // Atualizar informação de motorista e POSTO vinda do PDF
-          await db.run('UPDATE EFETIVO SET motorista = $1, posto_graduacao = COALESCE(NULLIF($2, \'\'), posto_graduacao) WHERE id_militar = $3', [item.motorist, item.rank, m.id_militar]);
+          // Atualizar apenas o motorista, não sobrescrever o Posto/Grad se já existir e for confiável no banco
+          await db.run('UPDATE EFETIVO SET motorista = $1 WHERE id_militar = $2', [item.motorist, m.id_militar]);
           let c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
           if (!c) {
             const [year, month] = item.month_key.split('-');

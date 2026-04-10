@@ -15,6 +15,7 @@ export function UserManager() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
   const [newUserData, setNewUserData] = useState({ matricula: '', is_admin: false });
+  const [sortConfig, setSortConfig] = useState({ key: 'nome_guerra', direction: 'asc' });
 
   useEffect(() => {
     fetchUsuarios();
@@ -147,7 +148,30 @@ export function UserManager() {
     u.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.numero_ordem?.includes(searchTerm)
-  );
+  ).sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let aVal = a[sortConfig.key];
+    let bVal = b[sortConfig.key];
+
+    // Tratamento especial para números
+    if (sortConfig.key === 'numero_ordem') {
+        aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
+        bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;
+    }
+
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const admins = filtered.filter(u => u.is_admin);
   const regulares = filtered.filter(u => !u.is_admin);
@@ -210,9 +234,15 @@ export function UserManager() {
                 <table className="user-table">
                   <thead>
                     <tr>
-                      <th>Militar</th>
-                      <th>Matrícula</th>
-                      <th>Posto/OPM</th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                        Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                        Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                        Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
                       <th style={{ textAlign: 'center' }}>Nível</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
@@ -244,9 +274,15 @@ export function UserManager() {
                 <table className="user-table">
                   <thead>
                     <tr>
-                      <th>Militar</th>
-                      <th>Matrícula</th>
-                      <th>Posto/OPM</th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                        Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                        Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                        Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                      </th>
                       <th style={{ textAlign: 'center' }}>Nível</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>

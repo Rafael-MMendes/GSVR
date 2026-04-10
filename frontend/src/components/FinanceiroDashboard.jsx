@@ -20,6 +20,38 @@ export function FinanceiroDashboard() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visao geral');
   const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'data', direction: 'desc' });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedDetalhadoDiario = useMemo(() => {
+    if (!detalhado?.detalhes_diarios) return [];
+    return [...detalhado.detalhes_diarios].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+
+      if (sortConfig.key === 'gasto' || sortConfig.key === 'acumulado' || sortConfig.key === 'servicos') {
+        aValue = parseFloat(aValue) || 0;
+        bValue = parseFloat(bValue) || 0;
+      } else if (sortConfig.key === 'data') {
+        // Assume DD/MM/YYYY
+        const [da, ma, ya] = aValue.split('/');
+        const [db, mb, yb] = bValue.split('/');
+        aValue = new Date(ya, ma - 1, da).getTime();
+        bValue = new Date(yb, mb - 1, db).getTime();
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [detalhado, sortConfig]);
 
   useEffect(() => {
     const loadMonths = async () => {
@@ -297,21 +329,29 @@ export function FinanceiroDashboard() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-muted)' }}>Data</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)' }}>Serviços</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'right', color: 'var(--text-muted)' }}>Gasto do Dia</th>
-                  <th style={{ padding: '0.75rem', textAlign: 'right', color: 'var(--text-muted)' }}>Acumulado</th>
+                  <th onClick={() => requestSort('data')} style={{ padding: '0.75rem', textAlign: 'left', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    Data {sortConfig.key === 'data' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th onClick={() => requestSort('servicos')} style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    Serviços {sortConfig.key === 'servicos' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th onClick={() => requestSort('gasto')} style={{ padding: '0.75rem', textAlign: 'right', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    Gasto do Dia {sortConfig.key === 'gasto' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th onClick={() => requestSort('acumulado')} style={{ padding: '0.75rem', textAlign: 'right', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    Acumulado {sortConfig.key === 'acumulado' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {detalhado.detalhes_diarios.length === 0 ? (
+                {sortedDetalhadoDiario.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       Nenhum serviço registrado no período selecionado.
                     </td>
                   </tr>
                 ) : (
-                  detalhado.detalhes_diarios.map((dia, idx) => (
+                  sortedDetalhadoDiario.map((dia, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '0.75rem', fontWeight: 500 }}>{dia.data}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'center' }}>

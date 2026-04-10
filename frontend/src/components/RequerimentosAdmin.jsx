@@ -31,6 +31,7 @@ export function RequerimentosAdmin() {
   const [viewingVolunteer, setViewingVolunteer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'data_solicitacao', direction: 'desc' });
 
   // PDF Folder Import states
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -251,7 +252,30 @@ export function RequerimentosAdmin() {
       v.name?.toLowerCase().includes(term) ||
       v.rank?.toLowerCase().includes(term)
     );
+  }).sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let aVal = a[sortConfig.key];
+    let bVal = b[sortConfig.key];
+
+    // Tratamento especial para números
+    if (sortConfig.key === 'numero_ordem') {
+        aVal = parseInt(aVal.replace(/\D/g, '')) || 0;
+        bVal = parseInt(bVal.replace(/\D/g, '')) || 0;
+    }
+
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   return (
     <div className="container" style={{ maxWidth: '1400px' }}>
@@ -307,9 +331,15 @@ export function RequerimentosAdmin() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
               <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Nº Ordem</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Posto/Grad</th>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Nome</th>
+                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                    Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
+                    Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
+                    Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
                 <th style={{ padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
                 <th style={{ padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
                 <th style={{ padding: '0.75rem', textAlign: 'center' }}>Turnos</th>

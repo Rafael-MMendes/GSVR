@@ -48,6 +48,7 @@ export function ServicosExecutadosManager() {
   const [filterDataInicio, setFilterDataInicio] = useState('');
   const [filterDataFim, setFilterDataFim] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [sortConfig, setSortConfig] = useState({ key: 'data_execucao', direction: 'desc' });
 
   const [formData, setFormData] = useState({
     id_ciclo: '',
@@ -197,7 +198,30 @@ export function ServicosExecutadosManager() {
     !searchTerm ||
     s.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.matricula?.includes(searchTerm)
-  );
+  ).sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    let aVal = a[sortConfig.key];
+    let bVal = b[sortConfig.key];
+
+    // Tratamento especial para números/valores
+    if (sortConfig.key === 'valor_remuneracao') {
+        aVal = parseFloat(aVal || 0);
+        bVal = parseFloat(bVal || 0);
+    }
+
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const totalPresentes = filtered.filter(s => s.status_presenca === 'Presente').length;
   const totalValor = filtered.filter(s => s.status_presenca === 'Presente')
@@ -315,12 +339,24 @@ export function ServicosExecutadosManager() {
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </th>
-                <th>Data</th>
-                <th>Militar</th>
-                <th>Posto</th>
-                <th style={{ textAlign: 'center' }}>Carga</th>
-                <th style={{ textAlign: 'center' }}>Status</th>
-                <th style={{ textAlign: 'right' }}>Valor</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
+                    Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                    Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                    Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
+                    Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
+                    Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
+                    Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
                 <th style={{ textAlign: 'center' }}>Feriado</th>
                 <th>Ações</th>
               </tr>

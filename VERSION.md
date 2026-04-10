@@ -1,3 +1,15 @@
+## v1.13.3 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Ordenação de Grids em Todo o Sistema**: Implementada funcionalidade de ordenação interativa (ascending/descending) em todos os componentes de listagem e dashboards do sistema.
+- **Feedback Visual de Ordenação**: Adicionados indicadores `↑` e `↓` nos cabeçalhos das tabelas para representar o estado ativo da coluna.
+- **Lógica de Tipagem na Ordenação**: Implementada lógica robusta para garantir a ordenação correta de campos numéricos (remuneração, carga horária) e datas, eliminando comportamentos inesperados de ordenação alfabética em números.
+- **Padronização de Componentes**: Atualizados os módulos `EfetivoManager`, `RequerimentosAdmin`, `ServicosExecutadosManager`, `UserManager`, `TiposServicoManager`, `FinanceiroDashboard`, `RelatorioOperacional` e `AnalyticsDashboard`.
+
+---
+
 ## v1.13.2 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
