@@ -228,6 +228,9 @@ async function setupDB() {
                 descricao VARCHAR(255)
             );
 
+            -- Migration: remover tabela schedules legada (substituída por ESCALA_PLANEJAMENTO)
+            DROP TABLE IF EXISTS schedules CASCADE;
+
           END $$;
 
           -- Populando FERIADOS (Seeds 2025-2026)

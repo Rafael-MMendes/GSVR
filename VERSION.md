@@ -1,3 +1,37 @@
+## v1.13.8 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[REFACTOR] Migração de `schedules` → `ESCALA_PLANEJAMENTO`**: Removida a tabela legada `schedules` (JSON blob) e os endpoints agora operam diretamente sobre `ESCALA_PLANEJAMENTO`, garantindo integridade referencial com FK para `CICLOS`, `EFETIVO` e `TIPOS_SERVICO`.
+- **[BACKEND] `GET /api/schedules`**: Reescrito para reconstruir a estrutura de patrulhas agrupando por `cartao_viatura`, com JOIN em `EFETIVO`, `REQUERIMENTOS` e `TIPOS_SERVICO`. Mapeia `funcao` → slot do PATROL_ROLES `[Comandante, Motorista, Patrulheiro]`.
+- **[BACKEND] `POST /api/schedules`**: Reescrito para deletar as escalas do dia e reinserir na `ESCALA_PLANEJAMENTO`. Trigger `fn_valida_escala` não bloqueia pois `id_disponibilidade = NULL` é permitido. Erros parciais são reportados como `warnings` sem derrubar o salvamento.
+- **[DB] `db.js`**: Substituída a criação da tabela `schedules` por `DROP TABLE IF EXISTS schedules CASCADE` como passo de migração automática no startup.
+
+---
+
+## v1.13.7 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[BUGFIX CRÍTICO] Correção de Condição de Corrida nos useEffects**: O `AdminDashboard.jsx` possuía dois `useEffect` que disputavam o mesmo estado. O efeito de inicialização e o efeito reativo `[selectedMonth, selectedDate]` executavam de forma simultânea na primeira carga, fazendo o segundo sobrescrever o pool de voluntários com uma lista vazia antes que o primeiro terminasse. Resolvido separando a responsabilidade em dois efeitos independentes com dependências corretas.
+- **Arquitetura de Carregamento Refatorada**: O carregamento de voluntários (por mês) e de escalas (por dia) agora são efeitos reativos separados e em cascata. Um `useRef` foi introduzido para evitar o problema de *stale closure* ao acessar o estado de voluntários dentro de callbacks assíncronos.
+- **Feedback Visual Aprimorado**: O modal de seleção de militares agora exibe mensagens contextuais precisas quando a lista está vazia (ex: "Nenhum voluntário para este ciclo", "Filtre por turno diferente") e um indicador de carregamento (`⏳`) enquanto os dados são buscados.
+
+---
+
+## v1.13.6 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Resiliência na Listagem de Voluntários**: Refatorada a query do endpoint `/api/volunteers` no backend para garantir o tratamento robusto de dados JSON e mapeamento correto do Nº de Ordem/Matrícula.
+- **Melhoria UX no Dashboard Admin**: Ajustada a lógica de carregamento do "Pool de Militares" para evitar listas vazias. Agora todos os voluntários do mês são exibidos, com sinalização visual (**FORA DO TURNO**) e ordenação prioritária para quem possui disponibilidade no dia/turno selecionado.
+- **Busca Inteligente e Correção de Bugs**: Otimizada a pesquisa por nome/número no modal de escalação para ignorar filtros de turno durante a busca. Corrigido erro de renderização no modal de composição de guarnições causado por variáveis de filtro indefinidas.
+
+---
+
 ## v1.13.5 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

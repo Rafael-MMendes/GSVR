@@ -625,7 +625,7 @@ app.put('/api/usuarios/:id/roles', authenticate, authorize('usuarios:admin'), as
 app.get('/api/volunteers', async (req, res) => {
   const month = req.query.month || getCurrentMonthKey();
   const q = `
-    SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name, 
+    SELECT r.id_requerimento as id, e.id_militar, COALESCE(e.numero_ordem, e.matricula) as numero_ordem, e.nome_guerra as name, 
            e.posto_graduacao as rank, e.telefone as phone, e.motorista, c.referencia_mes_ano as month_key,
            (SELECT json_object_agg(dia_mes, turnos) FROM (
              SELECT dia_mes, json_agg(horario_turno) as turnos 
@@ -639,8 +639,19 @@ app.get('/api/volunteers', async (req, res) => {
     WHERE c.referencia_mes_ano = $1 
     ORDER BY r.data_solicitacao DESC
   `;
-  const { rows } = await db.query(q, [month]);
-  res.json(rows.map(v => ({ ...v, availability: v.availability_json || {} })));
+  try {
+    const { rows } = await db.query(q, [month]);
+    res.json(rows.map(v => {
+      let availability = v.availability_json || {};
+      if (typeof availability === 'string') {
+        try { availability = JSON.parse(availability); } catch (e) { availability = {}; }
+      }
+      return { ...v, availability };
+    }));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/months', async (req, res) => {
@@ -1639,19 +1650,103 @@ app.put('/api/usuarios/:id/permissoes', async (req, res) => {
 });
 
 // ============================================================
-// SCHEDULES (Planejamento de Guarnições)
+// SCHEDULES → ESCALA_PLANEJAMENTO
+// Lê e grava o planejamento diário de guarnições na tabela
+// normalizada ESCALA_PLANEJAMENTO, respeitando toda a 
+// integridade referencial do schema.
 // ============================================================
+
+// Roles fixas por posição dentro de cada guarnição
+const PATROL_ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
+
 app.get('/api/schedules', async (req, res) => {
   try {
     const { date, month } = req.query;
     if (!date || !month) return res.status(400).json({ error: "Date and Month are required" });
-    
-    const row = await db.get('SELECT patrols FROM schedules WHERE date = $1 AND month_key = $2', [String(date), month]);
-    if (!row) return res.json([]);
-    
-    // As patrulhas são armazenadas como JSON string no campo TEXT
-    const patrols = typeof row.patrols === 'string' ? JSON.parse(row.patrols) : row.patrols;
+
+    // Constrói a data completa no formato ISO YYYY-MM-DD
+    const dataServico = `${month}-${String(date).padStart(2, '0')}`;
+
+    // Localiza o ciclo pelo mês de referência
+    const ciclo = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [month]);
+    if (!ciclo) return res.json([]);
+
+    // Busca todas os registros ESCALA_PLANEJAMENTO do dia com dados do militar
+    const { rows } = await db.query(`
+      SELECT
+        ep.id_escala,
+        ep.id_militar,
+        ep.funcao,
+        ep.horario_servico,
+        ep.cartao_viatura   AS patrol_id,
+        ep.local_embarque   AS patrol_name,
+        ep.observacoes      AS patrol_duration,
+        e.nome_guerra       AS name,
+        e.posto_graduacao   AS rank,
+        e.telefone          AS phone,
+        e.motorista,
+        COALESCE(e.numero_ordem, e.matricula) AS numero_ordem,
+        r.id_requerimento   AS volunteer_id,
+        COALESCE(ts.carga_horaria, 6) AS carga_horaria,
+        (
+          SELECT COUNT(*)
+          FROM SERVICOS_EXECUTADOS se
+          WHERE se.id_militar = ep.id_militar
+            AND se.id_ciclo   = ep.id_ciclo
+        ) AS service_count
+      FROM ESCALA_PLANEJAMENTO ep
+      JOIN EFETIVO e
+        ON ep.id_militar = e.id_militar
+      LEFT JOIN REQUERIMENTOS r
+        ON r.id_militar = ep.id_militar
+       AND r.id_ciclo   = ep.id_ciclo
+      LEFT JOIN TIPOS_SERVICO ts
+        ON ep.id_tipo_servico = ts.id_tipo_servico
+      WHERE ep.id_ciclo    = $1
+        AND ep.data_servico = $2
+      ORDER BY ep.cartao_viatura, ep.funcao
+    `, [ciclo.id_ciclo, dataServico]);
+
+    if (rows.length === 0) return res.json([]);
+
+    // Reconstrói o array de patrulhas agrupando por cartao_viatura (patrol_id)
+    const patrolMap = new Map();
+
+    for (const row of rows) {
+      const key = row.patrol_id || 'p1';
+
+      if (!patrolMap.has(key)) {
+        patrolMap.set(key, {
+          id:       key,
+          name:     row.patrol_name  || 'FORÇA TAREFA',
+          duration: row.patrol_duration || '6h',
+          timeSpan: row.horario_servico || '',
+          members:  [null, null, null]   // [Comandante, Motorista, Patrulheiro]
+        });
+      }
+
+      const patrol = patrolMap.get(key);
+      const roleIndex = PATROL_ROLES.indexOf(row.funcao);
+      // Se a função não for reconhecida, ocupa o primeiro slot livre
+      const slot = roleIndex >= 0 ? roleIndex : patrol.members.indexOf(null);
+
+      if (slot >= 0 && slot < patrol.members.length) {
+        patrol.members[slot] = {
+          id:            row.volunteer_id || row.id_escala,
+          id_militar:    row.id_militar,
+          name:          row.name,
+          rank:          row.rank,
+          phone:         row.phone,
+          motorista:     row.motorista,
+          numero_ordem:  row.numero_ordem,
+          service_count: parseInt(row.service_count) || 0
+        };
+      }
+    }
+
+    const patrols = [...patrolMap.values()];
     res.json([{ id: 1, date, month_key: month, patrols }]);
+
   } catch (e) {
     console.error('[API] Error fetching schedules:', e);
     res.status(500).json({ error: e.message });
@@ -1661,19 +1756,101 @@ app.get('/api/schedules', async (req, res) => {
 app.post('/api/schedules', async (req, res) => {
   try {
     const { date, month_key, patrols } = req.body;
-    if (!date || !month_key || !patrols) return res.status(400).json({ error: "Missing required fields" });
-    
-    const patrolsJson = JSON.stringify(patrols);
-    await db.run(
-      'INSERT INTO schedules (date, month_key, patrols) VALUES ($1, $2, $3) ON CONFLICT (date, month_key) DO UPDATE SET patrols = EXCLUDED.patrols',
-      [String(date), month_key, patrolsJson]
+    if (!date || !month_key || !patrols) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Constrói data ISO YYYY-MM-DD
+    const dataServico = `${month_key}-${String(date).padStart(2, '0')}`;
+
+    // Localiza o ciclo — obrigatório para FK id_ciclo
+    const ciclo = await db.get(
+      'SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1',
+      [month_key]
     );
-    res.json({ success: true });
+    if (!ciclo) {
+      return res.status(400).json({ error: `Ciclo não encontrado para o mês: ${month_key}` });
+    }
+
+    // Remove escalas existentes do dia (substituição completa do planejamento diário)
+    // SERVICOS_EXECUTADOS referencia id_escala com ON DELETE SET NULL, sem perda de dados
+    await db.run(
+      'DELETE FROM ESCALA_PLANEJAMENTO WHERE id_ciclo = $1 AND data_servico = $2',
+      [ciclo.id_ciclo, dataServico]
+    );
+
+    let inserted = 0;
+    const errors = [];
+
+    for (const patrol of patrols) {
+      if (!Array.isArray(patrol.members)) continue;
+
+      const horarioServico = patrol.timeSpan?.trim() || '00:00 às 06:00';
+
+      // Resolve id_tipo_servico pela carga horária da guarnição (ex: '6h' → 6)
+      const cargaHoraria = parseInt(patrol.duration) || 6;
+      const tipoServico = await db.get(
+        'SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = TRUE LIMIT 1',
+        [cargaHoraria]
+      );
+      const idTipoServico = tipoServico?.id_tipo_servico || null;
+
+      for (let i = 0; i < patrol.members.length; i++) {
+        const member = patrol.members[i];
+        if (!member || !member.id_militar) continue;
+
+        const funcao = PATROL_ROLES[i] || 'Patrulheiro';
+
+        try {
+          // Verifica se o militar está cadastrado no efetivo (FK id_militar)
+          const militarOk = await db.get(
+            'SELECT id_militar FROM EFETIVO WHERE id_militar = $1',
+            [member.id_militar]
+          );
+          if (!militarOk) {
+            errors.push(`Militar id=${member.id_militar} não encontrado no efetivo.`);
+            continue;
+          }
+
+          await db.run(`
+            INSERT INTO ESCALA_PLANEJAMENTO
+              (id_ciclo, id_militar, id_tipo_servico, id_disponibilidade,
+               data_servico, horario_servico, funcao,
+               cartao_viatura, local_embarque, observacoes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          `, [
+            ciclo.id_ciclo,
+            member.id_militar,
+            idTipoServico,
+            null,             // id_disponibilidade = NULL → trigger fn_valida_escala não bloqueia
+            dataServico,
+            horarioServico,
+            funcao,
+            patrol.id,        // cartao_viatura identifica a guarnição (p1, p2, …)
+            patrol.name || 'FORÇA TAREFA', // local_embarque reutilizado como nome da guarnição
+            patrol.duration || '6h'        // observacoes armazena a duração configurada
+          ]);
+
+          inserted++;
+        } catch (insertErr) {
+          console.error(`[API] Erro ao inserir escala militar=${member.id_militar}:`, insertErr.message);
+          errors.push(`${member.name || member.id_militar}: ${insertErr.message}`);
+        }
+      }
+    }
+
+    if (errors.length > 0 && inserted === 0) {
+      return res.status(500).json({ error: "Nenhum registro salvo.", details: errors });
+    }
+
+    res.json({ success: true, inserted, warnings: errors.length > 0 ? errors : undefined });
+
   } catch (e) {
     console.error('[API] Error saving schedules:', e);
     res.status(500).json({ error: e.message });
   }
 });
+
 
 // ============================================================
 // FINANCEIRO & TIPOS DE SERVICO

@@ -46,8 +46,9 @@ export function AdminDashboard() {
   const [selectedShift, setSelectedShift] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSlot, setActiveSlot] = useState(null);
-  const [selectionMode, setSelectionMode] = useState(null); // { patrolId, selectedMembers: [] }
-  const [selectedMembers, setSelectedMembers] = useState([]); // Militares selecionados no modal
+  const [selectionMode, setSelectionMode] = useState(null);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [loadingVolunteers, setLoadingVolunteers] = useState(false);
 
   const [state, setState] = useState({
     pool: [],
@@ -61,64 +62,67 @@ export function AdminDashboard() {
   });
 
   const printRef = useRef();
+  // Ref para armazenar o voluntários carregados - evita stale closures
+  const volunteersRef = useRef([]);
 
+  // Efeito ÚNICO de inicialização: carrega ciclos e define o mês ativo
   useEffect(() => {
     const init = async () => {
       try {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
-        
         if (monthsRes.data.length > 0) {
-          const firstMonth = monthsRes.data[0].referencia_mes_ano;
-          setSelectedMonth(firstMonth);
-          
-          const volRes = await axios.get(`${API_URL}/volunteers?month=${firstMonth}`);
-          setVolunteers(volRes.data);
-          
-          const schedRes = await axios.get(`${API_URL}/schedules?date=1&month=${firstMonth}`);
-          loadScheduleData(volRes.data, schedRes.data, firstMonth, '1');
+          // Isso vai disparar o efeito de [selectedMonth, selectedDate] abaixo
+          setSelectedMonth(monthsRes.data[0].referencia_mes_ano);
         }
       } catch (e) {
-        console.error(e);
+        console.error('[Init] Erro ao carregar ciclos:', e);
       }
     };
     init();
   }, []);
 
   const loadScheduleData = (volunteersData, schedulesData, monthKey, dateVal) => {
-    const selectedDateStr = String(dateVal);
-    const selectedDateNum = parseInt(dateVal);
-    
-    console.log('Loading schedule data for:', { monthKey, dateVal, volunteersCount: volunteersData.length });
+    if (!volunteersData) return;
 
-    const availablePeople = volunteersData.filter(v => {
-      if (!v.availability) return false;
-      
-      // Verificar tanto versão com zero quanto sem zero
-      const dayKey1 = String(selectedDateNum);
-      const dayKey2 = String(selectedDateNum).padStart(2, '0');
-      
-      // Busca robusta pela chave do dia (string simples, string com zero, ou número)
+    const selectedDateNum = parseInt(dateVal);
+    const dayKey1 = String(selectedDateNum);
+    const dayKey2 = String(selectedDateNum).padStart(2, '0');
+    
+    // 1. Marcar quem é voluntário para este dia específico (isAvailableToday)
+    const processedVolunteers = volunteersData.map(v => {
       const availabilityForDay = 
-        v.availability?.[dayKey1] || 
-        v.availability?.[dayKey2] || 
-        v.availability?.[parseInt(selectedDateNum)];
-        
-      return !!availabilityForDay;
+        (v.availability && v.availability[dayKey1]) || 
+        (v.availability && v.availability[dayKey2]) ||
+        (v.availability && v.availability[selectedDateNum]);
+      
+      return { 
+        ...v, 
+        isAvailableToday: !!availabilityForDay,
+        todayShifts: availabilityForDay || []
+      };
     });
 
-    console.log(`[Dashboard] Pool: Total=${volunteersData.length}, Para o dia ${selectedDateNum}=${availablePeople.length}`);
+    // 2. Mapear patrulhas atuais. Se não houver dados, gera guarnições padrão.
+    let patrols = [];
+    if (Array.isArray(schedulesData) && schedulesData.length > 0 && schedulesData[0].patrols) {
+      patrols = schedulesData[0].patrols;
+    } else if (schedulesData && schedulesData.patrols) {
+      patrols = schedulesData.patrols;
+    } else {
+      patrols = Array.from({length: 8}, (_, i) => ({ 
+        id: `p${i+1}`, 
+        name: `VTR ${String(i+1).padStart(2, '0')} (FT)`, 
+        duration: '6h',
+        timeSpan: '',
+        members: [] 
+      }));
+    }
 
-    const patrols = (schedulesData.length > 0 && schedulesData[0].patrols) ? schedulesData[0].patrols : Array.from({length: 8}, (_, i) => ({ 
-      id: `p${i+1}`, 
-      name: 'FORÇA TAREFA', 
-      duration: '6h',
-      timeSpan: '',
-      members: [] 
-    })).map((patrol, index) => ({
-      ...patrol,
-      name: normalizePatrolName(patrol.name),
-      id: patrol.id || `p${index + 1}`,
+    // Normalizar nomes das patrulhas
+    patrols = patrols.map(p => ({
+      ...p,
+      name: normalizePatrolName(p.name)
     }));
 
     const assignedIds = new Set();
@@ -131,33 +135,62 @@ export function AdminDashboard() {
       }
     });
 
-    const pool = availablePeople.filter(p => {
+    // 3. Pool contém todos os voluntários do mês que NÃO estão escalados no momento
+    const pool = processedVolunteers.filter(p => {
       const isAssigned = assignedIds.has(String(p.id)) || (p.id_militar && assignedIds.has(`m${p.id_militar}`));
       return !isAssigned;
+    }).sort((a, b) => {
+      // Prioridade visual para quem marcou disponibilidade para hoje
+      if (a.isAvailableToday && !b.isAvailableToday) return -1;
+      if (!a.isAvailableToday && b.isAvailableToday) return 1;
+      return 0;
     });
+
     setState({ pool, patrols });
   };
 
+  // Efeito REATIVO: dispara sempre que o mês selecionado muda
+  // Recarrega a lista completa de voluntários do ciclo
   useEffect(() => {
     if (!selectedMonth) return;
     
-    const loadData = async () => {
+    const loadVolunteers = async () => {
       try {
-        console.log('Fetching data for month:', selectedMonth);
+        setLoadingVolunteers(true);
+        console.log('[Dashboard] Carregando voluntários para o mês:', selectedMonth);
         const volRes = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
-        console.log('Volunteers fetched:', volRes.data.length);
+        console.log('[Dashboard] Voluntários carregados:', volRes.data.length);
+        volunteersRef.current = volRes.data;
         setVolunteers(volRes.data);
-        
-        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&month=${selectedMonth}`);
-        console.log('Schedules fetched:', schedRes.data);
-        loadScheduleData(volRes.data, schedRes.data, selectedMonth, selectedDate);
       } catch (e) {
-        console.error('Error loading dashboard data:', e);
+        console.error('[Dashboard] Erro ao carregar voluntários:', e);
+      } finally {
+        setLoadingVolunteers(false);
       }
     };
 
-    loadData();
-  }, [selectedMonth, selectedDate]);
+    loadVolunteers();
+  }, [selectedMonth]);
+
+  // Efeito REATIVO: dispara quando o dia ou os voluntários mudam
+  // Recarrega a escala do dia e reconstrói o pool
+  useEffect(() => {
+    if (!selectedMonth || volunteersRef.current.length === 0) return;
+
+    const loadSchedule = async () => {
+      try {
+        console.log('[Dashboard] Carregando escala para dia:', selectedDate);
+        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&month=${selectedMonth}`);
+        loadScheduleData(volunteersRef.current, schedRes.data, selectedMonth, selectedDate);
+      } catch (e) {
+        console.error('[Dashboard] Erro ao carregar escala:', e);
+        // Mesmo com erro na escala, ainda monta o pool com todos os voluntários
+        loadScheduleData(volunteersRef.current, [], selectedMonth, selectedDate);
+      }
+    };
+
+    loadSchedule();
+  }, [selectedDate, volunteers]); // depende de 'volunteers' para reagir após o carregamento
 
   const saveConfig = async () => {
     try {
@@ -176,24 +209,23 @@ export function AdminDashboard() {
   // POOL FILTRADO COM useMemo
   const filteredPool = useMemo(() => {
     return state.pool.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (p.numero_ordem && p.numero_ordem.includes(searchTerm));
+      const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           (p.numero_ordem && String(p.numero_ordem).includes(searchTerm));
       
+      // Se estiver pesquisando por NOME ou Nº, exibe independente do turno para facilitar achar o militar
+      if (searchTerm.length > 1) return matchesSearch;
+      
+      // Se turno for "Todos", exibe todos os que deram match no search
       if (selectedShift === 'Todos') return matchesSearch;
       
-      const targetDaySimple = String(selectedDate);
-      const targetDayPadded = String(selectedDate).padStart(2, '0');
-      const dayShifts = p.availability?.[targetDaySimple] || p.availability?.[targetDayPadded] || p.availability?.[parseInt(selectedDate)] || [];
-      
-      // Mapeamento flexível de turnos
-      const shiftFragment = selectedShift.includes('(') ? selectedShift.split(' (')[1].split(')')[0].split(' às')[0] : selectedShift.split(' ')[0];
-      
-      return matchesSearch && dayShifts.some(s => {
+      // Filtra pelo turno se for uma consulta específica e não estiver pesquisando/não houver dia marcado
+      if (!p.isAvailableToday) return false;
+
+      return matchesSearch && p.todayShifts.some(s => {
         if (!s) return false;
         const dbShift = String(s).toUpperCase();
         const selShift = selectedShift.toUpperCase();
         
-        // Verifica por nome (MANHÃ) ou por horário (07:00)
         return dbShift.includes(selShift.split(' ')[0]) || 
                (selShift.includes('07') && dbShift.includes('07:00')) ||
                (selShift.includes('13') && dbShift.includes('13:00')) ||
@@ -817,32 +849,48 @@ export function AdminDashboard() {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                {filteredPool
-                  .filter(p => {
-                    // Filtrar também por turno se necessário
-                    if (selectedShift === 'Todos') return true;
-                    const targetDaySimple = String(selectedDate);
-                    const targetDayPadded = String(selectedDate).padStart(2, '0');
-                    const dayShifts = p.availability?.[targetDaySimple] || p.availability?.[targetDayPadded] || p.availability?.[parseInt(selectedDate)] || [];
-                    
-                    return dayShifts.some(s => {
-                      if (!s) return false;
-                      const dbShift = String(s).toUpperCase();
-                      const selShift = selectedShift.toUpperCase();
-                      return dbShift.includes(selShift.split(' ')[0]) || 
-                             (selShift.includes('07') && dbShift.includes('07:00')) ||
-                             (selShift.includes('13') && dbShift.includes('13:00')) ||
-                             (selShift.includes('19') && dbShift.includes('19:00')) ||
-                             (selShift.includes('01') && dbShift.includes('01:00'));
-                    });
-                  })
+                {loadingVolunteers ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                    <div style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>⏳</div>
+                    Carregando voluntários...
+                  </div>
+                ) : filteredPool.length === 0 ? (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</div>
+                    <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                      {volunteers.length === 0 
+                        ? 'Nenhum voluntário encontrado para este ciclo.'
+                        : searchTerm.length > 0
+                          ? `Nenhum resultado para "${searchTerm}".`
+                          : selectedShift !== 'Todos'
+                            ? `Nenhum voluntário disponível para o turno "${selectedShift}" no dia ${selectedDate}.`
+                            : 'Todos os voluntários já estão escalados.'
+                      }
+                    </div>
+                    {volunteers.length > 0 && selectedShift !== 'Todos' && (
+                      <button 
+                        onClick={() => setSelectedShift('Todos')}
+                        style={{ marginTop: '0.5rem', padding: '0.4rem 1rem', background: '#0D3878', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}
+                      >
+                        Ver todos os turnos
+                      </button>
+                    )}
+                    <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: '#94a3b8' }}>
+                      Total de voluntários no ciclo: {volunteers.length}
+                    </div>
+                  </div>
+                ) : null}
+                {!loadingVolunteers && filteredPool
                   .sort((a, b) => {
-                    // Ordenação: Posto/Grad depois Nome
+                    // Ordenação: Disponibilidade -> Posto/Grad -> Nome
+                    if (a.isAvailableToday && !b.isAvailableToday) return -1;
+                    if (!a.isAvailableToday && b.isAvailableToday) return 1;
+
                     const rankOrder = { 'CEL PM': 1, 'TC PM': 2, 'MAJ PM': 3, 'CAP PM': 4, '1º TEN PM': 5, '2º TEN PM': 6, 'SUB PM': 7, '1º SGT PM': 8, '2º SGT PM': 9, '3º SGT PM': 10, 'CB PM': 11, 'SD PM': 12 };
                     const rankA = rankOrder[a.rank] || 99;
                     const rankB = rankOrder[b.rank] || 99;
                     if (rankA !== rankB) return rankA - rankB;
-                    return a.name.localeCompare(b.name);
+                    return (a.name || '').localeCompare(b.name || '');
                   })
                   .map(p => {
                     const isSelected = selectedMembers.some(m => m.id === p.id);
@@ -881,9 +929,21 @@ export function AdminDashboard() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, color: '#1e293b' }}>
                             {p.rank} {p.name}
+                            {!p.isAvailableToday && (
+                              <span style={{ 
+                                marginLeft: '8px', 
+                                fontSize: '0.6rem', 
+                                background: '#fee2e2', 
+                                color: '#ef4444', 
+                                padding: '2px 4px', 
+                                borderRadius: '4px'
+                              }}>
+                                FORA DO TURNO
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                            Nº {p.numero_ordem}
+                            Nº {p.numero_ordem || p.matricula}
                           </div>
                         </div>
                         
