@@ -1,3 +1,12 @@
+## v1.14.2 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UX/UI] Limpeza de Navegação**: Removido o item de menu "Importar Planilha FT" da barra lateral/dropdown global. O acesso agora é feito exclusivamente de forma contextual através da tela de Serviços Executados, reduzindo a poluição visual do menu principal.
+
+---
+
 ## v1.14.1 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

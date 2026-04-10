@@ -163,11 +163,7 @@ function App() {
                       <ClipboardCheck size={16} /> Serviços Executados
                     </a>
                   )}
-                  {isAdmin && (
-                    <a href="#" className={`dropdown-item ${currentView === 'import-servicos' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('import-servicos'); }}>
-                      <FileSpreadsheet size={16} /> Importar Planilha FT
-                    </a>
-                  )}
+
                 </div>
               </div>
 
