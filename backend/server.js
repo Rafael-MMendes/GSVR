@@ -783,15 +783,54 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
   try {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-    const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    if (data.length === 0) {
+    if (rows.length === 0) {
       return res.status(400).json({ error: "Arquivo vazio ou sem dados reconhecíveis." });
     }
 
-    // Log das colunas detectadas (ajuda no debug sem travar o sistema)
-    const primeiraChave = Object.keys(data[0]);
-    console.log('[IMPORT] Colunas detectadas:', primeiraChave.map(k => `"${k}" → "${normalizeKey(k)}"`).join(', '));
+    // --- DETECÇÃO INTELIGENTE DE CABEÇALHO ---
+    const targetKeys = ['MATRICULA', 'NOME', 'CPF', 'PG', 'ORDEM', 'NORDEM', 'NRORDEM', 'POSTO', 'GRADUACAO'];
+    let bestHeaderIndex = -1;
+    let maxMatches = 0;
+
+    for (let i = 0; i < Math.min(rows.length, 30); i++) {
+        const rowData = rows[i];
+        if (!rowData || rowData.length === 0) continue;
+        const normalizedRow = rowData.map(cell => normalizeKey(cell));
+        const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
+        
+        let bonus = 0;
+        if (normalizedRow.includes('CPF')) bonus += 2;
+        if (normalizedRow.includes('MATRICULA')) bonus += 2;
+        if (normalizedRow.includes('NORDEM') || normalizedRow.includes('ORDEM')) bonus += 1;
+        
+        const score = matches + bonus;
+        if (score > maxMatches) {
+            maxMatches = score;
+            bestHeaderIndex = i;
+        }
+    }
+
+    if (bestHeaderIndex === -1) bestHeaderIndex = 0;
+    
+    // Converte para JSON usando o cabeçalho detectado
+    const headers = rows[bestHeaderIndex];
+    const dataRows = rows.slice(bestHeaderIndex + 1);
+    
+    // Transforma dataRows em objetos usando os headers detectados
+    const data = dataRows.map(row => {
+        const obj = {};
+        headers.forEach((h, i) => {
+            if (h) obj[h] = row[i];
+        });
+        return obj;
+    }).filter(obj => Object.keys(obj).length > 0);
+
+    // Log das colunas detectadas
+    console.log('[IMPORT-EFETIVO] Cabeçalho na linha:', bestHeaderIndex);
+    console.log('[IMPORT-EFETIVO] Colunas:', headers.map(h => `"${h}" → "${normalizeKey(h)}"`).join(', '));
 
     let stats = { imported: 0, existing: 0, skipped: 0, errors: 0 };
     let errorDetails = [];
@@ -812,8 +851,8 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           if (k === 'MATRICULA' || k.startsWith('MATRICUL'))
             matricula = val;
 
-          // Nº Ordem (campo secundário — usado como fallback se MATRICULA estiver ausente)
-          else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM')
+          // Nº Ordem (identificação militar específica)
+          else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM' || k === 'ORDEM' || k === 'NODEORDEM' || k === 'ORD' || k === 'NO')
             nrOrdem = val;
 
           // CPF - Garantir limpeza absoluta e padding de 11 dígitos
@@ -859,7 +898,12 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         });
 
         // Nº Ordem como fallback de matrícula (se MATRICULA não existir na planilha)
+        // No sistema atual, 'matricula' é o Login. Se não houver matrícula no Excel, usamos o Nº de Ordem como login.
         if (!matricula && nrOrdem) matricula = nrOrdem;
+        let loginMatricula = matricula;
+        
+        // Se houver matrícula mas não houver nrOrdem explicitamente separado, nrOrdem = matricula
+        if (!nrOrdem && matricula) nrOrdem = matricula;
 
         // Fallback nome de guerra → primeiro nome do nome completo
         if (!nomeGuerra && nome) {
@@ -870,13 +914,13 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
           nomeGuerra = nome ? nome.split(' ')[0] : '';
         }
 
-        // Validação dos campos obrigatórios
+        // Validação dos campos obrigatórios (Matrícula ou Nº Ordem + CPF + Nome)
         if (!matricula || !cpf || !nome) {
           stats.skipped++;
-          if (nome || matricula) {
+          if (nome || matricula || nrOrdem) {
             errorDetails.push({
-              militar: nome || `Matrícula ${matricula}` || 'Linha sem dados',
-              error: `Campos obrigatórios ausentes — Matrícula: "${matricula}", CPF: "${cpf}", Nome: "${nome}"`
+              militar: nome || `Matrícula ${matricula}` || `Ordem ${nrOrdem}` || 'Linha sem dados',
+              error: `Campos obrigatórios ausentes — Matrícula/Ordem: "${matricula || nrOrdem}", CPF: "${cpf}", Nome: "${nome}"`
             });
             stats.errors++;
           }
@@ -885,8 +929,8 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
 
         // Verifica existência por matrícula OU cpf
         const existing = await db.get(
-          'SELECT id_militar, nome_guerra, posto_graduacao FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
-          [matricula, cpf]
+          'SELECT id_militar, nome_guerra, posto_graduacao, numero_ordem FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
+          [loginMatricula, cpf]
         );
 
         if (existing) {
@@ -897,7 +941,7 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
             (motorista && existing.motorista !== motorista) ||
             (!existing.rgpm && rgpm) || (!existing.opm && opm);
 
-          if (needsUpdate) {
+          if (needsUpdate || (nrOrdem && existing.numero_ordem !== nrOrdem)) {
             await db.run(
               `UPDATE EFETIVO SET
                 nome_guerra = COALESCE(NULLIF($1, ''), nome_guerra),
@@ -905,9 +949,10 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
                 rgpm = COALESCE(NULLIF($3, ''), rgpm),
                 opm = COALESCE(NULLIF($4, ''), opm),
                 telefone = COALESCE(NULLIF($5, ''), telefone),
-                motorista = $7
+                motorista = $7,
+                numero_ordem = COALESCE(NULLIF($8, ''), numero_ordem)
               WHERE id_militar = $6`,
-              [nomeGuerra, posto, rgpm, opm, formatPhone(telefone), existing.id_militar, motorista]
+              [nomeGuerra, posto, rgpm, opm, formatPhone(telefone), existing.id_militar, motorista, nrOrdem]
             );
             stats.imported++; // conta como atualizado
           } else {
@@ -919,9 +964,9 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         // Inserção completa com todos os campos da tabela EFETIVO
         await db.run(
           `INSERT INTO EFETIVO
-          (nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [nome, nomeGuerra, posto, matricula, cpf, rgpm, opm, formatPhone(telefone), motorista, statusAtivo]
+          (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf, rgpm, opm, telefone, motorista, status_ativo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          [nome, nomeGuerra, posto, loginMatricula, nrOrdem, cpf, rgpm, opm, formatPhone(telefone), motorista, statusAtivo]
         );
 
         // Cria o usuário no sistema com senha padrão = CPF
@@ -929,7 +974,7 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
               `INSERT INTO users (numero_ordem, password, is_admin)
                VALUES ($1, $2, 0)
                ON CONFLICT (numero_ordem) DO UPDATE SET password = EXCLUDED.password WHERE users.password IS NULL`,
-              [matricula, cpf]
+              [loginMatricula, cpf]
             );
 
         stats.imported++;

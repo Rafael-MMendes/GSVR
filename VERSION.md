@@ -1,3 +1,14 @@
+## v1.13.1 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Correção da Importação de Nº de Ordem**: Ajustada a lógica de importação do Efetivo via Excel para capturar e salvar corretamente a coluna "Nº de Ordem" (mapeada a partir de headers como "NORDEM", "ORDEM", "NRORDEM").
+- **UI de Cadastro Otimizada**: Atualizada a tela de Gestão de Efetivo para exibir a coluna "Nº Ordem" na tabela e permitir a edição individual deste campo no formulário de cadastro, separando-o visualmente da Matrícula de login.
+- **Normalização de Cabeçalhos**: Adicionadas novas variantes de nomes de colunas no processador de Excel para garantir compatibilidade com diferentes modelos de planilhas de efetivo.
+
+---
+
 ## v1.13.0 — 2026-04-09
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

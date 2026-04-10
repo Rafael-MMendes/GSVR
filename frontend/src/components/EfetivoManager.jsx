@@ -16,6 +16,7 @@ export function EfetivoManager() {
     nome_guerra: '',
     posto_graduacao: '',
     matricula: '',
+    numero_ordem: '',
     cpf: '',
     rgpm: '',
     opm: '',
@@ -71,6 +72,7 @@ export function EfetivoManager() {
       nome_guerra: '',
       posto_graduacao: '',
       matricula: '',
+      numero_ordem: '',
       cpf: '',
       rgpm: '',
       opm: '',
@@ -86,6 +88,7 @@ export function EfetivoManager() {
       nome_guerra: militar.nome_guerra || '',
       posto_graduacao: militar.posto_graduacao,
       matricula: militar.matricula,
+      numero_ordem: militar.numero_ordem || '',
       cpf: militar.cpf,
       rgpm: militar.rgpm || '',
       opm: militar.opm || '',
@@ -98,6 +101,7 @@ export function EfetivoManager() {
   const filteredEfetivo = efetivo.filter(m => 
     m.nome_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     m.matricula.includes(searchTerm) ||
+    m.numero_ordem?.includes(searchTerm) ||
     m.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -140,6 +144,7 @@ export function EfetivoManager() {
                 <th>Nome de Guerra</th>
                 <th>Nome Completo</th>
                 <th>Matrícula</th>
+                <th>Nº Ordem</th>
                 <th>CPF</th>
                 <th>Telefone</th>
                 <th>Ações</th>
@@ -163,6 +168,7 @@ export function EfetivoManager() {
                   <td>{m.nome_guerra || '-'}</td>
                   <td style={{ fontSize: '0.9rem' }}>{m.nome_completo}</td>
                   <td><code>{m.matricula}</code></td>
+                  <td>{m.numero_ordem || '-'}</td>
                   <td style={{ fontSize: '0.8rem' }}>{m.cpf ? String(m.cpf).padStart(11, '0') : '-'}</td>
                   <td>{formatPhone(m.telefone)}</td>
                   <td>
@@ -227,8 +233,13 @@ export function EfetivoManager() {
                 </div>
                 
                 <div>
-                  <label className="form-label">Matrícula (Nº Ordem) *</label>
+                  <label className="form-label">Matrícula (Login) *</label>
                   <input className="form-input" value={formData.matricula} onChange={e => setFormData({ ...formData, matricula: e.target.value })} required placeholder="000.000-0" />
+                </div>
+                
+                <div>
+                  <label className="form-label">Nº de Ordem</label>
+                  <input className="form-input" value={formData.numero_ordem} onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })} placeholder="Ex: 123" />
                 </div>
                 
                 <div>
