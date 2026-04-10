@@ -559,8 +559,19 @@ export function AdminDashboardV2() {
                 <select style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', outline: 'none', fontWeight: 500 }} value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
                   {(() => {
                     const [yearStr, monthStr] = selectedMonth ? selectedMonth.split('-') : [new Date().getFullYear(), new Date().getMonth() + 1];
-                    const daysInMonth = selectedMonth ? new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate() : 31;
-                    return Array.from({length: daysInMonth}, (_, i) => i+1).map(d => <option key={d} value={d}>Dia {d}</option>);
+                    const year = parseInt(yearStr);
+                    const month = parseInt(monthStr);
+                    const daysInMonth = selectedMonth ? new Date(year, month, 0).getDate() : 31;
+                    
+                    return Array.from({length: daysInMonth}, (_, i) => i+1).map(d => {
+                      let wdayCap = '';
+                      if (selectedMonth) {
+                        const date = new Date(year, month - 1, d);
+                        const wday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
+                        wdayCap = ' - ' + wday.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+                      }
+                      return <option key={d} value={d}>Dia {d}{wdayCap}</option>
+                    });
                   })()}
                 </select>
 

@@ -1,3 +1,12 @@
+## v1.14.4 — 2026-04-10
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UX/UI] Refinamento de Calendário**: Adicionada a exibição automática dos dias da semana (ex: Sábado, Domingo, etc.) no seletor de datas do modal de seleção de militares. A lógica calcula o dia correto com base no ciclo (mês/ano) selecionado, facilitando o planejamento das guarnições.
+
+---
+
 ## v1.14.3 — 2026-04-10
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
