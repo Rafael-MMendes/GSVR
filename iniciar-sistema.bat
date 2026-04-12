@@ -3,7 +3,7 @@ chcp 65001 >nul
 title Iniciando Sistema de Escalas - 9º BPM FT
 
 echo ==========================================
-echo   SISTEMA DE ESCALAS - 9º BPM (Força Tarefa)
+echo   SISTEMA DE ESCALAS - 9º BPM (GSVR)
 echo ==========================================
 echo.
 

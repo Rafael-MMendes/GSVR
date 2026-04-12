@@ -212,7 +212,7 @@ export function TiposServicoManager() {
                     value={formData.descricao} 
                     onChange={e => setFormData({ ...formData, descricao: e.target.value })}
                     required
-                    placeholder="Ex: Força Tarefa Diário (6h)"
+                    placeholder="Ex: GSVR Diário (6h)"
                 />
               </div>
 

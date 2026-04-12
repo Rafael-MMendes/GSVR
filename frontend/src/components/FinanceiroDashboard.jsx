@@ -152,7 +152,7 @@ export function FinanceiroDashboard() {
         <div>
           <h2 style={{ margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Wallet size={28} />
-            Módulo Financeiro - Força Tarefa
+            Módulo Financeiro - GSVR
           </h2>
           <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Análise e gestão de verbas por ciclo • Verba disponível: {formatCurrency(resumo.verba_ciclo)}

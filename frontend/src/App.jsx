@@ -134,7 +134,7 @@ function App() {
       <nav className="navbar">
         <div className="navbar-brand">
           <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" />
-          <span>9º BPM - Força Tarefa</span>
+          <span>9º BPM - GSVR</span>
         </div>
 
         <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>

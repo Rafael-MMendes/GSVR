@@ -185,7 +185,7 @@
 **Email:** alan.kleber@example.com
 
 ### Mudanças:
-- **[Back-end] Correção no Agrupamento de Guarnições**: Resolvido o bug crítico onde equipes diferentes com o mesmo nome (ex: duas "FORÇA TAREFA") eram mescladas em um único card no dashboard.
+- **[Back-end] Correção no Agrupamento de Guarnições**: Resolvido o bug crítico onde equipes diferentes com o mesmo nome (ex: duas "GSVR") eram mescladas em um único card no dashboard.
   - Agrupamento Inteligente: O sistema agora detecta colisões de cargos (ex: dois comandantes para o mesmo recurso) e separa automaticamente as equipes em cards distintos.
   - Sincronização Precisa: Garante que 100% dos militares escalados no banco de dados sejam visíveis no dashboard, preservando a autonomia de cada equipe planejada.
 
@@ -200,7 +200,7 @@
   - Implementada transição suave com elevação (`translateY`) e sombras profundas dinâmicas ao interagir com o card.
   - Header modernizado com o novo `primaryGradient` e botões de ação (Lixeira) em estilo glassmorphism (vidro fosco).
   - Escaneabilidade Aprimorada: Ajustes em tipografia, bordas (28px) e espaçamentos para uma leitura mais confortável da equipe.
-  - Micro-animações e feedbacks visuais nos slots vazios para uma experiência mais fluida.
+  - Micro-animações e feedbacks visuais nos slots vazios para uma experiênca mais fluida.
 
 ---
 

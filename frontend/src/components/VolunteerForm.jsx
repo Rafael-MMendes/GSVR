@@ -199,7 +199,7 @@ export function VolunteerForm({ userData }) {
       )}
 
       <div className="glass-panel" style={{ maxWidth: '1400px', margin: '0 auto', overflowX: 'auto' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '0.5rem' }}>Requerimento FT - Força Tarefa</h2>
+        <h2 style={{ textAlign: 'center', marginBottom: '0.5rem' }}>Requerimento GSVR</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '0.9rem', textAlign: 'center' }}>
           Preencha seus dados institucionais e marque um "X" nos dias/horários disponíveis.
         </p>

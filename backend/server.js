@@ -1847,7 +1847,7 @@ app.get('/api/schedules', async (req, res) => {
     const patrols = [];
 
     for (const row of rows) {
-      const patrolName = row.patrol_name || 'FORÇA TAREFA';
+      const patrolName = row.patrol_name || 'GSVR';
       const roleIndex = PATROL_ROLES.indexOf(row.funcao);
       const slot = roleIndex >= 0 ? roleIndex : 0;
       
@@ -2028,7 +2028,7 @@ app.post('/api/schedules', async (req, res) => {
             dataServico,
             horarioServico,
             funcao,
-            patrol.name || 'FORÇA TAREFA', 
+            patrol.name || 'GSVR', 
             patrol.duration || '6h'        
           ]);
 

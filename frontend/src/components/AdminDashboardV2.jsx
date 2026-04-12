@@ -12,9 +12,8 @@ const MAX_MEMBERS = 3;
 
 const normalizePatrolName = (name) => {
   const value = String(name || '').trim();
-  if (!value) return 'FORÇA TAREFA';
-  if (/^força tarefa$/i.test(value)) return 'FORÇA TAREFA';
-  if (/^guarni[cç]ão\s*\d+$/i.test(value) || /^guarnicao\s*\d+$/i.test(value)) return 'FORÇA TAREFA';
+  if (/^gsvr$/i.test(value)) return 'GSVR';
+  if (/^guarni[cç]ão\s*\d+$/i.test(value) || /^guarnicao\s*\d+$/i.test(value)) return 'GSVR';
   return value;
 };
 
@@ -269,7 +268,7 @@ export function AdminDashboardV2() {
         if (patrolId === 'NEW') {
           newPatrols.push({
             id: `p${Date.now()}`,
-            name: 'FORÇA TAREFA',
+            name: 'GSVR',
             duration: newPatrolDuration,
             timeSpan: newPatrolShift,
             members: newMembers
@@ -442,7 +441,7 @@ export function AdminDashboardV2() {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5);
     pdf.text('9º Batalhão de Polícia Militar — Batalhão de Divisas', pageW / 2, 15, { align: 'center' });
     pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8.5); pdf.setTextColor(200, 220, 255);
-    pdf.text(`Escala Operacional da Força Tarefa (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
+    pdf.text(`Escala Operacional do GSVR (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
 
     const source = printRef.current;
     const clone = source.cloneNode(true);

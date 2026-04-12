@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**GSVR** (Gestão de Força Tarefa) is a military scheduling and workforce management system for the **9º BPM/PMAL** (9th Military Police Battalion of Alagoas). It enables administrators to plan shifts, manage personnel, track service cycles, and generate financial reports for task force operations.
+**GSVR** is a military scheduling and workforce management system for the **9º BPM/PMAL** (9th Military Police Battalion of Alagoas). It enables administrators to plan shifts, manage personnel, track service cycles, and generate financial reports.
 
 The system features:
 - **Drag-and-drop scheduling** interface for building patrol teams (guarnições)

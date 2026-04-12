@@ -1,6 +1,6 @@
 # 🏗️ Arquitetura — Módulos de Perfil de Usuário & Controle de Acesso (RBAC)
 
-> **Sistema:** Gestão de Força Tarefa — 9º BPM/PMAL  
+> **Sistema:** GSVR — 9º BPM/PMAL  
 > **Arquiteto:** Antigravity (Senior Full-Stack)  
 > **Skills Aplicadas:** `@[architecture]` `@[database-design]` `@[api-patterns]`  
 > **Data:** 2026-04-07

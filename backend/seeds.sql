@@ -1,4 +1,4 @@
--- Seed SQL para Gestão de Força Tarefa
+-- Seed SQL para GSVR
 -- Instruções: Execute no pgAdmin ou psql conectado ao banco 'escala_ft'
 
 -- 1. Limpeza

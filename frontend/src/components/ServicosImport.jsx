@@ -98,10 +98,10 @@ export function ServicosImport({ onBack }) {
             <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: '#10b981' }}>
               <ClipboardCheck size={24} />
             </div>
-            <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>Importação de Serviços Executados (FT)</h2>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>Importação de Serviços Executados (GSVR)</h2>
           </div>
           <p style={{ color: '#64748b', margin: 0 }}>
-            Importe a planilha de descrição de serviços da Força Tarefa para o sistema.
+            Importe a planilha de descrição de serviços do GSVR para o sistema.
           </p>
         </header>
 

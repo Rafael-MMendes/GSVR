@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Popular Banco de Dados - Força Tarefa
+title Popular Banco de Dados - GSVR
 
 echo ==========================================
 echo   POPULANDO BANCO DE DADOS (bd.sql)

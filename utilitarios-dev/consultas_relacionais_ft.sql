@@ -1,5 +1,5 @@
 -- ==============================================================================
--- CONSULTAS RELACIONAIS - GESTÃO DE FORÇA TAREFA
+-- CONSULTAS RELACIONAIS - GSVR
 -- Módulo: Integração Completa OPM -> Ciclo -> Efetivo -> Planejamento -> Execução
 -- Dialeto: PostgreSQL
 -- ==============================================================================

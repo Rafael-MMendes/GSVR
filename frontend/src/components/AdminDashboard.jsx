@@ -19,9 +19,8 @@ const MAX_MEMBERS = 3; // Máximo de militares por guarnição
 
 const normalizePatrolName = (name) => {
   const value = String(name || '').trim();
-  if (!value) return 'FORÇA TAREFA';
-  if (/^força tarefa$/i.test(value)) return 'FORÇA TAREFA';
-  if (/^guarni[cç]ão\s*\d+$/i.test(value) || /^guarnicao\s*\d+$/i.test(value)) return 'FORÇA TAREFA';
+  if (/^gsvr$/i.test(value)) return 'GSVR';
+  if (/^guarni[cç]ão\s*\d+$/i.test(value) || /^guarnicao\s*\d+$/i.test(value)) return 'GSVR';
   return value;
 };
 
@@ -54,8 +53,7 @@ export function AdminDashboard() {
     pool: [],
     patrols: Array.from({length: 8}, (_, i) => ({ 
       id: `p${i+1}`, 
-      name: 'FORÇA TAREFA', 
-      duration: '6h',
+      name: 'GSVR',       duration: '6h',
       timeSpan: '',
       members: [] 
     }))
@@ -396,7 +394,7 @@ export function AdminDashboard() {
     pdf.setFont('helvetica', 'italic');
     pdf.setFontSize(8.5);
     pdf.setTextColor(200, 220, 255);
-    pdf.text(`Escala Operacional da Força Tarefa (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
+    pdf.text(`Escala Operacional do GSVR (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
 
     // ── 2. Clonar apenas a grade de patrulhas ────────────────────────────────
     const source = printRef.current;
@@ -459,7 +457,7 @@ export function AdminDashboard() {
           ...prev.patrols,
           {
             id: `p${Date.now()}`,
-            name: 'FORÇA TAREFA',
+            name: 'GSVR',
             duration: '6h',
             timeSpan: '',
             members: []
@@ -584,7 +582,7 @@ export function AdminDashboard() {
               <div style={{ textAlign: 'center', zIndex: 10, flex: 1, padding: '0 10px' }}>
                 <h2 style={{ margin: 0, fontSize: '1.15rem', color: '#ffffff', fontWeight: 'bold' }}>POLÍCIA MILITAR DE ALAGOAS</h2>
                 <h3 style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: '#ffffff', fontWeight: 'normal' }}>9º Batalhão de Polícia Militar - Batalhão de Divisas</h3>
-                <h4 style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#c8dcff', fontStyle: 'italic', fontWeight: 'normal' }}>Escala Operacional da Força Tarefa (Dia {selectedDate})</h4>
+                <h4 style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#c8dcff', fontStyle: 'italic', fontWeight: 'normal' }}>Escala Operacional do GSVR (Dia {selectedDate})</h4>
               </div>
               <img src="/brasao_9bpm.png" alt="9º BPM" style={{ height: '60px', zIndex: 10, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
             </div>

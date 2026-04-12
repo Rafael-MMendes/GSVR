@@ -162,7 +162,7 @@ export function AnalyticsDashboard() {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ margin: 0 }}>Analítico FT — Serviços do Mês</h2>
+          <h2 style={{ margin: 0 }}>Analítico GSVR — Serviços do Mês</h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.9rem' }}>
             Contagem de serviços por militar · Limite mensal: {MAX_SERVICES} serviços
           </p>
@@ -193,8 +193,8 @@ export function AnalyticsDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
         {[
           { icon: <TrendingUp size={22} color="#0D3878" />, label: 'Recurso Utilizado', value: formatarValor(recursoUtilizado), color: '#0D3878' },
-          { icon: <Clock size={22} color="#10b981" />, label: 'FT de 6 Horas', value: totalHoras6, color: '#10b981' },
-          { icon: <Clock size={22} color="#f59e0b" />, label: 'FT de 8 Horas', value: totalHoras8, color: '#f59e0b' },
+          { icon: <Clock size={22} color="#10b981" />, label: 'GSVR de 6 Horas', value: totalHoras6, color: '#10b981' },
+          { icon: <Clock size={22} color="#f59e0b" />, label: 'GSVR de 8 Horas', value: totalHoras8, color: '#f59e0b' },
           { icon: <Wallet size={22} color="#059669" />, label: 'Recurso Restante', value: formatarValor(recursoRestante), color: '#059669' },
         ].map(kpi => (
           <div key={kpi.label} className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem' }}>
@@ -229,13 +229,13 @@ export function AnalyticsDashboard() {
                 </th>
                 <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Motorista</th>
                 <th onClick={() => requestSort('count6h')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    FT 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    GSVR 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('count8h')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    FT 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    GSVR 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('total')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    Total FTs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    Total GSVRs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('remaining')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     Restantes {sortConfig.key === 'remaining' && (sortConfig.direction === 'asc' ? '↑' : '↓')}

@@ -98,7 +98,7 @@ export function LoginScreen({ onLogin }) {
               onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           </div>
           <h1 style={{ fontSize: '1.35rem', color: '#1e3a5f', margin: 0, fontWeight: 700 }}>
-            9º BPM — Força Tarefa
+            9º BPM — GSVR
           </h1>
           <p style={{ color: '#64748b', marginTop: '0.4rem', fontSize: '0.9rem' }}>
             Acesso Restrito ao Sistema
