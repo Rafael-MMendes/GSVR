@@ -1,3 +1,16 @@
+## v1.19.6 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Ações Rápidas] Substituição Direta de Integrante**: Implementada a funcionalidade de substituição individual de militares diretamente nos cards de guarnição.
+  - O ícone "X" (Remover) foi ressignificado para "Substituir", disparando o modal de seleção de voluntários para a vaga específica.
+  - Inteligência de Seleção: No modo de substituição, o modal limita a escolha a apenas 1 militar, simplificando o fluxo de troca.
+  - Persistência Instantânea: A substituição realiza o UPDATE automático no banco de dados, mantendo a função e o id_escala originais.
+  - Feedback de Processamento: O card exibe o indicador de salvamento durante a troca para garantir a confirmação visual.
+
+---
+
 ## v1.19.5 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

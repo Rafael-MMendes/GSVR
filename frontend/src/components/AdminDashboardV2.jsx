@@ -217,37 +217,66 @@ export function AdminDashboardV2() {
 
   const toggleMemberSelection = (member) => {
     const isSelected = selectedMembers.some(m => m.id === member.id);
-    if (isSelected) setSelectedMembers(prev => prev.filter(m => m.id !== member.id));
-    else if (selectedMembers.length < MAX_MEMBERS) setSelectedMembers(prev => [...prev, member]);
+    const limit = selectionMode?.slotIndex !== undefined ? 1 : MAX_MEMBERS;
+    
+    if (isSelected) {
+      setSelectedMembers(prev => prev.filter(m => m.id !== member.id));
+    } else if (selectedMembers.length < limit) {
+      if (limit === 1) setSelectedMembers([member]);
+      else setSelectedMembers(prev => [...prev, member]);
+    }
   };
 
-  const confirmSelection = () => {
+  const confirmSelection = async () => {
     if (!selectionMode) return;
+    const { patrolId, slotIndex } = selectionMode;
+
     setState(prev => {
       let newPatrols = [...prev.patrols];
-      const newMembers = [null, null, null];
-      selectedMembers.forEach((m, idx) => { newMembers[idx] = m; });
 
-      if (selectionMode.patrolId === 'NEW') {
-        newPatrols.push({
-          id: `p${Date.now()}`,
-          name: 'FORÇA TAREFA',
-          duration: '6h',
-          timeSpan: '',
-          members: newMembers
-        });
-      } else {
+      if (slotIndex !== undefined) {
+        // MODO SUBSTITUIÇÃO DE SLOT ÚNICO
         newPatrols = newPatrols.map(p => {
-          if (p.id === selectionMode.patrolId) {
+          if (p.id === patrolId) {
+            const newMembers = [...p.members];
+            if (selectedMembers.length > 0) newMembers[slotIndex] = selectedMembers[0];
             return { ...p, members: newMembers };
           }
           return p;
         });
+      } else {
+        // MODO CRIAÇÃO/EDIÇÃO DE GUARNÇÃO COMPLETA
+        const newMembers = [null, null, null];
+        selectedMembers.forEach((m, idx) => { if (idx < 3) newMembers[idx] = m; });
+        
+        if (patrolId === 'NEW') {
+          newPatrols.push({
+            id: `p${Date.now()}`,
+            name: 'FORÇA TAREFA',
+            duration: '6h',
+            timeSpan: '',
+            members: newMembers
+          });
+        } else {
+          newPatrols = newPatrols.map(p => {
+            if (p.id === patrolId) return { ...p, members: newMembers };
+            return p;
+          });
+        }
       }
 
-      const selectedIds = selectedMembers.map(m => m.id);
-      return { pool: prev.pool.filter(p => !selectedIds.includes(p.id)), patrols: newPatrols };
+      // Auto-save
+      setSavingPatrolId(patrolId === 'NEW' ? null : patrolId);
+      setIsSaving(true);
+      setTimeout(async () => {
+        await saveSchedule();
+        setSavingPatrolId(null);
+        setIsSaving(false);
+      }, 100);
+
+      return { ...prev, patrols: newPatrols };
     });
+    
     closeSelectionModal();
   };
 
@@ -959,20 +988,21 @@ export function AdminDashboardV2() {
                         </div>
 
                         <button
-                          onClick={() => removeFromSlot(patrol.id, index)}
+                          onClick={() => setSelectionMode({ patrolId: patrol.id, slotIndex: index })}
                           className="no-print"
                           style={{
-                            background: '#fef2f2',
-                            color: colors.danger,
-                            border: 'none',
+                            background: '#f1f5f9',
+                            color: colors.primary,
+                            border: `1px solid ${colors.border}`,
                             borderRadius: '10px',
                             padding: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             transition: transitions
                           }}
-                          onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.color = 'white'; }}
-                          onMouseOut={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = colors.danger; }}
+                          onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+                          onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = colors.primary; }}
+                          title="Substituir integrante"
                         >
                           <X size={16} />
                         </button>
@@ -1259,7 +1289,8 @@ export function AdminDashboardV2() {
               ) : (
                 filteredPool.map(p => {
                   const isSelected = selectedMembers.some(m => m.id === p.id);
-                  const isDisabled = !isSelected && selectedMembers.length >= MAX_MEMBERS;
+                  const selectionLimit = selectionMode?.slotIndex !== undefined ? 1 : MAX_MEMBERS;
+                  const isDisabled = !isSelected && selectedMembers.length >= selectionLimit;
                   return (
                     <div
                       key={p.id}
