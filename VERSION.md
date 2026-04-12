@@ -1,3 +1,129 @@
+## v1.24.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Requerimentos] Cancelamento de Disponibilidade**: Implementada nova funcionalidade para cancelar a disponibilidade de militares no gerenciador de requerimentos.
+  - **Botão de Cancelar**: Adicionado ícone `Ban` na coluna de ações para desativar disponibilidade de voluntários.
+  - **Modal de Confirmação Completo**: Replicada a lógica do modal de edição para exibir dados completos do militar (Nº Ordem, Posto, Nome, Telefone, Motorista) e a grade visual de disponibilidade que será cancelada.
+  - **Indicadores Visuais Distintos**:
+    - Turnos ativos a serem cancelados: fundo vermelho com "X" branco.
+    - Turnos já cancelados: fundo vermelho claro com "X" riscado (`line-through`) e opacidade reduzida.
+    - Linhas de requerimentos cancelados na tabela: fundo avermelhado, borda inferior vermelha e opacidade 0.7.
+  - **Badge "CANCELADO"**: Selo vermelho exibido na coluna de turnos para requerimentos com disponibilidade inativa.
+  - **Backend Aprimorado**:
+    - Endpoint `PUT /api/volunteers/:id/cancel-availability` com validação de existência do requerimento.
+    - Query otimizada para retornar `availability_completa` (array de objetos com `turno` + `ativo`) além da `availability` ativa.
+    - Campo `ativo` calculado via `COALESCE(BOOL_OR(ativo), TRUE)` para correta identificação do estado.
+  - **Atualização Local**: Após cancelamento bem-sucedido, a lista é recarregada automaticamente sem refresh da página.
+  - **Endpoint PUT para Edição**: Adicionado `PUT /api/volunteers/:id` para suportar edição completa de requerimentos (atualiza efetivo e reconstrói disponibilidade).
+
+---
+
+## v1.23.4 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Otimização Espacial do Modal**:
+  - Ajuste de preenchimento (padding) do cabeçalho de filtros para `0.5rem 2rem`, reduzindo o espaço vertical e permitindo maior visibilidade do grid de militares.
+  - Consolidação final do layout de duas linhas no modal de voluntários (Busca superior + Filtros inferiores).
+
+---
+
+## v1.23.3 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Identificação de Motoristas no Modal**:
+  - Ajustada a lógica de exibição do badge "MOT" no modal de seleção para considerar o campo `motorista` proveniente do banco de dados.
+  - Sincronização de dados garantida ao verificar múltiplas propriedades (`motorista` e `id_funcao`) para identificar militares qualificados como condutores.
+
+---
+
+## v1.23.2 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Reestruturação de Filtros no Modal**:
+  - Barra de busca movida para uma linha superior exclusiva (Full Width).
+  - Agrupamento de filtros operacionais (Dia, Turno, Duração, Horário) em uma segunda linha horizontal.
+  - Alinhamento do selo de disponibilidade militar ("Disponíveis") na mesma linha dos filtros.
+  - Inclusão de rótulos (labels) informativos para cada seletor de filtro no modal.
+
+---
+
+## v1.23.1 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Realocação de Controles de Escala**:
+  - Seletores de "Duração" e "Horário" movidos do corpo do card para o modal de seleção/edição.
+  - No dashboard principal, as informações de Duração e Horário são agora exibidas apenas como badges estáticos no cabeçalho do card, limpando a interface.
+  - Sincronização de estado aprimorada para permitir edição de guarnições existentes diretamente pelo modal.
+
+---
+
+## v1.23.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Otimização de Densidade (Cards Compactos)**:
+  - Redução de paddings e fontes nos cards de guarnição para melhor aproveitamento de tela.
+  - Ajuste da grade (Grid) para `minmax(320px)` permitindo mais guarnições por linha.
+  - Design dos slots militares refinado para ser mais denso:
+    - Redução de altura mínima de slots vazios (`80px` -> `60px`).
+    - Redução de ícones e espaçamentos internos.
+  - Harmonização de raios de borda (`borderRadius`) para um visual mais coeso e compacto.
+
+---
+
+## v1.22.1 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Refinamento da Sidebar**:
+  - Reagrupamento dos botões de ação: "Imprimir" agora está próximo de "Salvar" e "Nova Guarnição".
+  - Atualização cromática semântica:
+    - Botão "Nova Guarnição" alterado para **Verde** (Linear Gradient).
+    - Botão "Imprimir Escala" alterado para **Cinza Neutro** operacional.
+  - Ajustes de margem e padding para melhor equilíbrio visual.
+
+---
+
+## v1.22.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Layout] Evolução para Sidebar Lateral**:
+  - Transformação do cabeçalho horizontal em uma Sidebar fixa moderna (`v2-sidebar`).
+  - Reorganização vertical de controles (Filtros, Ciclos, Disponibilidade).
+  - Agrupamento de ações principais ("Nova Guarnição", "Salvar Escala") lateralmente.
+  - Implementação de área de conteúdo principal independente com scroll próprio.
+  - Ajustes de responsividade para transição suave entre Sidebar e Top Header em telas menores.
+
+---
+
+## v1.21.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Modal de Seleção e Header Responsivo**:
+  - Implementação de cabeçalho totalmente responsivo com agrupamento inteligente de controles.
+  - Adição de dropdowns de Duração e Horário diretamente no modal de criação de guarnição.
+  - Introdução de etiquetas visuais nos cards de militares: "FORA DO TURNO" e "MOT" (motorista).
+  - Escala de cores dinâmica para contagem de serviços: Verde (seguro), Laranja (alerta) e Vermelho (limite).
+  - Correção de erro de sintaxe no cabeçalho do modal.
+
+---
+
 ## v1.20.2 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -28,6 +154,7 @@
 
 ### Mudanças:
 - **[Core] Refatoração da Integridade de Dados e Tabela Ternária**: Correção crítica nos relacionamentos entre Planejamento e Execução.
+
   - **Fim da Perda de Dados no Startup**: Removido o comando `DROP TABLE` que reiniciava a tabela `ESCALA_EFETIVO_SERVICO` a cada reinicialização do servidor. Agora utiliza `CREATE TABLE IF NOT EXISTS`.
   - **Relacionamentos Atômicos**: Implementadas transações SQL (`BEGIN`/`COMMIT`) na rota de salvamento de escalas para garantir que o planejamento e seus vínculos ternários sejam criados de forma indissociável.
   - **Triggers Inteligentes (Merge)**: Aprimorada a trigger `trg_planejamento_ternaria` no banco de dados para detectar e vincular execuções pré-existentes ao novo planejamento, evitando registros duplicados ou órfãos.

@@ -634,18 +634,26 @@ app.get('/api/volunteers', async (req, res) => {
   if (!targetId) return res.json([]);
 
   const q = `
-    SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name, 
+    SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
            e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'MM/YYYY') as month_key,
            (SELECT json_object_agg(dia_mes, turnos) FROM (
-             SELECT dia_mes, json_agg(horario_turno) as turnos 
-             FROM DISPONIBILIDADE_REQUERIMENTO 
-             WHERE id_requerimento = r.id_requerimento GROUP BY dia_mes
+             SELECT dia_mes, json_agg(horario_turno) as turnos
+             FROM DISPONIBILIDADE_REQUERIMENTO
+             WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
+             GROUP BY dia_mes
            ) d) as availability_json,
-           (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count
-    FROM REQUERIMENTOS r 
-    JOIN EFETIVO e ON r.id_militar = e.id_militar 
-    JOIN CICLOS c ON r.id_ciclo = c.id_ciclo 
-    WHERE c.id_ciclo = $1 
+           (SELECT json_object_agg(dia_mes, turnos_completos) FROM (
+             SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo)) as turnos_completos
+             FROM DISPONIBILIDADE_REQUERIMENTO
+             WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
+             GROUP BY dia_mes
+           ) d) as availability_completa_json,
+           (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count,
+           COALESCE((SELECT BOOL_OR(ativo) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento), TRUE) as ativo
+    FROM REQUERIMENTOS r
+    JOIN EFETIVO e ON r.id_militar = e.id_militar
+    JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
+    WHERE c.id_ciclo = $1
     ORDER BY r.data_solicitacao DESC
   `;
   try {
@@ -655,7 +663,11 @@ app.get('/api/volunteers', async (req, res) => {
       if (typeof availability === 'string') {
         try { availability = JSON.parse(availability); } catch (e) { availability = {}; }
       }
-      return { ...v, availability };
+      let availability_completa = v.availability_completa_json || {};
+      if (typeof availability_completa === 'string') {
+        try { availability_completa = JSON.parse(availability_completa); } catch (e) { availability_completa = {}; }
+      }
+      return { ...v, availability, availability_completa };
     }));
   } catch (e) {
     console.error(e);
@@ -707,6 +719,85 @@ app.post('/api/volunteers', async (req, res) => {
 app.delete('/api/volunteers/:id', async (req, res) => {
   await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = $1', [req.params.id]);
   res.json({ success: true });
+});
+
+// Editar requerimento
+app.put('/api/volunteers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { numero_ordem, name, rank, phone, motorista, availability } = req.body;
+    
+    // Verifica se o requerimento existe
+    const requerimento = await db.get(
+      'SELECT id_requerimento, id_militar FROM REQUERIMENTOS WHERE id_requerimento = $1',
+      [id]
+    );
+    
+    if (!requerimento) {
+      return res.status(404).json({ error: 'Requerimento não encontrado' });
+    }
+    
+    // Atualizar informação de motorista no Efetivo
+    if (motorista) {
+      await db.run('UPDATE EFETIVO SET motorista = $1 WHERE id_militar = $2', [motorista, requerimento.id_militar]);
+    }
+    
+    // Atualizar telefone no Efetivo se fornecido
+    if (phone) {
+      await db.run('UPDATE EFETIVO SET telefone = $1 WHERE id_militar = $2', [phone, requerimento.id_militar]);
+    }
+    
+    // Deleta disponibilidades existentes
+    await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1', [id]);
+    
+    // Insere novas disponibilidades
+    if (availability && typeof availability === 'object') {
+      for (const [day, shifts] of Object.entries(availability)) {
+        for (const shift of shifts) {
+          await db.run(
+            'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo) VALUES ($1, $2, $3, TRUE, TRUE)',
+            [id, parseInt(day), shift]
+          );
+        }
+      }
+    }
+    
+    res.json({ success: true, message: 'Requerimento atualizado com sucesso' });
+  } catch (error) {
+    console.error('Error updating volunteer:', error);
+    res.status(500).json({ error: 'Erro ao atualizar requerimento' });
+  }
+});
+
+// Cancelar disponibilidade (marcar como inativo)
+app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { numero_ordem, name, rank, phone, availability } = req.body;
+    
+    // Verifica se o requerimento existe
+    const requerimento = await db.get(
+      'SELECT id_requerimento, id_militar FROM REQUERIMENTOS WHERE id_requerimento = $1',
+      [id]
+    );
+    
+    if (!requerimento) {
+      return res.status(404).json({ error: 'Requerimento não encontrado' });
+    }
+    
+    // Atualiza todas as disponibilidades para ativo = false
+    const result = await db.run(
+      'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE WHERE id_requerimento = $1',
+      [id]
+    );
+    
+    console.log(`Cancelamento: ${result.changes} turnos marcados como inativos para requerimento ${id}`);
+    
+    res.json({ success: true, message: 'Disponibilidade cancelada com sucesso', canceled_count: result.changes });
+  } catch (error) {
+    console.error('Error canceling availability:', error);
+    res.status(500).json({ error: 'Erro ao cancelar disponibilidade' });
+  }
 });
 
 // ============================================================

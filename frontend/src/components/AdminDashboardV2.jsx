@@ -42,6 +42,8 @@ export function AdminDashboardV2() {
   const [loadingVolunteers, setLoadingVolunteers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savingPatrolId, setSavingPatrolId] = useState(null);
+  const [newPatrolDuration, setNewPatrolDuration] = useState('6h');
+  const [newPatrolShift, setNewPatrolShift] = useState('Diurno (07:00 - 13:00)');
 
   const [state, setState] = useState({
     pool: [],
@@ -268,8 +270,8 @@ export function AdminDashboardV2() {
           newPatrols.push({
             id: `p${Date.now()}`,
             name: 'FORÇA TAREFA',
-            duration: '6h',
-            timeSpan: '',
+            duration: newPatrolDuration,
+            timeSpan: newPatrolShift,
             members: newMembers
           });
         } else {
@@ -489,246 +491,272 @@ export function AdminDashboardV2() {
   const shadowLg = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
 
   return (
-    <div style={{
-      padding: '1.5rem',
+    <div className="v2-dashboard-container" style={{
       fontFamily: "'Outfit', 'Inter', sans-serif",
       background: '#f1f5f9',
       minHeight: '100vh',
       display: 'flex',
-      flexDirection: 'column',
-      gap: '1.5rem'
+      flexDirection: 'row',
+      overflow: 'hidden'
     }}>
-      {/* GLOSSY HEADER */}
-      <div className="v2-header no-print" style={{
-        position: 'sticky',
-        top: '1rem',
-        zIndex: 50,
+      {/* MODERN SIDEBAR */}
+      <div className="v2-sidebar no-print" style={{
+        width: '320px',
+        background: colors.white,
+        borderRight: `1px solid ${colors.border}`,
         display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: colors.glass,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        padding: '1.25rem 2rem',
-        borderRadius: '20px',
-        boxShadow: shadowLg,
-        border: `1px solid rgba(255, 255, 255, 0.3)`,
-        marginBottom: '0.5rem'
+        flexDirection: 'column',
+        height: '100vh',
+        position: 'sticky',
+        top: 0,
+        flexShrink: 0,
+        zIndex: 100,
+        boxShadow: '4px 0 24px rgba(0,0,0,0.02)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            boxShadow: '0 8px 16px rgba(13, 56, 120, 0.25)'
-          }}>
-            <Calendar size={24} />
-          </div>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '1.4rem', color: colors.primary, fontWeight: 800, letterSpacing: '-0.02em' }}>
-              Planejamento de Escala
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px' }}>
-              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }}></div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>Operação Força Tarefa • V2 Pro</p>
+        {/* Sidebar Header / Branding */}
+        <div style={{
+          padding: '2rem',
+          borderBottom: `1px solid ${colors.border}`,
+          background: 'linear-gradient(180deg, #f8fafc 0%, #ffffff 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+              width: '44px',
+              height: '44px',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              boxShadow: '0 8px 16px rgba(13, 56, 120, 0.25)'
+            }}>
+              <Calendar size={22} />
+            </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.25rem', color: colors.primary, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                GSVR Admin
+              </h1>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: colors.textMuted, fontWeight: 600 }}>Planejamento Pro v2</p>
             </div>
           </div>
 
-          <div style={{ height: '40px', width: '1px', background: 'rgba(0,0,0,0.06)', margin: '0 0.5rem' }}></div>
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{
-              padding: '0.6rem 1rem',
+              padding: '0.75rem 1rem',
               borderRadius: '12px',
               background: '#f0f9ff',
-              color: '#0284c7',
+              color: colors.primary,
               border: '1px solid #bae6fd',
               fontWeight: 700,
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 2px 4px rgba(2, 132, 199, 0.05)'
+              gap: '0.75rem'
             }}>
               <Clock size={16} />
-              {months.find(m => m.id_ciclo === selectedCycleId)?.period_name || '---'}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Ciclo Ativo</div>
+                {months.find(m => m.id_ciclo === selectedCycleId)?.period_name || '---'}
+              </div>
             </div>
 
             <div style={{
-              padding: '0.6rem 1rem',
+              padding: '0.75rem 1rem',
               borderRadius: '12px',
-              background: '#eef2ff',
+              background: '#f8fafc',
               color: '#4f46e5',
-              border: '1px solid #c7d2fe',
+              border: '1px solid #e2e8f0',
               fontWeight: 700,
               fontSize: '0.85rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem'
+              gap: '0.75rem'
             }}>
               <Users size={16} />
-              Disponíveis: {filteredPool.length}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
+                Disponíveis: {filteredPool.length}
+              </div>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {/* Controls Group */}
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            background: 'rgba(0,0,0,0.03)',
-            padding: '4px',
-            borderRadius: '14px',
-            marginRight: '0.5rem'
-          }}>
-            <select
-              style={{
-                padding: '0.6rem 1rem',
-                borderRadius: '10px',
-                border: 'none',
-                background: colors.white,
-                color: colors.text,
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                outline: 'none',
-                boxShadow: shadowSm,
-                minWidth: '160px'
-              }}
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-            >
-              {(() => {
-                const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
-                if (!currentCycle) return null;
-                
-                const start = new Date(currentCycle.data_inicio);
-                const end = new Date(currentCycle.data_fim);
-                const days = [];
-                
-                let curr = new Date(start);
-                while (curr <= end) {
-                  days.push(new Date(curr));
-                  curr.setDate(curr.getDate() + 1);
-                }
+        {/* Sidebar Navigation / Filters */}
+        <div style={{ padding: '2rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Configurações de Visualização</label>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <select
+                style={{
+                  width: '100%',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.border}`,
+                  background: colors.white,
+                  color: colors.text,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  boxShadow: shadowSm
+                }}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+              >
+                {/* Options logic stays the same */}
+                {(() => {
+                  const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                  if (!currentCycle) return null;
+                  const startBy = new Date(currentCycle.data_inicio);
+                  const endBy = new Date(currentCycle.data_fim);
+                  const daysBy = [];
+                  let currBy = new Date(startBy);
+                  while (currBy <= endBy) {
+                    daysBy.push(new Date(currBy));
+                    currBy.setDate(currBy.getDate() + 1);
+                  }
+                  return daysBy.map(date => {
+                    const d = date.getDate();
+                    const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                    const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
+                    const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+                    const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
+                    return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                  });
+                })()}
+              </select>
 
-                return days.map(date => {
-                  const d = date.getDate();
-                  const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-                  const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
-                  const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-                  const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                  return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
-                });
-              })()}
-            </select>
-
-            <select
-              style={{
-                padding: '0.6rem 1rem',
-                borderRadius: '10px',
-                border: 'none',
-                background: colors.white,
-                color: colors.text,
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                outline: 'none',
-                boxShadow: shadowSm
-              }}
-              value={selectedShift}
-              onChange={e => setSelectedShift(e.target.value)}
-            >
-              <option value="Todos">Turno: Todos</option>
-              {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
-            </select>
+              <select
+                style={{
+                  width: '100%',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.border}`,
+                  background: colors.white,
+                  color: colors.text,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  boxShadow: shadowSm
+                }}
+                value={selectedShift}
+                onChange={e => setSelectedShift(e.target.value)}
+              >
+                <option value="Todos">Turno: Todos</option>
+                {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+              </select>
+            </div>
           </div>
 
-          <button
-            onClick={addPatrol}
-            style={{
-              padding: '0.75rem 1.25rem',
-              background: colors.white,
-              color: colors.primary,
-              border: `2px solid ${colors.primary}`,
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: transitions,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              boxShadow: shadowSm
-            }}
-            onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
-            onMouseOut={e => { e.currentTarget.style.background = colors.white; e.currentTarget.style.color = colors.primary; }}
-          >
-            <Plus size={18} strokeWidth={3} />
-            <span>Guarnição</span>
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ações de Escala</label>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                onClick={addPatrol}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: transitions,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  boxShadow: '0 8px 16px rgba(16, 185, 129, 0.2)'
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <Plus size={20} strokeWidth={3} />
+                Nova Guarnição
+              </button>
 
-          <button
-            onClick={() => saveSchedule()}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: transitions,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              boxShadow: '0 10px 20px rgba(13, 56, 120, 0.2)'
-            }}
-            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            <Check size={18} strokeWidth={3} />
-            Salvar
-          </button>
+              <button
+                onClick={() => saveSchedule()}
+                style={{
+                  width: '100%',
+                  padding: '1rem',
+                  background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: transitions,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  boxShadow: '0 10px 20px rgba(13, 56, 120, 0.2)'
+                }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <Check size={20} strokeWidth={3} />
+                Salvar Escala
+              </button>
 
-          <button
-            onClick={generatePDF}
-            style={{
-              padding: '0.75rem',
-              background: colors.white,
-              color: colors.textMuted,
-              border: `1px solid ${colors.border}`,
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: transitions,
-              display: 'flex',
-              alignItems: 'center',
-              boxShadow: shadowSm
-            }}
-            title="Imprimir Escala"
-            onMouseOver={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = colors.primary; }}
-            onMouseOut={e => { e.currentTarget.style.background = colors.white; e.currentTarget.style.color = colors.textMuted; }}
-          >
-            <Printer size={20} />
-          </button>
+              <button
+                onClick={generatePDF}
+                style={{
+                  width: '100%',
+                  padding: '0.85rem',
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: transitions,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  marginTop: '0.5rem'
+                }}
+                onMouseOver={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+                onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+              >
+                <Printer size={18} />
+                <span>Imprimir Escala</span>
+              </button>
+            </div>
+          </div>
         </div>
+
       </div>
 
-      {/* PLANNING GRID */}
-      <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-          gap: '2rem',
-          paddingBottom: '4rem'
-        }}>
+      {/* MAIN CONTENT AREA */}
+      <div className="v2-main-content" style={{ flex: 1, padding: '2rem', overflowY: 'auto', height: '100vh' }}>
+        <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: colors.primary }}>
+              Escala de Serviço
+            </h2>
+            <p style={{ margin: 0, color: colors.textMuted, fontSize: '0.9rem' }}>
+              Gerencie as guarnições para o dia selecionado
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+             {/* Additional stats or info could go here */}
+          </div>
+        </div>
+
+        <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '1.5rem',
+              paddingBottom: '4rem'
+            }}>
           {state.patrols.map(patrol => (
             <div
               key={patrol.id}
@@ -736,7 +764,7 @@ export function AdminDashboardV2() {
               onDrop={(e) => handleDrop(e, patrol.id)}
               style={{
                 background: colors.white,
-                borderRadius: '28px',
+                borderRadius: '20px',
                 border: `1px solid ${colors.border}`,
                 boxShadow: shadowMd,
                 overflow: 'hidden',
@@ -751,7 +779,7 @@ export function AdminDashboardV2() {
               {/* Card Header (Patrol) */}
               <div style={{
                 background: colors.primaryGradient,
-                padding: '1.25rem 1.5rem',
+                padding: '0.75rem 1.25rem',
                 color: 'white',
                 position: 'relative',
                 overflow: 'hidden'
@@ -770,9 +798,9 @@ export function AdminDashboardV2() {
                     <MousePointer2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                    <Shield size={20} style={{ opacity: 0.8 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
+                    <Shield size={18} style={{ opacity: 0.8 }} />
                     <input
                       type="text"
                       value={normalizePatrolName(patrol.name)}
@@ -780,7 +808,7 @@ export function AdminDashboardV2() {
                       style={{
                         border: 'none',
                         background: 'transparent',
-                        fontSize: '1.1rem',
+                        fontSize: '1rem',
                         fontWeight: 800,
                         color: 'white',
                         width: '100%',
@@ -814,13 +842,13 @@ export function AdminDashboardV2() {
                 </div>
 
                 {/* Status Pills inside header */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
                   <div style={{
-                    fontSize: '0.65rem',
+                    fontSize: '0.6rem',
                     fontWeight: 700,
                     textTransform: 'uppercase',
                     background: 'rgba(255,255,255,0.15)',
-                    padding: '4px 10px',
+                    padding: '2px 8px',
                     borderRadius: '20px',
                     backdropFilter: 'blur(4px)'
                   }}>
@@ -828,11 +856,11 @@ export function AdminDashboardV2() {
                   </div>
                   {patrol.timeSpan && (
                     <div style={{
-                      fontSize: '0.65rem',
+                      fontSize: '0.6rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       background: 'rgba(255,255,255,0.15)',
-                      padding: '4px 10px',
+                      padding: '2px 8px',
                       borderRadius: '20px',
                       backdropFilter: 'blur(4px)'
                     }}>
@@ -842,64 +870,14 @@ export function AdminDashboardV2() {
                 </div>
               </div>
 
-              {/* Card Configuration Controls */}
-              <div className="no-print" style={{
-                padding: '1rem 1.5rem',
-                background: '#f8fafc',
-                borderBottom: `1px solid ${colors.border}`,
-                display: 'flex',
-                gap: '0.75rem'
-              }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <Clock size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: colors.textMuted }} />
-                  <select
-                    value={patrol.duration}
-                    onChange={e => handleDurationChange(patrol.id, e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem 0.5rem 0.5rem 2rem',
-                      borderRadius: '8px',
-                      border: `1px solid ${colors.border}`,
-                      background: 'white',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: colors.text,
-                      outline: 'none'
-                    }}
-                  >
-                    <option value="6h">Duração: 6 Horas</option>
-                    <option value="8h">Duração: 8 Horas</option>
-                  </select>
-                </div>
 
-                <div style={{ position: 'relative', flex: 1.5 }}>
-                  <select
-                    value={patrol.timeSpan}
-                    onChange={e => handlePatrolSettingChange(patrol.id, 'timeSpan', e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '8px',
-                      border: `1px solid ${colors.border}`,
-                      background: 'white',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: colors.text,
-                      outline: 'none'
-                    }}
-                  >
-                    <option value="">Selecione Horário...</option>
-                    {getTimeOptions(patrol.duration).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-              </div>
 
               {/* Slots Container */}
               <div style={{
-                padding: '1.5rem',
+                padding: '1rem',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '1rem',
+                gap: '0.75rem',
                 flex: 1,
                 background: 'linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)'
               }}>
@@ -917,11 +895,11 @@ export function AdminDashboardV2() {
                         style={{
                           background: colors.white,
                           border: `1px solid ${colors.border}`,
-                          borderRadius: '16px',
-                          padding: '1rem',
+                          borderRadius: '12px',
+                          padding: '0.65rem 0.75rem',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '1rem',
+                          gap: '0.75rem',
                           position: 'relative',
                           cursor: 'grab',
                           boxShadow: shadowSm,
@@ -931,9 +909,9 @@ export function AdminDashboardV2() {
                         onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = shadowSm; }}
                       >
                         <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '12px',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '10px',
                           background: '#f0f9ff',
                           color: colors.primary,
                           display: 'flex',
@@ -941,7 +919,7 @@ export function AdminDashboardV2() {
                           justifyContent: 'center',
                           flexShrink: 0
                         }}>
-                          <GripVertical size={18} style={{ opacity: 0.5 }} />
+                          <GripVertical size={16} style={{ opacity: 0.5 }} />
                         </div>
 
                         <div style={{ flex: 1 }}>
@@ -951,7 +929,7 @@ export function AdminDashboardV2() {
                               onChange={(e) => handleRoleChange(patrol.id, index, parseInt(e.target.value))}
                               disabled={isSaving}
                               style={{
-                                fontSize: '0.65rem',
+                                fontSize: '0.6rem',
                                 color: colors.textMuted,
                                 fontWeight: 800,
                                 textTransform: 'uppercase',
@@ -972,7 +950,7 @@ export function AdminDashboardV2() {
                               ))}
                             </select>
                           </div>
-                          <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.95rem' }}>
+                          <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.85rem' }}>
                             {m.rank} {m.name}
                           </div>
                         </div>
@@ -1006,15 +984,15 @@ export function AdminDashboardV2() {
                       onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })}
                       style={{
                         border: isActiveSlot ? `2px solid ${colors.primary}` : `2px dashed ${colors.accent}`,
-                        borderRadius: '16px',
-                        padding: '1.25rem',
+                        borderRadius: '12px',
+                        padding: '0.75rem 1rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         cursor: 'pointer',
                         background: isActiveSlot ? '#f0f7ff' : 'transparent',
                         transition: transitions,
-                        minHeight: '80px',
+                        minHeight: '60px',
                         position: 'relative',
                         overflow: 'hidden'
                       }}
@@ -1027,13 +1005,13 @@ export function AdminDashboardV2() {
                           left: 0,
                           top: 0,
                           bottom: 0,
-                          width: '4px',
+                          width: '3px',
                           background: colors.primary
                         }} />
                       )}
                       <div>
                         <div style={{
-                          fontSize: '0.65rem',
+                          fontSize: '0.6rem',
                           color: isActiveSlot ? colors.primary : colors.textMuted,
                           fontWeight: 800,
                           textTransform: 'uppercase',
@@ -1042,18 +1020,18 @@ export function AdminDashboardV2() {
                           {roleName}
                         </div>
                         <div style={{
-                          fontSize: '0.85rem',
+                          fontSize: '0.75rem',
                           color: isActiveSlot ? colors.primary : colors.accent,
                           fontWeight: 600,
-                          marginTop: '4px'
+                          marginTop: '2px'
                         }}>
                           {isActiveSlot ? 'Aguardando seleção...' : 'Vago'}
                         </div>
                       </div>
                       <div style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '10px',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
                         background: isActiveSlot ? colors.primary : '#f1f5f9',
                         color: isActiveSlot ? 'white' : colors.accent,
                         display: 'flex',
@@ -1062,7 +1040,7 @@ export function AdminDashboardV2() {
                         transition: transitions,
                         boxShadow: isActiveSlot ? '0 4px 10px rgba(13, 56, 120, 0.3)' : 'none'
                       }}>
-                        {isActiveSlot ? <MousePointer2 size={16} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={16} />}
+                        {isActiveSlot ? <MousePointer2 size={14} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={14} />}
                       </div>
                     </div>
                   );
@@ -1070,6 +1048,7 @@ export function AdminDashboardV2() {
               </div>
             </div>
           ))}
+          </div>
         </div>
       </div>
 
@@ -1104,7 +1083,6 @@ export function AdminDashboardV2() {
             {/* Modal Header */}
             <div style={{
               padding: '1.5rem 2rem',
-              background: colors.primary,
               background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
               color: 'white',
               display: 'flex',
@@ -1154,14 +1132,15 @@ export function AdminDashboardV2() {
 
             {/* Modal Search & Filters */}
             <div style={{
-              padding: '1.5rem 2rem',
               background: '#f8fafc',
               borderBottom: `1px solid ${colors.border}`,
               display: 'flex',
+              flexDirection: 'column',
               gap: '1rem',
-              alignItems: 'center'
+              padding: '0.5rem 2rem'
             }}>
-              <div style={{ flex: 1, position: 'relative' }}>
+              {/* Line 1: Search */}
+              <div style={{ position: 'relative', width: '100%' }}>
                 <Search size={18} color={colors.textMuted} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
@@ -1184,23 +1163,27 @@ export function AdminDashboardV2() {
                 />
               </div>
 
-              <select
-                style={{
-                  padding: '0.6rem 1rem',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: colors.white,
-                  color: colors.text,
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  boxShadow: shadowSm,
-                  minWidth: '160px'
-                }}
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-              >
+              {/* Line 2: All Filters Grouped */}
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Filtro de Dia</label>
+                  <select
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '10px',
+                      border: `1px solid ${colors.border}`,
+                      background: colors.white,
+                      color: colors.text,
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxShadow: shadowSm,
+                      minWidth: '160px'
+                    }}
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                  >
                 {(() => {
                   const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
                   if (!currentCycle) return null;
@@ -1223,25 +1206,87 @@ export function AdminDashboardV2() {
                     return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
                   });
                 })()}
-              </select>
+                </select>
+                </div>
 
-              <select
-                style={{
-                  padding: '0.85rem 1rem',
-                  borderRadius: '12px',
-                  border: `1px solid ${colors.border}`,
-                  background: colors.white,
-                  fontWeight: 600,
-                  outline: 'none',
-                  cursor: 'pointer',
-                  minWidth: '180px'
-                }}
-                value={selectedShift}
-                onChange={e => setSelectedShift(e.target.value)}
-              >
-                <option value="Todos">Turno: Todos</option>
-                {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
-              </select>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Turno</label>
+                  <select
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '10px',
+                      border: `1px solid ${colors.border}`,
+                      background: colors.white,
+                      fontWeight: 600,
+                      outline: 'none',
+                      cursor: 'pointer',
+                      minWidth: '150px',
+                      fontSize: '0.9rem',
+                      boxShadow: shadowSm
+                    }}
+                    value={selectedShift}
+                    onChange={e => setSelectedShift(e.target.value)}
+                  >
+                    <option value="Todos">Turno: Todos</option>
+                    {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+                  </select>
+                </div>
+
+              {selectionMode && (
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Duração</label>
+                    <select
+                      style={{
+                        padding: '0.6rem 2.5rem 0.6rem 1rem',
+                        borderRadius: '12px',
+                        border: `1px solid ${colors.border}`,
+                        background: colors.white,
+                        fontWeight: 700,
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        color: colors.primary,
+                        boxShadow: shadowSm
+                      }}
+                      value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration}
+                      onChange={e => {
+                        if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
+                        else handleDurationChange(selectionMode.patrolId, e.target.value);
+                      }}
+                    >
+                      {['6h', '8h'].map(d => <option key={d} value={d}>Duração: {d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Horário</label>
+                    <select
+                      style={{
+                        padding: '0.6rem 2.5rem 0.6rem 1rem',
+                        borderRadius: '12px',
+                        border: `1px solid ${colors.border}`,
+                        background: colors.white,
+                        fontWeight: 700,
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        color: colors.primary,
+                        boxShadow: shadowSm
+                      }}
+                      value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(p => p.id === selectionMode.patrolId)?.timeSpan}
+                      onChange={e => {
+                        if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
+                        else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
+                      }}
+                    >
+                      <option value="">Selecione Horário...</option>
+                      {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration).map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               <div style={{
                 padding: '0.85rem 1.25rem',
@@ -1257,6 +1302,7 @@ export function AdminDashboardV2() {
               }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
                 {filteredPool.length} Disponíveis
+              </div>
               </div>
             </div>
 
@@ -1318,23 +1364,57 @@ export function AdminDashboardV2() {
                       </div>
 
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 800, color: colors.text, fontSize: '1rem', lineHeight: 1.2 }}>
-                          {p.rank} {p.name}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, color: colors.text, fontSize: '0.95rem' }}>
+                            {p.rank} {p.name}
+                          </span>
+                          {!p.isAvailableToday && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              background: '#fee2e2',
+                              color: '#ef4444',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 900,
+                              textTransform: 'uppercase'
+                            }}>
+                              Fora do Turno
+                            </span>
+                          )}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: colors.textMuted, marginTop: '4px', fontWeight: 600 }}>
-                          Nº {p.numero_ordem || p.matricula}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 600 }}>
+                            Nº {p.numero_ordem || p.matricula}
+                          </span>
+                          {(p.motorista === 'Sim' || p.id_funcao === 2) && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              background: '#10b981',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 900
+                            }}>
+                              MOT
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {/* Service Counter Badge */}
+                      {/* Service Counter Badge with Color Scale */}
                       <div style={{
-                        background: p.service_count >= 8 ? '#fef2f2' : '#f0f9ff',
-                        color: p.service_count >= 8 ? '#dc2626' : '#0369a1',
+                        background: p.service_count >= 8 ? '#fef2f2' : 
+                                  p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
+                        color: p.service_count >= 8 ? '#dc2626' :
+                               p.service_count >= 6 ? '#b45309' : '#15803d',
                         padding: '6px 10px',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 800,
-                        border: `1px solid ${p.service_count >= 8 ? '#fee2e2' : '#e0f2fe'}`
+                        border: `1px solid ${
+                                  p.service_count >= 8 ? '#fee2e2' :
+                                  p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
+                                }`
                       }}>
                         {p.service_count}/8
                       </div>
@@ -1418,6 +1498,37 @@ export function AdminDashboardV2() {
           background-repeat: no-repeat;
           background-position: right 0.75rem center;
           padding-right: 2.5rem !important;
+        }
+        @media (max-width: 1024px) {
+          .v2-dashboard-container {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+          }
+          .v2-sidebar {
+            width: 100% !important;
+            height: auto !important;
+            position: relative !important;
+            top: 0 !important;
+            border-right: none !important;
+            border-bottom: 1px solid ${colors.border} !important;
+          }
+          .v2-main-content {
+            height: auto !important;
+            overflow-y: visible !important;
+          }
+          .hide-mobile {
+            display: none !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .modal-content {
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 0 !important;
+          }
+          .modal-filters {
+            flex-direction: column !important;
+          }
         }
       `}</style>
     </div>

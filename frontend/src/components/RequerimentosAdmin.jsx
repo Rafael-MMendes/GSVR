@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText } from 'lucide-react';
+import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban } from 'lucide-react';
 import { maskPhone, formatPhone } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -39,6 +39,11 @@ export function RequerimentosAdmin() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Cancel availability states
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelingItem, setCancelingItem] = useState(null);
+  const [cancelingLoading, setCancelingLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     numero_ordem: '',
@@ -206,6 +211,34 @@ export function RequerimentosAdmin() {
     setShowViewModal(true);
   };
 
+  const openCancelModal = (volunteer) => {
+    setCancelingItem(volunteer);
+    setShowCancelModal(true);
+  };
+
+  const handleCancelAvailability = async () => {
+    if (!cancelingItem) return;
+
+    setCancelingLoading(true);
+    try {
+      await axios.put(`${API_URL}/volunteers/${cancelingItem.id}/cancel-availability`, {
+        numero_ordem: cancelingItem.numero_ordem,
+        name: cancelingItem.name,
+        rank: cancelingItem.rank,
+        phone: cancelingItem.phone,
+        availability: cancelingItem.availability_completa || cancelingItem.availability || {}
+      });
+      setShowCancelModal(false);
+      setCancelingItem(null);
+      fetchVolunteers();
+    } catch (error) {
+      console.error('Error canceling availability:', error);
+      alert('Erro ao cancelar disponibilidade.');
+    } finally {
+      setCancelingLoading(false);
+    }
+  };
+
   const toggleShift = (day, shift) => {
     setFormData(prev => {
       const dayStr = String(day);
@@ -348,11 +381,15 @@ export function RequerimentosAdmin() {
             </thead>
             <tbody>
               {filteredVolunteers.map((v, idx) => (
-                <tr key={v.id} style={{ background: idx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '0.75rem', fontWeight: 'bold' }}>{v.numero_ordem}</td>
-                  <td style={{ padding: '0.75rem' }}>{v.rank}</td>
-                  <td style={{ padding: '0.75rem', fontWeight: 500 }}>{v.name}</td>
-                  <td style={{ padding: '0.75rem' }}>{formatPhone(v.phone)}</td>
+                <tr key={v.id} style={{ 
+                  background: v.ativo === false ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)'), 
+                  borderBottom: v.ativo === false ? '2px solid var(--danger)' : '1px solid var(--border-color)',
+                  opacity: v.ativo === false ? 0.7 : 1
+                }}>
+                  <td style={{ padding: '0.75rem', fontWeight: 'bold', color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{v.numero_ordem}</td>
+                  <td style={{ padding: '0.75rem', color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{v.rank}</td>
+                  <td style={{ padding: '0.75rem', fontWeight: 500, color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{v.name}</td>
+                  <td style={{ padding: '0.75rem', color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{formatPhone(v.phone)}</td>
                   <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                     {v.motorista === 'Sim' ? (
                       <span style={{ background: 'var(--success)', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>Sim</span>
@@ -361,9 +398,25 @@ export function RequerimentosAdmin() {
                     )}
                   </td>
                   <td style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {Object.keys(v.availability || {}).length > 0 
-                      ? `${Object.values(v.availability).flat().length} turnos` 
-                      : 'Nenhum'}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
+                      {v.ativo === false && (
+                        <span style={{ 
+                          background: 'var(--danger)', 
+                          color: 'white', 
+                          padding: '0.15rem 0.4rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
+                        }}>
+                          CANCELADO
+                        </span>
+                      )}
+                      <span>
+                        {Object.keys(v.availability || {}).length > 0
+                          ? `${Object.values(v.availability).flat().length} turnos`
+                          : 'Nenhum'}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
@@ -382,6 +435,20 @@ export function RequerimentosAdmin() {
                         title="Editar"
                       >
                         ✏️
+                      </button>
+                      <button
+                        className="btn btn-outline"
+                        style={{ 
+                          padding: '0.4rem 0.6rem', 
+                          fontSize: '0.8rem', 
+                          color: v.ativo === false ? 'var(--danger)' : 'var(--warning)',
+                          background: v.ativo === false ? 'rgba(239, 68, 68, 0.1)' : 'transparent'
+                        }}
+                        onClick={() => openCancelModal(v)}
+                        title={v.ativo === false ? 'Disponibilidade Cancelada' : 'Cancelar Disponibilidade'}
+                        disabled={v.ativo === false}
+                      >
+                        <Ban size={16} />
                       </button>
                       <button
                         className="btn btn-outline"
@@ -818,6 +885,162 @@ export function RequerimentosAdmin() {
                   <>
                     <i className="fas fa-file-import"></i>
                     Iniciar Importação
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO DE CANCELAMENTO */}
+      {showCancelModal && cancelingItem && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'white', borderRadius: '12px', padding: '1.5rem',
+            maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'slideUp 0.3s ease-out'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Ban size={24} />
+                Cancelar Disponibilidade
+              </h3>
+              <button onClick={() => { setShowCancelModal(false); setCancelingItem(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Dados do Militar */}
+            <div style={{
+              background: 'var(--card-bg)', padding: '1rem', borderRadius: '8px',
+              marginBottom: '1.5rem', border: '1px solid var(--border-color)'
+            }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+                <div><strong>Nº Ordem:</strong><br/>{cancelingItem.numero_ordem}</div>
+                <div><strong>Posto/Grad:</strong><br/>{cancelingItem.rank}</div>
+                <div><strong>Nome:</strong><br/>{cancelingItem.name}</div>
+                <div><strong>Telefone:</strong><br/>{formatPhone(cancelingItem.phone)}</div>
+                <div><strong>Motorista:</strong><br/>{cancelingItem.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
+              </div>
+            </div>
+
+            {/* Alerta */}
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.05)', borderLeft: '4px solid var(--danger)',
+              padding: '0.75rem 1rem', borderRadius: '0 8px 8px 0', marginBottom: '1rem',
+              fontSize: '0.85rem', color: 'var(--text-secondary)'
+            }}>
+              <strong style={{ color: 'var(--danger)' }}>⚠️ Atenção:</strong> Esta ação marcará todos os turnos de disponibilidade abaixo como <strong>INATIVOS</strong> (vermelho). Os turnos já inativos aparecerão marcados em vermelho escuro.
+            </div>
+
+            {/* Grade de Disponibilidade */}
+            <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem' }}>Disponibilidade que será cancelada:</h4>
+            <div className="responsive-table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', marginBottom: '1.5rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.75rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--danger)', color: 'white' }}>
+                    <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
+                    {daysInMonth.map(day => (
+                      <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
+                        {String(day).padStart(2, '0')}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {SHIFTS.map((shift, sIdx) => (
+                    <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
+                      <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
+                      {daysInMonth.map(day => {
+                        const dayStr = String(day);
+                        const availabilityData = cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dayStr] || [];
+                        
+                        // Verifica se é um array de objetos (availability_completa) ou array de strings (availability)
+                        const isAtivo = Array.isArray(availabilityData) 
+                          ? availabilityData.some(item => {
+                              const turno = typeof item === 'string' ? item : item.turno;
+                              const ativo = typeof item === 'string' ? true : item.ativo;
+                              return turno === shift && ativo !== false;
+                            })
+                          : false;
+                        
+                        const isCancelado = Array.isArray(availabilityData)
+                          ? availabilityData.some(item => {
+                              const turno = typeof item === 'string' ? item : item.turno;
+                              const ativo = typeof item === 'string' ? true : item.ativo;
+                              return turno === shift && ativo === false;
+                            })
+                          : false;
+
+                        return (
+                          <td
+                            key={day}
+                            style={{
+                              textAlign: 'center',
+                              backgroundColor: isCancelado ? 'rgba(239, 68, 68, 0.3)' : (isAtivo ? 'var(--danger)' : 'transparent'),
+                              color: isCancelado ? 'rgba(255,255,255,0.5)' : (isAtivo ? 'white' : 'transparent'),
+                              fontWeight: isCancelado ? 'bold' : 'normal',
+                              textDecoration: isCancelado ? 'line-through' : 'none'
+                            }}
+                          >
+                            {(isAtivo || isCancelado) ? 'X' : '·'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Botões de Ação */}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-outline"
+                onClick={() => { setShowCancelModal(false); setCancelingItem(null); }}
+                disabled={cancelingLoading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  minWidth: '120px'
+                }}
+              >
+                Não, Voltar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleCancelAvailability}
+                disabled={cancelingLoading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  minWidth: '150px',
+                  background: 'var(--danger)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  cursor: cancelingLoading ? 'not-allowed' : 'pointer',
+                  opacity: cancelingLoading ? 0.7 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                {cancelingLoading ? (
+                  <>
+                    <div className="spinner-small" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: 'white', borderTopColor: 'transparent' }}></div>
+                    Cancelando...
+                  </>
+                ) : (
+                  <>
+                    <Ban size={18} />
+                    Sim, Cancelar
                   </>
                 )}
               </button>
