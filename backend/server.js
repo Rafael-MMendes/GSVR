@@ -915,7 +915,7 @@ function isEmpty(val) {
 app.post('/api/efetivo/import/preview', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
     const headers = rawRows[0] || [];
@@ -936,7 +936,7 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
   try {
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
@@ -1473,8 +1473,8 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
     // Detecção de arquivos HTML (Web Page) incompletos/wrappers
     if (rows.length < 5 && rows.some(r => r && r.some(c => String(c).includes('<') || String(c).includes('v:fill')))) {
         return res.status(400).json({ 
-            error: "O arquivo enviado parece ser uma página web ou atalho incompleto. " +
-                   "Para importar, abra este arquivo no Excel e salve-o como 'Pasta de Trabalho do Excel (.xlsx)' antes de enviar." 
+            error: "O arquivo enviado parece ser uma página web ou arquivo HTML disfarçado de Excel. " +
+                   "Para importar, abra este arquivo no Excel e salve-o como 'Pasta de Trabalho do Excel (.xlsx ou .xls)' padrão antes de enviar." 
         });
     }
 
