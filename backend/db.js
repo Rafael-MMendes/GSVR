@@ -148,6 +148,7 @@ async function setupDB() {
               horario_turno VARCHAR(50) NOT NULL,
               marcado_disponivel BOOLEAN DEFAULT FALSE,
               marcado_servico_ordinario BOOLEAN DEFAULT FALSE,
+              motorista BOOLEAN DEFAULT FALSE,
               ativo BOOLEAN DEFAULT TRUE,
               observacoes TEXT
           );
@@ -228,6 +229,9 @@ async function setupDB() {
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='guarnicao') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN guarnicao VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='motorista') THEN
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN motorista BOOLEAN DEFAULT FALSE;
             END IF;
 
             -- Migration: remover id_escala de SERVICOS_EXECUTADOS

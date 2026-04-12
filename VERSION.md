@@ -1,3 +1,21 @@
+## v1.25.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Core] Integração Granular de Motoristas**: Evolução do sistema para suportar o status de condutor por turno de disponibilidade.
+  - **Banco de Dados**: Adicionada a coluna `motorista` (BOOLEAN) à tabela `DISPONIBILIDADE_REQUERIMENTO`.
+  - **Persistência em Tempo Real**: Atualizados os handlers de criação (`POST`) e edição (`PUT`) manual para converter a opção "Sim/Não" do formulário e gravá-la em cada turno individual da tabela de disponibilidade.
+- **[Importação] Refatoração da Rotina de PDFs**:
+  - **Mapeamento de Condutor**: A rotina de importação agora identifica a marcação de motorista (coluna 0) e a associa individualmente a cada turno processado.
+  - **Correção de ID de Ciclo**: Resolvido bug crítico que impedia a importação devido ao envio incorreto do `month_key` em vez do `id_ciclo` pelo frontend.
+- **[UI/UX] Inteligência de Escala e Planejamento**:
+  - **Selo "MOT" Contextual**: No modal de planejamento, o selo de motorista agora é dinâmico, verificando se o militar é condutor para o turno específico escolhido ou se é driver permanente no efetivo.
+  - **Formatação de Ciclos**: Alterada a exibição dos ciclos operacionais para formato humanizado: **"Mês / Mês de Ano"** (ex: Março / Abril de 2026).
+  - **Consistência de Dados**: A coluna "Motorista" no gerenciador de requerimentos agora reflete o estado booleano consolidado do requerimento atual (`motorista_req`).
+
+---
+
 ## v1.24.0 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

@@ -1386,18 +1386,28 @@ export function AdminDashboardV2() {
                           <span style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 600 }}>
                             Nº {p.numero_ordem || p.matricula}
                           </span>
-                          {(p.motorista === 'Sim' || p.id_funcao === 2) && (
-                            <span style={{
-                              fontSize: '0.65rem',
-                              background: '#10b981',
-                              color: 'white',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontWeight: 900
-                            }}>
-                              MOT
-                            </span>
-                          )}
+                          {(() => {
+                            const targetShift = selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(pat => pat.id === selectionMode.patrolId)?.timeSpan;
+                            const todayShifts = p.availability_completa?.[selectedDate] || [];
+                            const specificShiftData = todayShifts.find(s => s.turno === targetShift);
+                            const isDriverForShift = specificShiftData ? specificShiftData.motorista : false;
+
+                            if (isDriverForShift || p.motorista === 'Sim' || p.motorista_req === true || p.id_funcao === 2) {
+                              return (
+                                <span style={{
+                                  fontSize: '0.65rem',
+                                  background: '#10b981',
+                                  color: 'white',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontWeight: 900
+                                }}>
+                                  MOT
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
 

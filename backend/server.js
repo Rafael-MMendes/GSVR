@@ -634,25 +634,26 @@ app.get('/api/volunteers', async (req, res) => {
   if (!targetId) return res.json([]);
 
   const q = `
-    SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
-           e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'MM/YYYY') as month_key,
-           (SELECT json_object_agg(dia_mes, turnos) FROM (
-             SELECT dia_mes, json_agg(horario_turno) as turnos
-             FROM DISPONIBILIDADE_REQUERIMENTO
-             WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
-             GROUP BY dia_mes
-           ) d) as availability_json,
-           (SELECT json_object_agg(dia_mes, turnos_completos) FROM (
-             SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo)) as turnos_completos
-             FROM DISPONIBILIDADE_REQUERIMENTO
-             WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
-             GROUP BY dia_mes
-           ) d) as availability_completa_json,
-           (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count,
-           COALESCE((SELECT BOOL_OR(ativo) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento), TRUE) as ativo
-    FROM REQUERIMENTOS r
-    JOIN EFETIVO e ON r.id_militar = e.id_militar
-    JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
+     SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
+            e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'MM/YYYY') as month_key,
+            (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
+            (SELECT json_object_agg(dia_mes, turnos) FROM (
+              SELECT dia_mes, json_agg(horario_turno) as turnos
+              FROM DISPONIBILIDADE_REQUERIMENTO
+              WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
+              GROUP BY dia_mes
+            ) d) as availability_json,
+            (SELECT json_object_agg(dia_mes, turnos_completos) FROM (
+              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo, 'motorista', motorista)) as turnos_completos
+              FROM DISPONIBILIDADE_REQUERIMENTO
+              WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
+              GROUP BY dia_mes
+            ) d) as availability_completa_json,
+            (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count,
+            COALESCE((SELECT BOOL_OR(ativo) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento), TRUE) as ativo
+     FROM REQUERIMENTOS r
+     JOIN EFETIVO e ON r.id_militar = e.id_militar
+     JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
     WHERE c.id_ciclo = $1
     ORDER BY r.data_solicitacao DESC
   `;
@@ -690,7 +691,7 @@ app.get('/api/months', async (req, res) => {
                 WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março' WHEN 4 THEN 'Abril'
                 WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
                 WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
-              END) || ' - ' || TO_CHAR(data_inicio, 'YYYY') as period_name,
+              END) || ' de ' || TO_CHAR(data_inicio, 'YYYY') as period_name,
              TO_CHAR(data_inicio, 'YYYY-MM') as month_key 
       FROM CICLOS ORDER BY data_inicio DESC
     `;
@@ -710,8 +711,12 @@ app.post('/api/volunteers', async (req, res) => {
   const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
   if (!military || !cycle) return res.status(400).json({ error: "Militar or Ciclo not found" });
   const reqResult = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [military.id_militar, cycle.id_ciclo]);
+  const isMot = (motorista === 'Sim');
   for (const [day, shifts] of Object.entries(availability)) {
-    for (const shift of shifts) await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES ($1, $2, $3, TRUE)', [reqResult.lastID, parseInt(day), shift]);
+    for (const shift of shifts) {
+      await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista) VALUES ($1, $2, $3, TRUE, $4)', 
+        [reqResult.lastID, parseInt(day), shift, isMot]);
+    }
   }
   res.status(201).json({ id: reqResult.lastID });
 });
@@ -750,13 +755,13 @@ app.put('/api/volunteers/:id', async (req, res) => {
     // Deleta disponibilidades existentes
     await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1', [id]);
     
-    // Insere novas disponibilidades
+    const isMot = (motorista === 'Sim');
     if (availability && typeof availability === 'object') {
       for (const [day, shifts] of Object.entries(availability)) {
         for (const shift of shifts) {
           await db.run(
-            'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo) VALUES ($1, $2, $3, TRUE, TRUE)',
-            [id, parseInt(day), shift]
+            'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista) VALUES ($1, $2, $3, TRUE, TRUE, $4)',
+            [id, parseInt(day), shift, isMot]
           );
         }
       }
@@ -2289,30 +2294,35 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     console.log(`  processMarksLine: "${line.trim()}"`);
     console.log(`    Total caracteres: ${chars.length}`);
 
-    // Posição 0 = MOTORISTA
-    const motoristChar = chars[0];
-    data.motorist = (motoristChar && motoristChar.toUpperCase() === 'X') ? 'Sim' : 'Nao';
-    console.log(`    Motorista: ${data.motorist}`);
+      // Posição 0 = MOTORISTA
+      const motoristChar = chars[0];
+      const isMotorist = (motoristChar && motoristChar.toUpperCase() === 'X');
 
-    // Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
-    let dayCounter = 0;
+      // Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
+      let dayCounter = 0;
 
-    for (let pos = 1; pos < chars.length && dayCounter < 31; pos++) {
-      const char = chars[pos];
-      dayCounter++;
-      const dayStr = String(dayCounter).padStart(2, '0');
+      for (let pos = 1; pos < chars.length && dayCounter < 31; pos++) {
+        const char = chars[pos];
+        dayCounter++;
+        const dayStr = String(dayCounter).padStart(2, '0');
 
-      // Disponível: "X". Não disponível: " " (espaço) ou "S"
-      const isAvailable = (char && char.toUpperCase() === 'X');
+        // Disponível: "X". Não disponível: " " (espaço) ou "S"
+        const isAvailable = (char && char.toUpperCase() === 'X');
 
-      if (isAvailable) {
-        if (!data.availability[dayStr]) data.availability[dayStr] = [];
-        if (!data.availability[dayStr].includes(shiftCode)) {
-          data.availability[dayStr].push(shiftCode);
-          console.log(`    Dia ${dayStr}: disponível`);
+        if (isAvailable) {
+          if (!data.availability[dayStr]) data.availability[dayStr] = [];
+          
+          // Verifica se já existe esse turno para o dia
+          const existingShift = data.availability[dayStr].find(s => s.shift === shiftCode);
+          if (!existingShift) {
+            data.availability[dayStr].push({ 
+              shift: shiftCode, 
+              motorista: isMotorist 
+            });
+            console.log(`    Dia ${dayStr}: disponível (Motorista: ${isMotorist})`);
+          }
         }
       }
-    }
 
     console.log(`    Total dias processados: ${dayCounter}`);
   }
@@ -2428,8 +2438,15 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   }
 
   app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
-    const { id_ciclo } = req.body;
-    console.log('Import request:', { id_ciclo, filesCount: req.files?.length });
+    let { id_ciclo, month_key } = req.body;
+    
+    // Fallback: se não veio id_ciclo mas veio month_key, tenta encontrar o ciclo
+    if (!id_ciclo && month_key) {
+      const ciclo = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [month_key]);
+      if (ciclo) id_ciclo = ciclo.id_ciclo;
+    }
+
+    console.log('Import request:', { id_ciclo, month_key, filesCount: req.files?.length });
     if (!req.files || !id_ciclo) return res.status(400).json({ error: "Ciclo não informado ou arquivos ausentes." });
     try {
       const volunteers = [], errors = [];
@@ -2531,7 +2548,12 @@ app.get('/api/financeiro/resumo', async (req, res) => {
             id_req = r.lastID;
           }
           for (const [day, shifts] of Object.entries(item.availability)) {
-            for (const shift of shifts) await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel) VALUES ($1, $2, $3, TRUE)', [id_req, parseInt(day), shift]);
+            for (const shiftObj of shifts) {
+              await db.run(
+                'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista) VALUES ($1, $2, $3, TRUE, $4)', 
+                [id_req, parseInt(day), shiftObj.shift || shiftObj, !!shiftObj.motorista]
+              );
+            }
           }
           results.push({ numero_ordem: item.numero_ordem, success: true });
         } catch (e) { results.push({ numero_ordem: item.numero_ordem, success: false, error: e.message }); }

@@ -68,8 +68,9 @@ export function RequerimentosAdmin() {
     try {
       const res = await axios.get(`${API_URL}/ciclos`);
       const ciclos = res.data.map(c => ({
-        month_key: c.referencia_mes_ano,
-        month_name: `${c.referencia_mes_ano} (${c.status})`,
+        id_ciclo: c.id_ciclo,
+        month_key: c.month_key || c.referencia_mes_ano,
+        month_name: c.period_name || `${c.referencia_mes_ano} (${c.status})`,
         status: c.status
       }));
       setMonths(ciclos);
@@ -140,7 +141,7 @@ export function RequerimentosAdmin() {
       selectedFiles.forEach(file => {
         formData.append('files', file);
       });
-      formData.append('month_key', selectedMonth);
+      formData.append('id_ciclo', activeCycle?.id_ciclo);
 
       const res = await axios.post(`${API_URL}/import/volunteers/files`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -391,7 +392,7 @@ export function RequerimentosAdmin() {
                   <td style={{ padding: '0.75rem', fontWeight: 500, color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{v.name}</td>
                   <td style={{ padding: '0.75rem', color: v.ativo === false ? 'var(--danger)' : 'inherit' }}>{formatPhone(v.phone)}</td>
                   <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                    {v.motorista === 'Sim' ? (
+                    {(v.motorista_req || v.motorista === 'Sim') ? (
                       <span style={{ background: 'var(--success)', color: 'white', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>Sim</span>
                     ) : (
                       <span style={{ color: 'var(--text-muted)' }}>Não</span>
@@ -927,7 +928,7 @@ export function RequerimentosAdmin() {
                 <div><strong>Posto/Grad:</strong><br/>{cancelingItem.rank}</div>
                 <div><strong>Nome:</strong><br/>{cancelingItem.name}</div>
                 <div><strong>Telefone:</strong><br/>{formatPhone(cancelingItem.phone)}</div>
-                <div><strong>Motorista:</strong><br/>{cancelingItem.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
+                <div><strong>Motorista:</strong><br/>{cancelingItem.motorista_req ? '✅ Sim' : '❌ Não'}</div>
               </div>
             </div>
 
