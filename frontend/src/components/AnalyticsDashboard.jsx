@@ -158,7 +158,7 @@ export function AnalyticsDashboard() {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '1200px' }}>
+    <div className="container" style={{ maxWidth: '1350px' }}>
       {/* Cabeçalho */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
@@ -216,35 +216,35 @@ export function AnalyticsDashboard() {
           <p style={{ color: 'var(--text-muted)' }}>Nenhum dado encontrado. Salve escalas no Painel Admin primeiro.</p>
         </div>
       ) : (
-        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+        <div className="glass-panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>#</th>
-                <th onClick={() => requestSort('numero_ordem')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>#</th>
+                <th onClick={() => requestSort('numero_ordem')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     N° Ordem {sortConfig.key === 'numero_ordem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('name')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('name')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     Posto / Nome {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Motorista</th>
-                <th onClick={() => requestSort('count6h')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Motorista</th>
+                <th onClick={() => requestSort('count6h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     GSVR 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('count8h')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('count8h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     GSVR 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('total')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('total')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     Total GSVRs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('remaining')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('remaining')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     Restantes {sortConfig.key === 'remaining' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('valorTotal')} style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('valorTotal')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
                     Valor Total {sortConfig.key === 'valorTotal' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Situação</th>
-                <th style={{ padding: '0.85rem 1rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Progresso</th>
+                <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Situação</th>
+                <th style={{ padding: '0.85rem 1.5rem', textAlign: 'center', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Progresso</th>
               </tr>
             </thead>
             <tbody>
@@ -253,46 +253,46 @@ export function AnalyticsDashboard() {
                 const pct = Math.min(100, (s.total / MAX_SERVICES) * 100);
                 return (
                   <tr key={s.id} style={{ background: idx % 2 === 0 ? 'white' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
+                    <td style={{ padding: '0.85rem 0.75rem' }}>
                       <span style={{ background: '#e8eef7', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
                         {s.numero_ordem}
                       </span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
+                    <td style={{ padding: '0.85rem 0.75rem' }}>
                       <div style={{ fontWeight: 600 }}>{s.rank} {s.name}</div>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
+                    <td style={{ padding: '0.85rem 0.75rem' }}>
                       {(s.motorista === 'Sim' || s.motorista === true)
                         ? <span style={{ background: '#10b981', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>SIM</span>
                         : <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Não</span>
                       }
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#10b981', fontSize: '1rem' }}>{s.count6h}</span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '1rem' }}>{s.count8h}</span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>
                       <span style={{ fontWeight: 800, color: getStatusColor(s.total), fontSize: '1.1rem' }}>{s.total}</span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: s.remaining === 0 ? '#ef4444' : '#0D3878' }}>{s.remaining}</span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'center' }}>
+                    <td style={{ padding: '0.85rem 0.75rem', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#059669', fontSize: '0.95rem' }}>{formatarValor(s.valorTotal)}</span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
+                    <td style={{ padding: '0.85rem 0.75rem' }}>
                       <span style={{ background: `${status.color}18`, color: status.color, padding: '3px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', border: `1px solid ${status.color}40` }}>
                         {status.text}
                       </span>
                     </td>
-                    <td style={{ padding: '0.85rem 1rem', minWidth: '120px' }}>
-                      <div style={{ background: '#e2e8f0', borderRadius: '999px', height: '8px', overflow: 'hidden' }}>
+                    <td style={{ padding: '0.85rem 1.5rem', minWidth: '160px' }}>
+                      <div style={{ background: '#e2e8f0', borderRadius: '999px', height: '10px', overflow: 'hidden', border: '1px solid #cbd5e1' }}>
                         <div style={{ width: `${pct}%`, height: '100%', borderRadius: '999px', background: getStatusColor(s.total), transition: 'width 0.4s ease' }} />
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '3px', textAlign: 'right' }}>{s.total}/{MAX_SERVICES}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '5px', textAlign: 'center', fontWeight: 600 }}>{s.total} / {MAX_SERVICES}</div>
                     </td>
                   </tr>
                 );
