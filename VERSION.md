@@ -1,3 +1,27 @@
+## v1.20.2 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Bug Fix Central] Remoção da Persistência Precoce**: Corrigido bug crítico onde o sistema realizava o `INSERT` no banco de dados automaticamente após confirmar seleções no modal ou trocar funções.
+  - Removidas as chamadas automáticas de `saveSchedule` que ocorriam "nos bastidores" sem autorização do usuário.
+  - O fluxo agora é estritamente manual: as alterações ficam apenas em memória até que o botão principal **"Salvar"** seja clicado.
+  - Resolvido o problema de duplicação de registros causado pelo salvamento automático seguido do salvamento manual.
+
+---
+
+## v1.20.1 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Fix] Correção de Erro de Estrutura Circular**: Resolvido o erro `Converting circular structure to JSON` que impedia o salvamento das guarnições no banco.
+  - A falha ocorria porque o objeto de evento do clique no botão "Salvar" era passado por engano para a função de persistência, que tentava serializá-lo para o servidor.
+  - Implementada uma camada defensiva na função `saveSchedule` que valida o tipo de dado recebido antes de processar.
+  - Corrigido o handler `onClick` no dashboard para garantir chamadas limpas sem objetos de evento.
+
+---
+
 ## v1.20.0 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

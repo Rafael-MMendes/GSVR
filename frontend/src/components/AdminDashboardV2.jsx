@@ -147,7 +147,10 @@ export function AdminDashboardV2() {
 
   const saveSchedule = async (overridePatrols = null) => {
     try {
-      const patrolsToSave = overridePatrols || state.patrols;
+      // Defesa: se for chamado por um evento de clique, overridePatrols será o objeto de evento.
+      // Nesse caso, ignoramos e usamos o state.patrols.
+      const patrolsToSave = Array.isArray(overridePatrols) ? overridePatrols : state.patrols;
+      
       if (!patrolsToSave || patrolsToSave.length === 0) return;
       
       await axios.post(`${API_URL}/schedules`, { 
@@ -277,9 +280,6 @@ export function AdminDashboardV2() {
         }
       }
 
-      // Sincronização automática
-      saveSchedule(newPatrols);
-
       return { ...prev, patrols: newPatrols };
     });
     
@@ -391,43 +391,24 @@ export function AdminDashboardV2() {
     }
   };
 
-  const handleRoleChange = async (patrolId, sourceIdx, targetIdx) => {
+  const handleRoleChange = (patrolId, sourceIdx, targetIdx) => {
     if (sourceIdx === targetIdx) return;
     
-    setSavingPatrolId(patrolId);
-    setIsSaving(true);
-
-    try {
-      let updatedPatrols = [];
-      setState(prev => {
-        const pIdx = prev.patrols.findIndex(p => p.id === patrolId);
-        if (pIdx === -1) return prev;
-        
-        updatedPatrols = [...prev.patrols];
-        const newMembers = [...updatedPatrols[pIdx].members];
-        
-        // Swap logic: Se o destino estiver ocupado, as funções são trocadas entre os dois militares
-        const temp = newMembers[targetIdx];
-        newMembers[targetIdx] = newMembers[sourceIdx];
-        newMembers[sourceIdx] = temp;
-        
-        updatedPatrols[pIdx] = { ...updatedPatrols[pIdx], members: newMembers };
-
-        // Sincronização automática com os dados atualizados
-        saveSchedule(updatedPatrols).finally(() => {
-          setSavingPatrolId(null);
-          setIsSaving(false);
-        });
-
-        return { ...prev, patrols: updatedPatrols };
-      });
-
-    } catch (err) {
-      console.error('Erro ao trocar função:', err);
-      alert("Erro ao trocar função: " + err.message);
-      setSavingPatrolId(null);
-      setIsSaving(false);
-    }
+    setState(prev => {
+      const pIdx = prev.patrols.findIndex(p => p.id === patrolId);
+      if (pIdx === -1) return prev;
+      
+      const updatedPatrols = [...prev.patrols];
+      const newMembers = [...updatedPatrols[pIdx].members];
+      
+      // Swap logic: Se o destino estiver ocupado, as funções são trocadas entre os dois militares
+      const temp = newMembers[targetIdx];
+      newMembers[targetIdx] = newMembers[sourceIdx];
+      newMembers[sourceIdx] = temp;
+      
+      updatedPatrols[pIdx] = { ...updatedPatrols[pIdx], members: newMembers };
+      return { ...prev, patrols: updatedPatrols };
+    });
   };
 
   const generatePDF = async () => {
@@ -694,7 +675,7 @@ export function AdminDashboardV2() {
           </button>
 
           <button
-            onClick={saveConfig}
+            onClick={() => saveSchedule()}
             style={{
               padding: '0.75rem 1.5rem',
               background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
