@@ -152,15 +152,15 @@ export function AdminDashboardV2() {
       // Defesa: se for chamado por um evento de clique, overridePatrols será o objeto de evento.
       // Nesse caso, ignoramos e usamos o state.patrols.
       const patrolsToSave = Array.isArray(overridePatrols) ? overridePatrols : state.patrols;
-      
+
       if (!patrolsToSave || patrolsToSave.length === 0) return;
-      
-      await axios.post(`${API_URL}/schedules`, { 
-        date: selectedDate, 
-        id_ciclo: selectedCycleId, 
-        patrols: patrolsToSave 
+
+      await axios.post(`${API_URL}/schedules`, {
+        date: selectedDate,
+        id_ciclo: selectedCycleId,
+        patrols: patrolsToSave
       });
-      
+
       // Recarregar do banco após o salvamento para garantir sincronia total
       await loadSchedule();
     } catch (error) {
@@ -235,7 +235,7 @@ export function AdminDashboardV2() {
   const toggleMemberSelection = (member) => {
     const isSelected = selectedMembers.some(m => m.id === member.id);
     const limit = selectionMode?.slotIndex !== undefined ? 1 : MAX_MEMBERS;
-    
+
     if (isSelected) {
       setSelectedMembers(prev => prev.filter(m => m.id !== member.id));
     } else if (selectedMembers.length < limit) {
@@ -265,7 +265,7 @@ export function AdminDashboardV2() {
         // MODO CRIAÇÃO/EDIÇÃO DE GUARNÇÃO COMPLETA
         const newMembers = [null, null, null];
         selectedMembers.forEach((m, idx) => { if (idx < 3) newMembers[idx] = m; });
-        
+
         if (patrolId === 'NEW') {
           newPatrols.push({
             id: `p${Date.now()}`,
@@ -284,7 +284,7 @@ export function AdminDashboardV2() {
 
       return { ...prev, patrols: newPatrols };
     });
-    
+
     closeSelectionModal();
   };
 
@@ -377,13 +377,13 @@ export function AdminDashboardV2() {
         const pRem = prev.patrols.find(p => p.id === patrolId);
         if (!pRem) return prev;
         const membersToReturn = (pRem.members || []).filter(Boolean);
-        return { 
-          ...prev, 
-          pool: [...prev.pool, ...membersToReturn], 
-          patrols: prev.patrols.filter(p => p.id !== patrolId) 
+        return {
+          ...prev,
+          pool: [...prev.pool, ...membersToReturn],
+          patrols: prev.patrols.filter(p => p.id !== patrolId)
         };
       });
-      
+
       // Feedback opcional ou apenas sucesso silencioso na UI
     } catch (error) {
       console.error('Erro ao excluir guarnição:', error);
@@ -395,19 +395,19 @@ export function AdminDashboardV2() {
 
   const handleRoleChange = (patrolId, sourceIdx, targetIdx) => {
     if (sourceIdx === targetIdx) return;
-    
+
     setState(prev => {
       const pIdx = prev.patrols.findIndex(p => p.id === patrolId);
       if (pIdx === -1) return prev;
-      
+
       const updatedPatrols = [...prev.patrols];
       const newMembers = [...updatedPatrols[pIdx].members];
-      
+
       // Swap logic: Se o destino estiver ocupado, as funções são trocadas entre os dois militares
       const temp = newMembers[targetIdx];
       newMembers[targetIdx] = newMembers[sourceIdx];
       newMembers[sourceIdx] = temp;
-      
+
       updatedPatrols[pIdx] = { ...updatedPatrols[pIdx], members: newMembers };
       return { ...prev, patrols: updatedPatrols };
     });
@@ -583,10 +583,10 @@ export function AdminDashboardV2() {
         </div>
 
         {/* Sidebar Navigation / Filters */}
-        <div style={{ padding: '2rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ padding: '0.5rem 2rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <label style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Configurações de Visualização</label>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <select
                 style={{
@@ -651,7 +651,7 @@ export function AdminDashboardV2() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <label style={{ fontSize: '0.7rem', fontWeight: 800, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ações de Escala</label>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <button
                 onClick={addPatrol}
@@ -746,115 +746,103 @@ export function AdminDashboardV2() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-             {/* Additional stats or info could go here */}
+            {/* Additional stats or info could go here */}
           </div>
         </div>
 
         <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1.5rem',
-              paddingBottom: '4rem'
-            }}>
-          {state.patrols.map(patrol => (
-            <div
-              key={patrol.id}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, patrol.id)}
-              style={{
-                background: colors.white,
-                borderRadius: '20px',
-                border: `1px solid ${colors.border}`,
-                boxShadow: shadowMd,
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                animation: 'fadeIn 0.5s ease-out'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; e.currentTarget.style.transform = 'translateY(-5px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowMd; e.currentTarget.style.transform = 'translateY(0)'; }}
-            >
-              {/* Card Header (Patrol) */}
-              <div style={{
-                background: colors.primaryGradient,
-                padding: '0.75rem 1.25rem',
-                color: 'white',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                {savingPatrolId === patrol.id && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(2px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 20
-                  }}>
-                    <MousePointer2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
-                    <Shield size={18} style={{ opacity: 0.8 }} />
-                    <input
-                      type="text"
-                      value={normalizePatrolName(patrol.name)}
-                      onChange={e => handlePatrolSettingChange(patrol.id, 'name', normalizePatrolName(e.target.value))}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '1rem',
-                        fontWeight: 800,
-                        color: 'white',
-                        width: '100%',
-                        outline: 'none',
-                        letterSpacing: '-0.01em'
-                      }}
-                      placeholder="Nome da Guarnição"
-                    />
-                  </div>
-                  <button
-                    onClick={() => removePatrol(patrol.id)}
-                    className="no-print"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.12)',
-                      backdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      cursor: 'pointer',
-                      borderRadius: '12px',
-                      padding: '8px',
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '1.5rem',
+            paddingBottom: '4rem'
+          }}>
+            {state.patrols.map(patrol => (
+              <div
+                key={patrol.id}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, patrol.id)}
+                style={{
+                  background: colors.white,
+                  borderRadius: '20px',
+                  border: `1px solid ${colors.border}`,
+                  boxShadow: shadowMd,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  animation: 'fadeIn 0.5s ease-out'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; e.currentTarget.style.transform = 'translateY(-5px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowMd; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                {/* Card Header (Patrol) */}
+                <div style={{
+                  background: colors.primaryGradient,
+                  padding: '0.75rem 1.25rem',
+                  color: 'white',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {savingPatrolId === patrol.id && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(255,255,255,0.2)',
+                      backdropFilter: 'blur(2px)',
                       display: 'flex',
-                      transition: transitions,
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    }}
-                    onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
-                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
-                    title="Remover Guarnição"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                {/* Status Pills inside header */}
-                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
-                  <div style={{
-                    fontSize: '0.6rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    background: 'rgba(255,255,255,0.15)',
-                    padding: '2px 8px',
-                    borderRadius: '20px',
-                    backdropFilter: 'blur(4px)'
-                  }}>
-                    {patrol.duration}
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 20
+                    }}>
+                      <MousePointer2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1 }}>
+                      <Shield size={18} style={{ opacity: 0.8 }} />
+                      <input
+                        type="text"
+                        value={normalizePatrolName(patrol.name)}
+                        onChange={e => handlePatrolSettingChange(patrol.id, 'name', normalizePatrolName(e.target.value))}
+                        style={{
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: '1rem',
+                          fontWeight: 800,
+                          color: 'white',
+                          width: '100%',
+                          outline: 'none',
+                          letterSpacing: '-0.01em'
+                        }}
+                        placeholder="Nome da Guarnição"
+                      />
+                    </div>
+                    <button
+                      onClick={() => removePatrol(patrol.id)}
+                      className="no-print"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        borderRadius: '12px',
+                        padding: '8px',
+                        display: 'flex',
+                        transition: transitions,
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
+                      onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
+                      title="Remover Guarnição"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  {patrol.timeSpan && (
+
+                  {/* Status Pills inside header */}
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
                     <div style={{
                       fontSize: '0.6rem',
                       fontWeight: 700,
@@ -864,190 +852,202 @@ export function AdminDashboardV2() {
                       borderRadius: '20px',
                       backdropFilter: 'blur(4px)'
                     }}>
-                      {patrol.timeSpan}
+                      {patrol.duration}
                     </div>
-                  )}
+                    {patrol.timeSpan && (
+                      <div style={{
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        background: 'rgba(255,255,255,0.15)',
+                        padding: '2px 8px',
+                        borderRadius: '20px',
+                        backdropFilter: 'blur(4px)'
+                      }}>
+                        {patrol.timeSpan}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
 
 
-              {/* Slots Container */}
-              <div style={{
-                padding: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem',
-                flex: 1,
-                background: 'linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)'
-              }}>
-                {Array.from({ length: 3 }).map((_, index) => {
-                  const m = patrol.members[index];
-                  const roleName = ROLES[index];
-                  const isActiveSlot = activeSlot?.patrolId === patrol.id && activeSlot?.roleIndex === index;
+                {/* Slots Container */}
+                <div style={{
+                  padding: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  flex: 1,
+                  background: 'linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)'
+                }}>
+                  {Array.from({ length: 3 }).map((_, index) => {
+                    const m = patrol.members[index];
+                    const roleName = ROLES[index];
+                    const isActiveSlot = activeSlot?.patrolId === patrol.id && activeSlot?.roleIndex === index;
 
-                  if (m) {
+                    if (m) {
+                      return (
+                        <div
+                          key={m.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, m.id, patrol.id)}
+                          style={{
+                            background: colors.white,
+                            border: `1px solid ${colors.border}`,
+                            borderRadius: '12px',
+                            padding: '0.65rem 0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            position: 'relative',
+                            cursor: 'grab',
+                            boxShadow: shadowSm,
+                            transition: transitions
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.boxShadow = shadowMd; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = shadowSm; }}
+                        >
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '10px',
+                            background: '#f0f9ff',
+                            color: colors.primary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <GripVertical size={16} style={{ opacity: 0.5 }} />
+                          </div>
+
+                          <div style={{ flex: 1 }}>
+                            <div style={{ marginBottom: '2px' }}>
+                              <select
+                                value={index}
+                                onChange={(e) => handleRoleChange(patrol.id, index, parseInt(e.target.value))}
+                                disabled={isSaving}
+                                style={{
+                                  fontSize: '0.6rem',
+                                  color: colors.textMuted,
+                                  fontWeight: 800,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  outline: 'none',
+                                  cursor: isSaving ? 'wait' : 'pointer',
+                                  padding: 0,
+                                  appearance: 'none',
+                                  MozAppearance: 'none',
+                                  WebkitAppearance: 'none'
+                                }}
+                                title="Clique para trocar função"
+                              >
+                                {ROLES.map((role, rIdx) => (
+                                  <option key={rIdx} value={rIdx}>{role}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.85rem' }}>
+                              {m.rank} {m.name}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setSelectionMode({ patrolId: patrol.id, slotIndex: index })}
+                            className="no-print"
+                            style={{
+                              background: '#f1f5f9',
+                              color: colors.primary,
+                              border: `1px solid ${colors.border}`,
+                              borderRadius: '10px',
+                              padding: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              transition: transitions
+                            }}
+                            onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+                            onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = colors.primary; }}
+                            title="Substituir integrante"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
-                        key={m.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, m.id, patrol.id)}
+                        key={`empty-${index}`}
+                        onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })}
                         style={{
-                          background: colors.white,
-                          border: `1px solid ${colors.border}`,
+                          border: isActiveSlot ? `2px solid ${colors.primary}` : `2px dashed ${colors.accent}`,
                           borderRadius: '12px',
-                          padding: '0.65rem 0.75rem',
+                          padding: '0.75rem 1rem',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.75rem',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          background: isActiveSlot ? '#f0f7ff' : 'transparent',
+                          transition: transitions,
+                          minHeight: '60px',
                           position: 'relative',
-                          cursor: 'grab',
-                          boxShadow: shadowSm,
-                          transition: transitions
+                          overflow: 'hidden'
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.boxShadow = shadowMd; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = shadowSm; }}
+                        onMouseOver={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.background = '#f8fafc'; } }}
+                        onMouseOut={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.accent; e.currentTarget.style.background = 'transparent'; } }}
                       >
+                        {isActiveSlot && (
+                          <div style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: '3px',
+                            background: colors.primary
+                          }} />
+                        )}
+                        <div>
+                          <div style={{
+                            fontSize: '0.6rem',
+                            color: isActiveSlot ? colors.primary : colors.textMuted,
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                          }}>
+                            {roleName}
+                          </div>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: isActiveSlot ? colors.primary : colors.accent,
+                            fontWeight: 600,
+                            marginTop: '2px'
+                          }}>
+                            {isActiveSlot ? 'Aguardando seleção...' : 'Vago'}
+                          </div>
+                        </div>
                         <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '10px',
-                          background: '#f0f9ff',
-                          color: colors.primary,
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '8px',
+                          background: isActiveSlot ? colors.primary : '#f1f5f9',
+                          color: isActiveSlot ? 'white' : colors.accent,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          flexShrink: 0
+                          transition: transitions,
+                          boxShadow: isActiveSlot ? '0 4px 10px rgba(13, 56, 120, 0.3)' : 'none'
                         }}>
-                          <GripVertical size={16} style={{ opacity: 0.5 }} />
+                          {isActiveSlot ? <MousePointer2 size={14} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={14} />}
                         </div>
-
-                        <div style={{ flex: 1 }}>
-                          <div style={{ marginBottom: '2px' }}>
-                            <select
-                              value={index}
-                              onChange={(e) => handleRoleChange(patrol.id, index, parseInt(e.target.value))}
-                              disabled={isSaving}
-                              style={{
-                                fontSize: '0.6rem',
-                                color: colors.textMuted,
-                                fontWeight: 800,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                background: 'transparent',
-                                border: 'none',
-                                outline: 'none',
-                                cursor: isSaving ? 'wait' : 'pointer',
-                                padding: 0,
-                                appearance: 'none',
-                                MozAppearance: 'none',
-                                WebkitAppearance: 'none'
-                              }}
-                              title="Clique para trocar função"
-                            >
-                              {ROLES.map((role, rIdx) => (
-                                <option key={rIdx} value={rIdx}>{role}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.85rem' }}>
-                            {m.rank} {m.name}
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setSelectionMode({ patrolId: patrol.id, slotIndex: index })}
-                          className="no-print"
-                          style={{
-                            background: '#f1f5f9',
-                            color: colors.primary,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: '10px',
-                            padding: '8px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            transition: transitions
-                          }}
-                          onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
-                          onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = colors.primary; }}
-                          title="Substituir integrante"
-                        >
-                          <X size={16} />
-                        </button>
                       </div>
                     );
-                  }
-
-                  return (
-                    <div
-                      key={`empty-${index}`}
-                      onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })}
-                      style={{
-                        border: isActiveSlot ? `2px solid ${colors.primary}` : `2px dashed ${colors.accent}`,
-                        borderRadius: '12px',
-                        padding: '0.75rem 1rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                        background: isActiveSlot ? '#f0f7ff' : 'transparent',
-                        transition: transitions,
-                        minHeight: '60px',
-                        position: 'relative',
-                        overflow: 'hidden'
-                      }}
-                      onMouseOver={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.background = '#f8fafc'; } }}
-                      onMouseOut={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.accent; e.currentTarget.style.background = 'transparent'; } }}
-                    >
-                      {isActiveSlot && (
-                        <div style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: '3px',
-                          background: colors.primary
-                        }} />
-                      )}
-                      <div>
-                        <div style={{
-                          fontSize: '0.6rem',
-                          color: isActiveSlot ? colors.primary : colors.textMuted,
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em'
-                        }}>
-                          {roleName}
-                        </div>
-                        <div style={{
-                          fontSize: '0.75rem',
-                          color: isActiveSlot ? colors.primary : colors.accent,
-                          fontWeight: 600,
-                          marginTop: '2px'
-                        }}>
-                          {isActiveSlot ? 'Aguardando seleção...' : 'Vago'}
-                        </div>
-                      </div>
-                      <div style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        background: isActiveSlot ? colors.primary : '#f1f5f9',
-                        color: isActiveSlot ? 'white' : colors.accent,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: transitions,
-                        boxShadow: isActiveSlot ? '0 4px 10px rgba(13, 56, 120, 0.3)' : 'none'
-                      }}>
-                        {isActiveSlot ? <MousePointer2 size={14} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={14} />}
-                      </div>
-                    </div>
-                  );
-                })}
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         </div>
       </div>
@@ -1184,29 +1184,29 @@ export function AdminDashboardV2() {
                     value={selectedDate}
                     onChange={e => setSelectedDate(e.target.value)}
                   >
-                {(() => {
-                  const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
-                  if (!currentCycle) return null;
+                    {(() => {
+                      const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                      if (!currentCycle) return null;
 
-                  const startDate = new Date(currentCycle.data_inicio);
-                  const endDate = new Date(currentCycle.data_fim);
-                  const days = [];
-                  let curr = new Date(startDate);
-                  while (curr <= endDate) {
-                    days.push(new Date(curr));
-                    curr.setDate(curr.getDate() + 1);
-                  }
+                      const startDate = new Date(currentCycle.data_inicio);
+                      const endDate = new Date(currentCycle.data_fim);
+                      const days = [];
+                      let curr = new Date(startDate);
+                      while (curr <= endDate) {
+                        days.push(new Date(curr));
+                        curr.setDate(curr.getDate() + 1);
+                      }
 
-                  return days.map(date => {
-                    const d = date.getDate();
-                    const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-                    const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-                    const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
-                    const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                    return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
-                  });
-                })()}
-                </select>
+                      return days.map(date => {
+                        const d = date.getDate();
+                        const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                        const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                        const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+                        const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
+                        return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                      });
+                    })()}
+                  </select>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1232,77 +1232,77 @@ export function AdminDashboardV2() {
                   </select>
                 </div>
 
-              {selectionMode && (
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Duração</label>
-                    <select
-                      style={{
-                        padding: '0.6rem 2.5rem 0.6rem 1rem',
-                        borderRadius: '12px',
-                        border: `1px solid ${colors.border}`,
-                        background: colors.white,
-                        fontWeight: 700,
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: colors.primary,
-                        boxShadow: shadowSm
-                      }}
-                      value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration}
-                      onChange={e => {
-                        if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
-                        else handleDurationChange(selectionMode.patrolId, e.target.value);
-                      }}
-                    >
-                      {['6h', '8h'].map(d => <option key={d} value={d}>Duração: {d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
-                    </select>
+                {selectionMode && (
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Duração</label>
+                      <select
+                        style={{
+                          padding: '0.6rem 2.5rem 0.6rem 1rem',
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.border}`,
+                          background: colors.white,
+                          fontWeight: 700,
+                          outline: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          color: colors.primary,
+                          boxShadow: shadowSm
+                        }}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration}
+                        onChange={e => {
+                          if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
+                          else handleDurationChange(selectionMode.patrolId, e.target.value);
+                        }}
+                      >
+                        {['6h', '8h'].map(d => <option key={d} value={d}>Duração: {d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Horário</label>
+                      <select
+                        style={{
+                          padding: '0.6rem 2.5rem 0.6rem 1rem',
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.border}`,
+                          background: colors.white,
+                          fontWeight: 700,
+                          outline: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          color: colors.primary,
+                          boxShadow: shadowSm
+                        }}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(p => p.id === selectionMode.patrolId)?.timeSpan}
+                        onChange={e => {
+                          if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
+                          else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
+                        }}
+                      >
+                        <option value="">Selecione Horário...</option>
+                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Horário</label>
-                    <select
-                      style={{
-                        padding: '0.6rem 2.5rem 0.6rem 1rem',
-                        borderRadius: '12px',
-                        border: `1px solid ${colors.border}`,
-                        background: colors.white,
-                        fontWeight: 700,
-                        outline: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: colors.primary,
-                        boxShadow: shadowSm
-                      }}
-                      value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(p => p.id === selectionMode.patrolId)?.timeSpan}
-                      onChange={e => {
-                        if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
-                        else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
-                      }}
-                    >
-                      <option value="">Selecione Horário...</option>
-                      {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration).map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
+                )}
 
-              <div style={{
-                padding: '0.85rem 1.25rem',
-                borderRadius: '12px',
-                background: '#f0fdf4',
-                color: '#166534',
-                border: '1px solid #bbf7d0',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
-                {filteredPool.length} Disponíveis
-              </div>
+                <div style={{
+                  padding: '0.85rem 1.25rem',
+                  borderRadius: '12px',
+                  background: '#f0fdf4',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
+                  {filteredPool.length} Disponíveis
+                </div>
               </div>
             </div>
 
@@ -1403,18 +1403,17 @@ export function AdminDashboardV2() {
 
                       {/* Service Counter Badge with Color Scale */}
                       <div style={{
-                        background: p.service_count >= 8 ? '#fef2f2' : 
-                                  p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
+                        background: p.service_count >= 8 ? '#fef2f2' :
+                          p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
                         color: p.service_count >= 8 ? '#dc2626' :
-                               p.service_count >= 6 ? '#b45309' : '#15803d',
+                          p.service_count >= 6 ? '#b45309' : '#15803d',
                         padding: '6px 10px',
                         borderRadius: '12px',
                         fontSize: '0.75rem',
                         fontWeight: 800,
-                        border: `1px solid ${
-                                  p.service_count >= 8 ? '#fee2e2' :
-                                  p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
-                                }`
+                        border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
+                          p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
+                          }`
                       }}>
                         {p.service_count}/8
                       </div>
