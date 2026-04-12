@@ -24,7 +24,6 @@ export function CicloManager() {
   const [editingCiclo, setEditingCiclo] = useState(null);
   const [formData, setFormData] = useState({
     id_opm: '',
-    referencia_mes_ano: '',
     data_inicio: '',
     data_fim: '',
     status: 'Aberto',
@@ -87,7 +86,6 @@ export function CicloManager() {
   const resetForm = () => {
     setFormData({
       id_opm: opms.length > 0 ? opms[0].id_opm : '',
-      referencia_mes_ano: '',
       data_inicio: '',
       data_fim: '',
       status: 'Aberto',
@@ -105,7 +103,6 @@ export function CicloManager() {
     
     setFormData({
       id_opm: ciclo.id_opm,
-      referencia_mes_ano: ciclo.referencia_mes_ano,
       data_inicio: formatParaInput(ciclo.data_inicio),
       data_fim: formatParaInput(ciclo.data_fim),
       status: ciclo.status,
@@ -262,20 +259,7 @@ export function CicloManager() {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Calendar size={16} /> Mês de Referência
-                  </label>
-                  <input 
-                    type="month"
-                    className="form-control" 
-                    value={formData.referencia_mes_ano} 
-                    onChange={e => setFormData({ ...formData, referencia_mes_ano: e.target.value })} 
-                    required 
-                  />
-                  <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Ex: Março de 2024</small>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Activity size={16} /> Status Inicial

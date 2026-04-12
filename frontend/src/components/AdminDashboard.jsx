@@ -72,8 +72,8 @@ export function AdminDashboard() {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
         if (monthsRes.data.length > 0) {
-          // Isso vai disparar o efeito de [selectedMonth, selectedDate] abaixo
-          setSelectedMonth(monthsRes.data[0].referencia_mes_ano);
+          const active = monthsRes.data.find(c => c.status === 'Aberto') || monthsRes.data[0];
+          setSelectedMonth(active.id_ciclo);
         }
       } catch (e) {
         console.error('[Init] Erro ao carregar ciclos:', e);
@@ -158,7 +158,7 @@ export function AdminDashboard() {
       try {
         setLoadingVolunteers(true);
         console.log('[Dashboard] Carregando voluntários para o mês:', selectedMonth);
-        const volRes = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
+        const volRes = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedMonth}`);
         console.log('[Dashboard] Voluntários carregados:', volRes.data.length);
         volunteersRef.current = volRes.data;
         setVolunteers(volRes.data);
@@ -180,7 +180,7 @@ export function AdminDashboard() {
     const loadSchedule = async () => {
       try {
         console.log('[Dashboard] Carregando escala para dia:', selectedDate);
-        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&month=${selectedMonth}`);
+        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedMonth}`);
         loadScheduleData(volunteersRef.current, schedRes.data, selectedMonth, selectedDate);
       } catch (e) {
         console.error('[Dashboard] Erro ao carregar escala:', e);
@@ -196,7 +196,7 @@ export function AdminDashboard() {
     try {
       await axios.post(`${API_URL}/schedules`, {
         date: selectedDate,
-        month_key: selectedMonth,
+        id_ciclo: selectedMonth,
         patrols: state.patrols
       });
       alert('Escala salva com sucesso!');
@@ -770,7 +770,7 @@ export function AdminDashboard() {
             <div>
               <label style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Mês</label>
               <select className="form-control" style={{ margin: 0 }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
-                {months.map(m => <option key={m.id_ciclo} value={m.referencia_mes_ano}>{m.referencia_mes_ano}</option>)}
+                {months.map(m => <option key={m.id_ciclo} value={m.id_ciclo}>{m.referencia_mes_ano}</option>)}
               </select>
             </div>
             <div>

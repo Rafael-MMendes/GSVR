@@ -623,10 +623,19 @@ app.put('/api/usuarios/:id/roles', authenticate, authorize('usuarios:admin'), as
 // VOLUNTEERS (Requerimentos - via legacy API)
 // ============================================================
 app.get('/api/volunteers', async (req, res) => {
-  const month = req.query.month || getCurrentMonthKey();
+  const { id_ciclo } = req.query;
+  // Fallback: busca o ciclo ativo se não informado
+  let targetId = id_ciclo;
+  if (!targetId) {
+    const cycle = await db.get("SELECT id_ciclo FROM CICLOS WHERE status = 'Aberto' ORDER BY data_inicio DESC LIMIT 1");
+    targetId = cycle?.id_ciclo;
+  }
+
+  if (!targetId) return res.json([]);
+
   const q = `
-    SELECT r.id_requerimento as id, e.id_militar, COALESCE(e.numero_ordem, e.matricula) as numero_ordem, e.nome_guerra as name, 
-           e.posto_graduacao as rank, e.telefone as phone, e.motorista, c.referencia_mes_ano as month_key,
+    SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name, 
+           e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'MM/YYYY') as month_key,
            (SELECT json_object_agg(dia_mes, turnos) FROM (
              SELECT dia_mes, json_agg(horario_turno) as turnos 
              FROM DISPONIBILIDADE_REQUERIMENTO 
@@ -636,11 +645,11 @@ app.get('/api/volunteers', async (req, res) => {
     FROM REQUERIMENTOS r 
     JOIN EFETIVO e ON r.id_militar = e.id_militar 
     JOIN CICLOS c ON r.id_ciclo = c.id_ciclo 
-    WHERE c.referencia_mes_ano = $1 
+    WHERE c.id_ciclo = $1 
     ORDER BY r.data_solicitacao DESC
   `;
   try {
-    const { rows } = await db.query(q, [month]);
+    const { rows } = await db.query(q, [targetId]);
     res.json(rows.map(v => {
       let availability = v.availability_json || {};
       if (typeof availability === 'string') {
@@ -655,11 +664,27 @@ app.get('/api/volunteers', async (req, res) => {
 });
 
 app.get('/api/months', async (req, res) => {
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const monthName = getMonthName(currentMonth);
-  await db.run('INSERT INTO months (month_key, month_name) VALUES (?, ?) ON CONFLICT (month_key) DO NOTHING', [currentMonth, monthName]);
-  res.json(await db.all('SELECT month_key, month_name FROM months ORDER BY month_key DESC'));
+  try {
+    // Retorna as referências formatadas dos ciclos existentes para compatibilidade com seletores de meses
+    const query = `
+      SELECT id_ciclo, 
+             TO_CHAR(data_inicio, 'MM/YYYY') as month_name, 
+             (CASE EXTRACT(MONTH FROM data_inicio)
+                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março' WHEN 4 THEN 'Abril'
+                WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
+                WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
+              END) || ' / ' ||
+             (CASE EXTRACT(MONTH FROM data_fim)
+                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março' WHEN 4 THEN 'Abril'
+                WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
+                WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
+              END) || ' - ' || TO_CHAR(data_inicio, 'YYYY') as period_name,
+             TO_CHAR(data_inicio, 'YYYY-MM') as month_key 
+      FROM CICLOS ORDER BY data_inicio DESC
+    `;
+    const ciclos = await db.all(query);
+    res.json(ciclos);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/volunteers', async (req, res) => {
@@ -670,7 +695,7 @@ app.post('/api/volunteers', async (req, res) => {
   await db.run('UPDATE EFETIVO SET motorista = $1 WHERE matricula = $2', [motorista || 'Não', numero_ordem]);
 
   const military = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
-  const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [getCurrentMonthKey()]);
+  const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
   if (!military || !cycle) return res.status(400).json({ error: "Militar or Ciclo not found" });
   const reqResult = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [military.id_militar, cycle.id_ciclo]);
   for (const [day, shifts] of Object.entries(availability)) {
@@ -1051,10 +1076,25 @@ app.delete('/api/opms/:id', async (req, res) => {
 });
 
 // ============================================================
-// CICLOS
-// ============================================================
 app.get('/api/ciclos', async (req, res) => {
-  try { res.json(await db.all('SELECT * FROM vw_detalhes_ciclos ORDER BY referencia_mes_ano DESC')); }
+  try { 
+    const query = `
+      SELECT *, 
+             (CASE EXTRACT(MONTH FROM data_inicio)
+                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março' WHEN 4 THEN 'Abril'
+                WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
+                WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
+              END) || ' / ' ||
+             (CASE EXTRACT(MONTH FROM data_fim)
+                WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março' WHEN 4 THEN 'Abril'
+                WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
+                WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
+              END) || ' - ' || TO_CHAR(data_inicio, 'YYYY') as period_name
+      FROM vw_detalhes_ciclos 
+      ORDER BY data_inicio DESC
+    `;
+    res.json(await db.all(query)); 
+  }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1068,8 +1108,8 @@ app.get('/api/ciclos/:id', async (req, res) => {
 
 app.post('/api/ciclos', async (req, res) => {
   try {
-    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
-    if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto } = req.body;
+    if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
     if (resolvedStatus === 'Aberto') {
@@ -1081,8 +1121,8 @@ app.post('/api/ciclos', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
-      'INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto) VALUES ($1, $2, $3, $4, $5, $6)',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0]
+      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto) VALUES ($1, $2, $3, $4, $5)',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0]
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1090,8 +1130,8 @@ app.post('/api/ciclos', async (req, res) => {
 
 app.put('/api/ciclos/:id', async (req, res) => {
   try {
-    const { id_opm, referencia_mes_ano, data_inicio, data_fim, status, valor_total_previsto } = req.body;
-    if (!referencia_mes_ano || !data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto } = req.body;
+    if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
     if (resolvedStatus === 'Aberto') {
@@ -1103,8 +1143,8 @@ app.put('/api/ciclos/:id', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     await db.run(
-      'UPDATE CICLOS SET id_opm=$1, referencia_mes_ano=$2, data_inicio=$3, data_fim=$4, status=$5, valor_total_previsto=$6 WHERE id_ciclo=$7',
-      [id_opm || null, referencia_mes_ano, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, req.params.id]
+      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5 WHERE id_ciclo=$6',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1323,8 +1363,6 @@ app.post('/api/servicos/import/preview', upload.single('file'), (req, res) => {
 app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado." });
 
-  const { referencia_mes_ano } = req.body;
-
   try {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
@@ -1332,14 +1370,19 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    if (rows.length < 5 && rows.some(r => r && r.some(c => String(c).includes('&lt;') || String(c).includes('v:fill')))) {
+    if (rows.length < 2) {
+        return res.status(400).json({ error: "O arquivo enviado está vazio ou não contém dados válidos." });
+    }
+
+    // Detecção de arquivos HTML (Web Page) incompletos/wrappers
+    if (rows.length < 5 && rows.some(r => r && r.some(c => String(c).includes('<') || String(c).includes('v:fill')))) {
         return res.status(400).json({ 
             error: "O arquivo enviado parece ser uma página web ou atalho incompleto. " +
                    "Para importar, abra este arquivo no Excel e salve-o como 'Pasta de Trabalho do Excel (.xlsx)' antes de enviar." 
         });
     }
 
-    // Re-calcula o melhor cabeçalho para a importação real (mesma lógica do preview)
+    // Busca cabeçalho
     const targetKeys = [
         'PG', 'POSTO', 'GRADUACAO', 'POSTOGRAD', 'POSTOGRADUACAO', 
         'NOME', 'NOMEDEGUERRA', 'NOMEPARAGUERRA', 
@@ -1353,12 +1396,8 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         if (!rows[i]) continue;
         const normalizedRow = rows[i].map(cell => normalizeKey(cell));
         const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
-        let bonus = 0;
-        if (normalizedRow.includes('CPF')) bonus += 2;
-        if (normalizedRow.includes('NOME')) bonus += 1;
-        const score = matches + bonus;
-        if (score > maxMatches) {
-            maxMatches = score;
+        if (matches > maxMatches) {
+            maxMatches = matches;
             headerIndex = i;
         }
     }
@@ -1371,7 +1410,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
     let errorDetails = [];
 
     for (const row of dataRows) {
-      if (row.length === 0 || !row.some(c => c !== '')) continue;
+      if (!row || row.length === 0 || !row.some(c => c !== '')) continue;
 
       let cpfRaw = '', dataServico = '', pg = '', nome = '', cmd = '', opm = '', modalidade = '', guarnicao = '';
 
@@ -1379,11 +1418,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         headers.forEach((k, i) => {
           let val = row[i];
           if (val === undefined || val === null) return;
-
-          // NÃO converter datas para string aqui - manter o objeto Date original
-          if (!(val instanceof Date)) {
-            val = String(val).trim().replace(/&[a-z0-9#]+;/gi, ' ');
-          }
+          if (!(val instanceof Date)) val = String(val).trim();
 
           if (k === 'CPF') cpfRaw = val;
           else if (k === 'DATA') dataServico = val;
@@ -1401,7 +1436,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 1. Localizar Militar pelo CPF
+        // 1. Localizar Militar
         const military = await db.get('SELECT id_militar FROM EFETIVO WHERE cpf = $1', [cpf]);
         if (!military) {
           stats.errors++;
@@ -1409,119 +1444,101 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        // 2. Localizar Ciclo pela Data
-        let isoDate;
-        
-        if (dataServico instanceof Date) {
-          // Objeto Date do XLSX - extrair componentes locais
-          const y = dataServico.getFullYear();
-          const m = String(dataServico.getMonth() + 1).padStart(2, '0');
-          const d = String(dataServico.getDate()).padStart(2, '0');
-          isoDate = `${y}-${m}-${d}`;
-        } else {
-          // String - parsear formatos comuns
-          const dataStr = String(dataServico).trim();
-          // Formato 2026/04/02
-          const match1 = dataStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-          if (match1) {
-            isoDate = `${match1[1]}-${match1[2].padStart(2, '0')}-${match1[3].padStart(2, '0')}`;
-          }
-          // Formato 2026-04-02
-          else if (dataStr.includes('-') && dataStr.split('-')[0].length === 4) {
-            isoDate = dataStr;
-          }
-          // Formato 02/04/2026
-          else if (dataStr.includes('/')) {
-            const parts = dataStr.split('/');
-            if (parts[2].length === 4) {
-              isoDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else {
-              isoDate = dataStr;
-            }
-          } else {
-            isoDate = dataStr;
-          }
-        }
-
-        // 2. Localizar Ciclo pela Data
+        // 2. Processar Data e Localizar Ciclo
         let dateObj;
-
         if (dataServico instanceof Date) {
-          const ano = dataServico.getUTCFullYear();
-          const mes = dataServico.getUTCMonth();
-          const dia = dataServico.getUTCDate();
-          dateObj = new Date(ano, mes, dia);
+          // Objeto Date do XLSX (UTC ou Local) - Normalizar para Meio-dia para evitar saltos de fuso
+          dateObj = new Date(dataServico.getFullYear(), dataServico.getMonth(), dataServico.getDate(), 12, 0, 0);
         } else {
           const dataStr = String(dataServico).trim();
+          // Tenta extrair partes usando separadores comuns (/ ou -)
+          const parts = dataStr.split(/[/-]/);
           
-          if (dataStr.includes('T')) {
-            const apenasData = dataStr.split('T')[0];
-            const [ano, mes, dia] = apenasData.split('-').map(Number);
-            dateObj = new Date(ano, mes - 1, dia);
-          } else if (dataStr.includes('/')) {
-            const [dia, mes, ano] = dataStr.split('/').map(Number);
-            dateObj = new Date(ano, mes - 1, dia);
-          } else if (dataStr.includes('-')) {
-            const [ano, mes, dia] = dataStr.split('-').map(Number);
-            dateObj = new Date(ano, mes - 1, dia);
-          } else {
+          if (parts.length === 3) {
+            // Formato DD/MM/YYYY ou DD-MM-YYYY
+            if (parts[2].length === 4) {
+              dateObj = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]), 12, 0, 0);
+            } 
+            // Formato YYYY/MM/DD ou YYYY-MM-DD
+            else if (parts[0].length === 4) {
+              dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+            }
+          }
+
+          // Fallback para o construtor nativo se os formatos conhecidos falharem
+          if (!dateObj || isNaN(dateObj.getTime())) {
             dateObj = new Date(dataStr);
+            // Ajusta para meio-dia se for uma data válida mas sem hora
+            if (!isNaN(dateObj.getTime()) && !dataStr.includes(':')) {
+              dateObj.setHours(12, 0, 0, 0);
+            }
           }
         }
 
         if (!dateObj || isNaN(dateObj.getTime())) {
           stats.errors++;
-          errorDetails.push({ militar: nome || cpf, error: `Data inválida: ${dataServico}` });
+          errorDetails.push({ militar: nome || cpf, error: `Data inválida no arquivo: "${dataServico}"` });
           continue;
         }
 
-        const monthKey = referencia_mes_ano || `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
-        const cycle = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [monthKey]);
+        const isoDate = dateObj.toISOString().split('T')[0];
+        const qCiclo = `
+          SELECT c.id_ciclo, c.valor_total_previsto, c.data_inicio, c.data_fim, o.sigla as sigla_opm
+          FROM CICLOS c
+          JOIN OPM o ON c.id_opm = o.id_opm
+          WHERE $1 BETWEEN c.data_inicio AND c.data_fim
+        `;
+        const cycle = await db.get(qCiclo, [isoDate]);
 
-        // Se o ciclo não existir, não é erro bloqueante (id_ciclo é opcional no DB)
-        const idCiclo = cycle ? cycle.id_ciclo : null;
-
-        // 3. Obter Tipo de Serviço
-        // Isso pode ser refinado futuramente criando a seleção de TIPO via frontend/planilha
-        const defaultTipo = await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO WHERE descricao LIKE '%6h%' AND ativo = true LIMIT 1") || await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO LIMIT 1");
-
-        if (!defaultTipo) {
+        if (!cycle) {
           stats.errors++;
-          errorDetails.push({ militar: nome || cpf, error: `Nenhum Tipo de Serviço cadastrado no sistema para referência.` });
+          errorDetails.push({ militar: nome || cpf, error: `Nenhum Ciclo operacional com OPM vinculada encontrado para a data ${isoDate}.` });
           continue;
         }
 
-        const idTipoServico = defaultTipo.id_tipo_servico;
-        
-        const diaSemana = dateObj.getDay(); // 0=Dom, 5=Sex, 6=Sab
-        const feriado = isFeriado(dateObj);
-        
-        // Sexta, Sábado, Domingo ou Feriado = 8h e 250.00. Demais dias = 6h e 192.03
-        const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || feriado);
-        const cargaHoraria = isExtras ? 8 : 6;
-        const valorRemuneracao = isExtras ? 250.00 : 192.03;
+        const idCiclo = cycle.id_ciclo;
 
-        const { rows: somaRows } = await db.query('SELECT COALESCE(SUM(valor_remuneracao), 0) as total FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1', [cycle.id_ciclo]);
-        const currentTotal = parseFloat(somaRows[0].total);
-        const teto = cycle ? parseFloat(cycle.valor_total_previsto) : 0;
-
-        if (idCiclo && teto > 0 && (currentTotal + valorRemuneracao) > teto) {
-          stats.errors++;
-          errorDetails.push({ militar: nome || cpf, error: `Orçamento Estourado no ciclo ${monthKey}. Teto: ${teto}, Atual + Este: ${currentTotal + valorRemuneracao}` });
-          continue;
-        }
-
-        // 4. Verificar se já existe este serviço registrado para este militar nesta data (Evitar Duplicados)
+        // 3. Verificar Duplicados
         const exists = await db.get(
           'SELECT 1 FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',
           [military.id_militar, isoDate]
         );
-
         if (exists) {
             stats.skipped++;
             continue;
         }
 
+        // 4. Obter Tipo e Orçamento
+        const defaultTipo = await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO WHERE descricao LIKE '%6h%' AND ativo = true LIMIT 1") || await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO LIMIT 1");
+
+        if (!defaultTipo) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || cpf, error: `Nenhum Tipo de Serviço cadastrado.` });
+          continue;
+        }
+
+        const idTipoServico = defaultTipo.id_tipo_servico;
+        const diaSemana = dateObj.getDay();
+        const feriado = isFeriado(dateObj);
+        const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || feriado);
+        const cargaHoraria = isExtras ? 8 : 6;
+        const valorRemuneracao = isExtras ? 250.00 : 192.03;
+
+        // Validar Orçamento - Apenas para a unidade (OPM) do ciclo
+        const { rows: somaRows } = await db.query(
+          'SELECT COALESCE(SUM(valor_remuneracao), 0) as total FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1 AND UPPER(TRIM(opm_origem)) = UPPER(TRIM($2))', 
+          [idCiclo, cycle.sigla_opm]
+        );
+        const currentTotal = parseFloat(somaRows[0].total);
+        const teto = parseFloat(cycle.valor_total_previsto || 0);
+
+        if (teto > 0 && (currentTotal + valorRemuneracao) > teto) {
+          stats.errors++;
+          errorDetails.push({ militar: nome || cpf, error: `Orçamento excedido para o ciclo (Teto: ${teto}).` });
+          continue;
+        }
+
+        // 5. Inserir
         await db.run(
           `INSERT INTO SERVICOS_EXECUTADOS 
             (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, cmd, opm_origem, modalidade, guarnicao, id_tipo_servico)
@@ -1532,14 +1549,16 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         stats.imported++;
 
       } catch (err) {
+        console.error('[IMPORT ERROR]', err);
         stats.errors++;
-        errorDetails.push({ militar: nome || 'Indefinido', error: err.message });
+        errorDetails.push({ militar: nome || 'Militar', error: err.message });
       }
     }
 
     res.json({ success: true, message: "Importação concluída.", stats, errorDetails: errorDetails.slice(0, 50) });
   } catch (e) {
-    res.status(500).json({ error: "Falha ao processar arquivo: " + e.message });
+    console.error('[FATAL IMPORT ERROR]', e);
+    res.status(500).json({ error: "Falha processar arquivo: " + e.message });
   }
 });
 
@@ -1681,15 +1700,14 @@ const PATROL_ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
 
 app.get('/api/schedules', async (req, res) => {
   try {
-    const { date, month } = req.query;
-    if (!date || !month) return res.status(400).json({ error: "Date and Month are required" });
+    const { date, id_ciclo } = req.query;
+    if (!date || !id_ciclo) return res.status(400).json({ error: "Data e Ciclo são obrigatórios." });
 
-    // Constrói a data completa no formato ISO YYYY-MM-DD
-    const dataServico = `${month}-${String(date).padStart(2, '0')}`;
-
-    // Localiza o ciclo pelo mês de referência
-    const ciclo = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [month]);
+    const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [id_ciclo]);
     if (!ciclo) return res.json([]);
+
+    const baseDate = new Date(ciclo.data_inicio);
+    const dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
 
     // Busca todas os registros ESCALA_PLANEJAMENTO do dia com dados do militar
     const { rows } = await db.query(`
@@ -1765,7 +1783,7 @@ app.get('/api/schedules', async (req, res) => {
     }
 
     const patrols = [...patrolMap.values()];
-    res.json([{ id: 1, date, month_key: month, patrols }]);
+    res.json([{ id: 1, date, id_ciclo, patrols }]);
 
   } catch (e) {
     console.error('[API] Error fetching schedules:', e);
@@ -1796,7 +1814,7 @@ app.get('/api/reports/escalas-planejadas', async (req, res) => {
       JOIN EFETIVO e ON ep.id_militar = e.id_militar
       JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
       LEFT JOIN TIPOS_SERVICO ts ON ep.id_tipo_servico = ts.id_tipo_servico
-      ORDER BY c.referencia_mes_ano DESC, ep.data_servico DESC, ep.nome_recurso ASC, ep.funcao ASC
+      ORDER BY c.data_inicio DESC, ep.data_servico DESC, ep.nome_recurso ASC, ep.funcao ASC
     `);
     res.json(rows);
   } catch (e) {
@@ -1807,22 +1825,20 @@ app.get('/api/reports/escalas-planejadas', async (req, res) => {
 
 app.post('/api/schedules', async (req, res) => {
     try {
-      const { date, month_key, patrols } = req.body;
-      if (!date || !month_key || !patrols) {
-        return res.status(400).json({ error: "Missing required fields" });
+      const { date, id_ciclo, patrols } = req.body;
+      const targetCicloId = id_ciclo;
+      
+      if (!date || !targetCicloId || !patrols) {
+        return res.status(400).json({ error: "Campos obrigatórios ausentes." });
       }
 
-    // Constrói data ISO YYYY-MM-DD
-    const dataServico = `${month_key}-${String(date).padStart(2, '0')}`;
+    // Localiza o ciclo para obter datas base se necessário ou apenas validar
+    const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [targetCicloId]);
+    if (!ciclo) return res.status(400).json({ error: `Ciclo ${targetCicloId} não encontrado.` });
 
-    // Localiza o ciclo — obrigatório para FK id_ciclo
-    const ciclo = await db.get(
-      'SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1',
-      [month_key]
-    );
-    if (!ciclo) {
-      return res.status(400).json({ error: `Ciclo não encontrado para o mês: ${month_key}` });
-    }
+    // Constrói data ISO YYYY-MM-DD baseada no dia informado e no mês/ano do data_inicio do ciclo
+    const baseDate = new Date(ciclo.data_inicio);
+    const dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
 
     // Remove escalas existentes do dia (substituição completa do planejamento diário)
     // SERVICOS_EXECUTADOS referencia id_escala com ON DELETE SET NULL, sem perda de dados
@@ -1939,6 +1955,60 @@ app.post('/api/schedules', async (req, res) => {
   }
 });
 
+app.delete('/api/schedules/patrol', async (req, res) => {
+  try {
+    const { nome_recurso, data_servico: date, id_ciclo } = req.query;
+    
+    if (!nome_recurso || !date || !id_ciclo) {
+      return res.status(400).json({ error: "Parâmetros nome_recurso, data_servico e id_ciclo são obrigatórios." });
+    }
+
+    // 1. Validar e localizar ciclo
+    const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [id_ciclo]);
+    if (!ciclo) return res.status(404).json({ error: "Ciclo não encontrado." });
+
+    // 2. Calcular data ISO correspondente (seguindo mesma lógica de salvamento)
+    const baseDate = new Date(ciclo.data_inicio);
+    const dataServicoISO = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+
+    // 3. Verificar vínculos impeditivos (Serviços já vinculados a execuções na ternária)
+    const vinculados = await db.query(`
+      SELECT ees.id_vinculo
+      FROM ESCALA_EFETIVO_SERVICO ees
+      JOIN ESCALA_PLANEJAMENTO ep ON ees.id_escala = ep.id_escala
+      WHERE ep.nome_recurso = $1 
+        AND ep.data_servico = $2 
+        AND ep.id_ciclo = $3
+        AND ees.id_execucao IS NOT NULL
+    `, [nome_recurso, dataServicoISO, id_ciclo]);
+
+    if (vinculados.rows.length > 0) {
+      return res.status(400).json({ 
+        error: "Não é possível excluir esta guarnição: existem serviços já executados ou finalizados vinculados a este planejamento.",
+        code: "FK_VIOLATION_EXECUTION"
+      });
+    }
+
+    // 4. Exclusão física (Cascata automática na ESCALA_EFETIVO_SERVICO via FK on delete cascade)
+    const deleteRes = await db.query(`
+      DELETE FROM ESCALA_PLANEJAMENTO 
+      WHERE nome_recurso = $1 
+        AND data_servico = $2 
+        AND id_ciclo = $3
+    `, [nome_recurso, dataServicoISO, id_ciclo]);
+
+    res.json({ 
+      success: true, 
+      message: `Guarnição ${nome_recurso} excluída com sucesso.`,
+      count: deleteRes.rowCount 
+    });
+
+  } catch (e) {
+    console.error('[API] Erro ao excluir guarnição:', e);
+    res.status(500).json({ error: "Erro interno ao processar exclusão: " + e.message });
+  }
+});
+
 
 // ============================================================
 // FINANCEIRO & TIPOS DE SERVICO
@@ -1978,24 +2048,39 @@ app.put('/api/tipos-servico/:id', async (req, res) => {
 // ============================================================
 app.get('/api/financeiro/resumo', async (req, res) => {
     try {
-      const month = req.query.month || getCurrentMonthKey();
+      const { id_ciclo } = req.query;
 
-      // Primeiro, buscar o ciclo específico para garantir que temos os dados
-      const ciclo = await db.get('SELECT id_ciclo, valor_total_previsto FROM CICLOS WHERE referencia_mes_ano = $1', [month]);
+      // Buscar ciclo por ID ou usar o mais recente aberto
+      const queryCicloStr = `
+        SELECT 
+          c.id_ciclo, 
+          c.valor_total_previsto, 
+          c.data_inicio, 
+          c.data_fim,
+          o.sigla as sigla_opm,
+          TO_CHAR(c.data_inicio, 'MM/YYYY') as desc_referencia 
+        FROM CICLOS c
+        LEFT JOIN OPM o ON c.id_opm = o.id_opm
+        WHERE ${id_ciclo ? 'c.id_ciclo = $1' : "c.status = 'Aberto'"}
+        ORDER BY c.data_inicio DESC LIMIT 1
+      `;
       
-      console.log('[DEBUG] Ciclo encontrado:', ciclo);
-      console.log('[DEBUG] Valor_previsto raw:', ciclo?.valor_total_previsto);
+      const ciclo = await db.get(queryCicloStr, id_ciclo ? [id_ciclo] : []);
       
-      let verba_ciclo = 0;
-      if (ciclo && ciclo.valor_total_previsto) {
-        // Asegurar que é número
-        verba_ciclo = typeof ciclo.valor_total_previsto === 'number' 
-          ? ciclo.valor_total_previsto 
-          : parseFloat(ciclo.valor_total_previsto) || 0;
+      if (!ciclo) {
+        return res.status(404).json({ error: "Nenhum ciclo operacional encontrado para gerar o resumo." });
       }
-      console.log('[DEBUG] Verba ciclo parseada:', verba_ciclo);
 
-      // Obter dados dos serviços executados
+      if (!ciclo.sigla_opm) {
+        return res.status(400).json({ 
+          error: "O ciclo selecionado não possui uma OPM (Unidade) vinculada.",
+          code: "MISSING_OPM"
+        });
+      }
+
+      let verba_ciclo = parseFloat(ciclo.valor_total_previsto || 0);
+
+      // Obter dados dos serviços executados filtrados por OPM e Range do Ciclo
       const qGlobal = `
       SELECT
         COUNT(DISTINCT se.id_militar) as militares_unicos,
@@ -2003,8 +2088,10 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         COALESCE(SUM(se.valor_remuneracao), 0) as total_gasto
       FROM SERVICOS_EXECUTADOS se
       WHERE se.id_ciclo = $1
+        AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM($2))
+        AND se.data_execucao BETWEEN $3 AND $4
       `;
-      const resGlobal = await db.query(qGlobal, [ciclo?.id_ciclo || 0]);
+      const resGlobal = await db.query(qGlobal, [ciclo.id_ciclo, ciclo.sigla_opm, ciclo.data_inicio, ciclo.data_fim]);
 
       // Obter agrupamento por Tipos de Serviço
       const qTipos = `
@@ -2015,9 +2102,11 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       FROM SERVICOS_EXECUTADOS se
       JOIN TIPOS_SERVICO ts ON se.id_tipo_servico = ts.id_tipo_servico
       WHERE se.id_ciclo = $1
+        AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM($2))
+        AND se.data_execucao BETWEEN $3 AND $4
       GROUP BY ts.descricao
       `;
-      const resTipos = await db.query(qTipos, [ciclo?.id_ciclo || 0]);
+      const resTipos = await db.query(qTipos, [ciclo.id_ciclo, ciclo.sigla_opm, ciclo.data_inicio, ciclo.data_fim]);
 
       const stats = resGlobal.rows[0] || { militares_unicos: 0, total_militar_servicos: 0, total_gasto: 0 };
       const total_gasto = parseFloat(stats.total_gasto || 0);
@@ -2030,25 +2119,39 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         total_militar_servicos: parseInt(stats.total_militar_servicos),
         total_militares_unicos: parseInt(stats.militares_unicos),
         detalhes_por_tipo: resTipos.rows,
-        mes_selecionado: month
+        mes_selecionado: ciclo?.desc_referencia || '---'
       });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
   });
 
   app.get('/api/financeiro/detalhado', async (req, res) => {
     try {
-      const month = req.query.month || getCurrentMonthKey();
+      const { id_ciclo } = req.query;
+      
+      const queryCicloStr = `
+        SELECT c.id_ciclo, c.data_inicio, c.data_fim, o.sigla as sigla_opm
+        FROM CICLOS c
+        LEFT JOIN OPM o ON c.id_opm = o.id_opm
+        WHERE ${id_ciclo ? 'c.id_ciclo = $1' : "c.status = 'Aberto'"}
+        ORDER BY c.data_inicio DESC LIMIT 1
+      `;
+      const ciclo = await db.get(queryCicloStr, id_ciclo ? [id_ciclo] : []);
+      
+      if (!ciclo || !ciclo.sigla_opm) {
+        return res.json({ detalhes_diarios: [], top_militares: [] });
+      }
 
       const qDiario = `
       SELECT TO_CHAR(se.data_execucao, 'DD/MM') as data,
              COUNT(*) as servicos,
              SUM(se.valor_remuneracao) as gasto
       FROM SERVICOS_EXECUTADOS se
-      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
-      WHERE c.referencia_mes_ano = $1
+      WHERE se.id_ciclo = $1
+        AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM($2))
+        AND se.data_execucao BETWEEN $3 AND $4
       GROUP BY se.data_execucao ORDER BY se.data_execucao ASC
     `;
-      const resDiario = await db.query(qDiario, [month]);
+      const resDiario = await db.query(qDiario, [ciclo.id_ciclo, ciclo.sigla_opm, ciclo.data_inicio, ciclo.data_fim]);
       let acumuladoTotal = 0;
       const detalhes_diarios = resDiario.rows.map(row => {
         const gasto = parseFloat(row.gasto);
@@ -2062,12 +2165,13 @@ app.get('/api/financeiro/resumo', async (req, res) => {
              SUM(se.valor_remuneracao) as gasto
       FROM SERVICOS_EXECUTADOS se
       JOIN EFETIVO e ON se.id_militar = e.id_militar
-      JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
-      WHERE c.referencia_mes_ano = $1
+      WHERE se.id_ciclo = $1
+        AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM($2))
+        AND se.data_execucao BETWEEN $3 AND $4
       GROUP BY e.matricula, e.nome_guerra
       ORDER BY gasto DESC LIMIT 10
     `;
-      const resTop = await db.query(qTop, [month]);
+      const resTop = await db.query(qTop, [ciclo.id_ciclo, ciclo.sigla_opm, ciclo.data_inicio, ciclo.data_fim]);
       res.json({
         detalhes_diarios,
         top_militares: resTop.rows.map(r => ({ ...r, servicos: parseInt(r.servicos), gasto: parseFloat(r.gasto) }))
@@ -2226,9 +2330,9 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   }
 
   app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
-    const { month_key } = req.body;
-    console.log('Import request:', { month_key, filesCount: req.files?.length });
-    if (!req.files || !month_key) return res.status(400).json({ error: "Invalid request" });
+    const { id_ciclo } = req.body;
+    console.log('Import request:', { id_ciclo, filesCount: req.files?.length });
+    if (!req.files || !id_ciclo) return res.status(400).json({ error: "Ciclo não informado ou arquivos ausentes." });
     try {
       const volunteers = [], errors = [];
       for (const file of req.files) {
@@ -2238,7 +2342,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           console.log('PDF text length:', pdf.text.length);
           const parsed = await parseRequerimentoPDF(pdf.text, db);
           console.log('Parsed data:', JSON.stringify(parsed));
-          parsed.month_key = month_key;
+          parsed.id_ciclo = id_ciclo;
           if (parsed.numero_ordem) volunteers.push(parsed);
           else errors.push({ file: file.originalname, error: "Nao encontrou numero" });
         } catch (e) { console.error('Error processing file:', e); errors.push({ file: file.originalname, error: e.message }); }
@@ -2312,26 +2416,20 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           // Atualizar informação de motorista e POSTO vinda do PDF
           // Atualizar apenas o motorista, não sobrescrever o Posto/Grad se já existir e for confiável no banco
           await db.run('UPDATE EFETIVO SET motorista = $1 WHERE id_militar = $2', [item.motorist, m.id_militar]);
-          let c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
-          if (!c) {
-            const [year, month] = item.month_key.split('-');
-            const y = parseInt(year);
-            const m = parseInt(month) - 1;
-            const firstDay = new Date(y, m, 1);
-            const lastDay = new Date(y, m + 1, 0);
-            const dataInicioISO = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-            const dataFimISO = `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
-            await db.run('INSERT INTO CICLOS (id_opm, referencia_mes_ano, data_inicio, data_fim, status) VALUES (1, $1, $2, $3, $4)', [item.month_key, dataInicioISO, dataFimISO, 'Aberto']);
-            c = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [item.month_key]);
+          
+          const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE id_ciclo = $1', [parseInt(item.id_ciclo)]);
+          if (!cycle) {
+            results.push({ numero_ordem: item.numero_ordem, success: false, error: "Ciclo operacional não encontrado." });
+            continue;
           }
-          console.log('Ciclo found:', c);
-          const existing = await db.get('SELECT id_requerimento FROM REQUERIMENTOS r JOIN CICLOS c ON r.id_ciclo = c.id_ciclo WHERE r.id_militar = $1 AND c.referencia_mes_ano = $2', [m.id_militar, item.month_key]);
+          
+          const existing = await db.get('SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2', [m.id_militar, item.id_ciclo]);
           let id_req;
           if (existing) {
             id_req = existing.id_requerimento;
             await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1', [id_req]);
           } else {
-            const r = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [m.id_militar, c.id_ciclo]);
+            const r = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [m.id_militar, cycle.id_ciclo]);
             id_req = r.lastID;
           }
           for (const [day, shifts] of Object.entries(item.availability)) {

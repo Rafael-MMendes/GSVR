@@ -16,7 +16,7 @@ export function FinanceiroDashboard() {
   const [resumo, setResumo] = useState(null);
   const [detalhado, setDetalhado] = useState(null);
   const [months, setMonths] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedCycleId, setSelectedCycleId] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('visao geral');
   const [error, setError] = useState(null);
@@ -47,7 +47,7 @@ export function FinanceiroDashboard() {
         const ma = parseInt(partsA[1]) || 0;
         const db = parseInt(partsB[0]) || 0;
         const mb = parseInt(partsB[1]) || 0;
-        
+
         // Criar um marcador numérico MMDD para comparação correta
         aValue = ma * 100 + da;
         bValue = mb * 100 + db;
@@ -66,8 +66,11 @@ export function FinanceiroDashboard() {
       try {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
-        if (monthsRes.data.length > 0) {
-          setSelectedMonth(monthsRes.data[0].referencia_mes_ano);
+        const activeCycle = monthsRes.data.find(c => c.status === 'Aberto');
+        if (activeCycle) {
+          setSelectedCycleId(activeCycle.id_ciclo);
+        } else if (monthsRes.data.length > 0) {
+          setSelectedCycleId(monthsRes.data[0].id_ciclo);
         } else {
           setLoading(false);
         }
@@ -85,7 +88,7 @@ export function FinanceiroDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const params = selectedMonth ? { month: selectedMonth } : {};
+        const params = selectedCycleId ? { id_ciclo: selectedCycleId } : {};
         const [resumoRes, detalhadoRes] = await Promise.all([
           axios.get(`${API_URL}/financeiro/resumo`, { params }),
           axios.get(`${API_URL}/financeiro/detalhado`, { params })
@@ -94,17 +97,18 @@ export function FinanceiroDashboard() {
         setDetalhado(detalhadoRes.data);
       } catch (e) {
         console.error('Erro ao carregar dados financeiros:', e);
-        setError('Erro ao carregar dados financeiros. Verifique o servidor.');
+        const backendMsg = e.response?.data?.error;
+        setError(backendMsg || 'Erro ao carregar dados financeiros. Verifique o servidor.');
       } finally {
         setLoading(false);
       }
     };
-    
+
     // Se temos selectedMonth ou se a lista de meses já foi carregada (mesmo vazia)
-    if (selectedMonth !== '' || (months.length === 0 && !loading)) {
+    if (selectedCycleId !== '' || (months.length === 0 && !loading)) {
       loadData();
     }
-  }, [selectedMonth]);
+  }, [selectedCycleId]);
 
   if (error) {
     return (
@@ -159,12 +163,12 @@ export function FinanceiroDashboard() {
           <select
             className="form-control"
             style={{ width: '200px', margin: 0 }}
-            value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}
+            value={selectedCycleId}
+            onChange={e => setSelectedCycleId(e.target.value)}
           >
-            <option value="">Todos os Ciclos</option>
+            <option value="">Selecione o Ciclo</option>
             {months.map(m => (
-              <option key={m.id_ciclo} value={m.referencia_mes_ano}>{m.referencia_mes_ano} - {m.opm_sigla}</option>
+              <option key={m.id_ciclo} value={m.id_ciclo}>{m.period_name} - {m.opm_sigla}</option>
             ))}
           </select>
         </div>

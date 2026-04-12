@@ -32,7 +32,7 @@ const getTimeOptions = (durationStr) => {
 export function AdminDashboardV2() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedCycleId, setSelectedCycleId] = useState('');
   const [selectedDate, setSelectedDate] = useState('1');
   const [selectedShift, setSelectedShift] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,9 +56,9 @@ export function AdminDashboardV2() {
         setMonths(monthsRes.data);
         const activeCycle = monthsRes.data.find(c => c.status === 'Aberto');
         if (activeCycle) {
-          setSelectedMonth(activeCycle.referencia_mes_ano);
+          setSelectedCycleId(activeCycle.id_ciclo);
         } else if (monthsRes.data.length > 0) {
-          setSelectedMonth(monthsRes.data[0].referencia_mes_ano);
+          setSelectedCycleId(monthsRes.data[0].id_ciclo);
         }
       } catch (e) {
         console.error('[Init] Erro ao carregar ciclos:', e);
@@ -72,10 +72,10 @@ export function AdminDashboardV2() {
     const selectedDateNum = parseInt(dateVal);
     const dayKey1 = String(selectedDateNum);
     const dayKey2 = String(selectedDateNum).padStart(2, '0');
-    
+
     const processedVolunteers = volunteersData.map(v => {
-      const availabilityForDay = 
-        (v.availability && v.availability[dayKey1]) || 
+      const availabilityForDay =
+        (v.availability && v.availability[dayKey1]) ||
         (v.availability && v.availability[dayKey2]) ||
         (v.availability && v.availability[selectedDateNum]);
       return { ...v, isAvailableToday: !!availabilityForDay, todayShifts: availabilityForDay || [] };
@@ -113,11 +113,11 @@ export function AdminDashboardV2() {
   };
 
   useEffect(() => {
-    if (!selectedMonth) return;
+    if (!selectedCycleId) return;
     const loadVolunteers = async () => {
       try {
         setLoadingVolunteers(true);
-        const volRes = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
+        const volRes = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCycleId}`);
         volunteersRef.current = volRes.data;
         setVolunteers(volRes.data);
       } catch (e) {
@@ -127,24 +127,24 @@ export function AdminDashboardV2() {
       }
     };
     loadVolunteers();
-  }, [selectedMonth]);
+  }, [selectedCycleId]);
 
   useEffect(() => {
-    if (!selectedMonth || volunteersRef.current.length === 0) return;
+    if (!selectedCycleId || volunteersRef.current.length === 0) return;
     const loadSchedule = async () => {
       try {
-        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&month=${selectedMonth}`);
-        loadScheduleData(volunteersRef.current, schedRes.data, selectedMonth, selectedDate);
+        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedCycleId}`);
+        loadScheduleData(volunteersRef.current, schedRes.data, selectedCycleId, selectedDate);
       } catch (e) {
-        loadScheduleData(volunteersRef.current, [], selectedMonth, selectedDate);
+        loadScheduleData(volunteersRef.current, [], selectedCycleId, selectedDate);
       }
     };
     loadSchedule();
-  }, [selectedDate, volunteers]);
+  }, [selectedDate, volunteers, selectedCycleId]);
 
   const saveConfig = async () => {
     try {
-      await axios.post(`${API_URL}/schedules`, { date: selectedDate, month_key: selectedMonth, patrols: state.patrols });
+      await axios.post(`${API_URL}/schedules`, { date: selectedDate, id_ciclo: selectedCycleId, patrols: state.patrols });
       alert('Escala salva com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar escala:', error);
@@ -154,8 +154,11 @@ export function AdminDashboardV2() {
 
   const filteredPool = useMemo(() => {
     return state.pool.filter(p => {
-      const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (p.numero_ordem && String(p.numero_ordem).includes(searchTerm));
+      // Regra: Exibir apenas militares com até 7 serviços (limite de 8 atingido oculta do pool)
+      if (p.service_count >= 8) return false;
+
+      const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.numero_ordem && String(p.numero_ordem).includes(searchTerm));
       if (searchTerm.length > 1) return matchesSearch;
       if (selectedShift === 'Todos') return matchesSearch;
       if (!p.isAvailableToday) return false;
@@ -163,11 +166,11 @@ export function AdminDashboardV2() {
         if (!s) return false;
         const dbShift = String(s).toUpperCase();
         const selShift = selectedShift.toUpperCase();
-        return dbShift.includes(selShift.split(' ')[0]) || 
-               (selShift.includes('07') && dbShift.includes('07:00')) ||
-               (selShift.includes('13') && dbShift.includes('13:00')) ||
-               (selShift.includes('19') && dbShift.includes('19:00')) ||
-               (selShift.includes('01') && dbShift.includes('01:00'));
+        return dbShift.includes(selShift.split(' ')[0]) ||
+          (selShift.includes('07') && dbShift.includes('07:00')) ||
+          (selShift.includes('13') && dbShift.includes('13:00')) ||
+          (selShift.includes('19') && dbShift.includes('19:00')) ||
+          (selShift.includes('01') && dbShift.includes('01:00'));
       });
     });
   }, [state.pool, searchTerm, selectedShift, selectedDate]);
@@ -239,7 +242,7 @@ export function AdminDashboardV2() {
           return p;
         });
       }
-      
+
       const selectedIds = selectedMembers.map(m => m.id);
       return { pool: prev.pool.filter(p => !selectedIds.includes(p.id)), patrols: newPatrols };
     });
@@ -292,10 +295,10 @@ export function AdminDashboardV2() {
       else {
         const ptIdx = newState.patrols.findIndex(p => p.id === targetId);
         if (newState.patrols[ptIdx].members.length >= 3) {
-           alert("Guarnição cheia (Máximo 3 componentes).");
-           if(sourceId === 'pool') newState.pool.push(person);
-           else newState.patrols.find(p=>p.id===sourceId).members.push(person);
-           return newState;
+          alert("Guarnição cheia (Máximo 3 componentes).");
+          if (sourceId === 'pool') newState.pool.push(person);
+          else newState.patrols.find(p => p.id === sourceId).members.push(person);
+          return newState;
         }
         newState.patrols[ptIdx].members.push(person);
       }
@@ -313,12 +316,41 @@ export function AdminDashboardV2() {
     setSelectionMode({ patrolId: 'NEW', selectedMembers: [] });
     setSelectedMembers([]);
   };
-  const removePatrol = (patrolId) => {
-    setState(prev => {
-      const patrolToRemove = prev.patrols.find(p => p.id === patrolId);
-      if (!patrolToRemove) return prev;
-      return { ...prev, pool: [...prev.pool, ...patrolToRemove.members], patrols: prev.patrols.filter(p => p.id !== patrolId) };
-    });
+  const removePatrol = async (patrolId) => {
+    const patrolToRemove = state.patrols.find(p => p.id === patrolId);
+    if (!patrolToRemove) return;
+
+    const patrolName = patrolToRemove.name || patrolId;
+
+    if (!window.confirm(`Deseja realmente excluir a guarnição "${patrolName}"? Esta ação removerá os registros planejados do banco de dados.`)) return;
+
+    try {
+      // Chama API para exclusão física no banco
+      await axios.delete(`${API_URL}/schedules/patrol`, {
+        params: {
+          nome_recurso: patrolName,
+          data_servico: selectedDate,
+          id_ciclo: selectedCycleId
+        }
+      });
+
+      setState(prev => {
+        const pRem = prev.patrols.find(p => p.id === patrolId);
+        if (!pRem) return prev;
+        const membersToReturn = (pRem.members || []).filter(Boolean);
+        return { 
+          ...prev, 
+          pool: [...prev.pool, ...membersToReturn], 
+          patrols: prev.patrols.filter(p => p.id !== patrolId) 
+        };
+      });
+      
+      // Feedback opcional ou apenas sucesso silencioso na UI
+    } catch (error) {
+      console.error('Erro ao excluir guarnição:', error);
+      const msg = error.response?.data?.error || error.message;
+      alert(`Erro ao excluir guarnição: ${msg}`);
+    }
   };
 
   const generatePDF = async () => {
@@ -357,10 +389,10 @@ export function AdminDashboardV2() {
     clone.style.position = 'fixed'; clone.style.top = '-9999px'; clone.style.left = '0';
     clone.style.width = source.offsetWidth + 'px'; clone.style.background = 'white';
     clone.style.padding = '1rem'; clone.style.zIndex = '-1';
-    
+
     // Preparar clone (Ocultar elementos desnecessários na impressão)
     Array.from(clone.querySelectorAll('.no-print, .v2-header')).forEach(el => el.style.display = 'none');
-    
+
     document.body.appendChild(clone);
     try {
       const canvas = await html2canvas(clone, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
@@ -376,252 +408,923 @@ export function AdminDashboardV2() {
     }
   };
 
-  return (
-    <div style={{ padding: '1rem 2rem', fontFamily: "'Inter', sans-serif", background: '#f4f7fb', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* V2 HEADER */}
-      <div className="v2-header no-print" style={{ 
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-        background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(12px)',
-        padding: '1rem 2rem', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-        marginBottom: '1.5rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#0D3878', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Calendar size={24} /> Planejamento de Escala
-            </h1>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Design Avançado (V2)</p>
-          </div>
-          
-          <div style={{ height: '30px', width: '1px', background: '#e2e8f0' }}></div>
+  // --- DESIGN SYSTEM TOKENS ---
+  const colors = {
+    primary: '#0D3878',
+    primaryLight: '#1e40af',
+    secondary: '#009C3B',
+    accent: '#cbd5e1',
+    bg: '#f8fafc',
+    text: '#1e293b',
+    textMuted: '#64748b',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    white: '#ffffff',
+    glass: 'rgba(255, 255, 255, 0.85)',
+    border: '#e2e8f0'
+  };
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <div style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontWeight: 600, display: 'flex', alignItems: 'center', boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.5)' }}>
-              Ciclo: {selectedMonth || 'Nenhum ciclo aberto'}
+  const transitions = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+  const shadowSm = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+  const shadowMd = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+  const shadowLg = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+
+  return (
+    <div style={{
+      padding: '1.5rem',
+      fontFamily: "'Outfit', 'Inter', sans-serif",
+      background: '#f1f5f9',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1.5rem'
+    }}>
+      {/* GLOSSY HEADER */}
+      <div className="v2-header no-print" style={{
+        position: 'sticky',
+        top: '1rem',
+        zIndex: 50,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: colors.glass,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        padding: '1.25rem 2rem',
+        borderRadius: '20px',
+        boxShadow: shadowLg,
+        border: `1px solid rgba(255, 255, 255, 0.3)`,
+        marginBottom: '0.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            boxShadow: '0 8px 16px rgba(13, 56, 120, 0.25)'
+          }}>
+            <Calendar size={24} />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.4rem', color: colors.primary, fontWeight: 800, letterSpacing: '-0.02em' }}>
+              Planejamento de Escala
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px' }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }}></div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>Operação Força Tarefa • V2 Pro</p>
             </div>
-            <select style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', outline: 'none', fontWeight: 500 }} value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
+          </div>
+
+          <div style={{ height: '40px', width: '1px', background: 'rgba(0,0,0,0.06)', margin: '0 0.5rem' }}></div>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{
+              padding: '0.6rem 1rem',
+              borderRadius: '12px',
+              background: '#f0f9ff',
+              color: '#0284c7',
+              border: '1px solid #bae6fd',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: '0 2px 4px rgba(2, 132, 199, 0.05)'
+            }}>
+              <Clock size={16} />
+              {months.find(m => m.id_ciclo === selectedCycleId)?.period_name || '---'}
+            </div>
+
+            <div style={{
+              padding: '0.6rem 1rem',
+              borderRadius: '12px',
+              background: '#eef2ff',
+              color: '#4f46e5',
+              border: '1px solid #c7d2fe',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <Users size={16} />
+              Disponíveis: {filteredPool.length}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {/* Controls Group */}
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            background: 'rgba(0,0,0,0.03)',
+            padding: '4px',
+            borderRadius: '14px',
+            marginRight: '0.5rem'
+          }}>
+            <select
+              style={{
+                padding: '0.6rem 1rem',
+                borderRadius: '10px',
+                border: 'none',
+                background: colors.white,
+                color: colors.text,
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: shadowSm,
+                minWidth: '160px'
+              }}
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            >
               {(() => {
-                const [yearStr, monthStr] = selectedMonth ? selectedMonth.split('-') : [new Date().getFullYear(), new Date().getMonth() + 1];
-                const year = parseInt(yearStr);
-                const month = parseInt(monthStr);
-                const daysInMonth = selectedMonth ? new Date(year, month, 0).getDate() : 31;
+                const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                if (!currentCycle) return null;
                 
-                return Array.from({length: daysInMonth}, (_, i) => i+1).map(d => {
-                  let wdayCap = '';
-                  if (selectedMonth) {
-                    const date = new Date(year, month - 1, d);
-                    const wday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-                    wdayCap = ' - ' + wday.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
-                  }
-                  return <option key={d} value={d}>Dia {d}{wdayCap}</option>
+                const start = new Date(currentCycle.data_inicio);
+                const end = new Date(currentCycle.data_fim);
+                const days = [];
+                
+                let curr = new Date(start);
+                while (curr <= end) {
+                  days.push(new Date(curr));
+                  curr.setDate(curr.getDate() + 1);
+                }
+
+                return days.map(date => {
+                  const d = date.getDate();
+                  const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                  const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
+                  const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+                  const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
+                  return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
                 });
               })()}
             </select>
 
-            <div style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#f8fafc', color: '#0D3878', border: '1px solid #e2e8f0', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-               <Users size={18} color="#0D3878" />
-               <span style={{ fontSize: '0.9rem' }}>Disponíveis:</span>
-               <span style={{ background: '#0D3878', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700 }}>{filteredPool.length}</span>
-            </div>
+            <select
+              style={{
+                padding: '0.6rem 1rem',
+                borderRadius: '10px',
+                border: 'none',
+                background: colors.white,
+                color: colors.text,
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                outline: 'none',
+                boxShadow: shadowSm
+              }}
+              value={selectedShift}
+              onChange={e => setSelectedShift(e.target.value)}
+            >
+              <option value="Todos">Turno: Todos</option>
+              {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+            </select>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button onClick={addPatrol} style={{ padding: '0.6rem 1rem', background: '#fff', color: '#0D3878', border: '1px solid #0D3878', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: '0.2s' }}>
-            <Plus size={18} /> Adicionar Guarnição
+          <button
+            onClick={addPatrol}
+            style={{
+              padding: '0.75rem 1.25rem',
+              background: colors.white,
+              color: colors.primary,
+              border: `2px solid ${colors.primary}`,
+              borderRadius: '12px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: transitions,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: shadowSm
+            }}
+            onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+            onMouseOut={e => { e.currentTarget.style.background = colors.white; e.currentTarget.style.color = colors.primary; }}
+          >
+            <Plus size={18} strokeWidth={3} />
+            <span>Guarnição</span>
           </button>
-          <button onClick={generatePDF} style={{ padding: '0.6rem 1rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: '0.2s' }}>
-            <Printer size={18} /> Imprimir (PDF)
+
+          <button
+            onClick={saveConfig}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: transitions,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              boxShadow: '0 10px 20px rgba(13, 56, 120, 0.2)'
+            }}
+            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <Check size={18} strokeWidth={3} />
+            Salvar
           </button>
-          <button onClick={saveConfig} style={{ padding: '0.6rem 1.5rem', background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 10px rgba(13, 56, 120, 0.3)', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-            <Check size={18} /> Salvar Alterações
+
+          <button
+            onClick={generatePDF}
+            style={{
+              padding: '0.75rem',
+              background: colors.white,
+              color: colors.textMuted,
+              border: `1px solid ${colors.border}`,
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: transitions,
+              display: 'flex',
+              alignItems: 'center',
+              boxShadow: shadowSm
+            }}
+            title="Imprimir Escala"
+            onMouseOver={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = colors.primary; }}
+            onMouseOut={e => { e.currentTarget.style.background = colors.white; e.currentTarget.style.color = colors.textMuted; }}
+          >
+            <Printer size={20} />
           </button>
         </div>
       </div>
 
-      {/* ÁREA DE PLANEJAMENTO (GRID) */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }} ref={printRef}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem', paddingBottom: '2rem' }}>
-            {state.patrols.map(patrol => (
-              <div 
-                key={patrol.id}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, patrol.id)}
-                style={{
-                  background: '#fff', borderRadius: '16px', border: '1px solid #e2e8f0',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.03)', overflow: 'hidden',
-                  display: 'flex', flexDirection: 'column'
-                }}
-              >
-                {/* Patrol Header */}
-                <div style={{ 
-                  background: 'linear-gradient(90deg, #0D3878 0%, #1e40af 100%)', 
-                  padding: '1rem', color: '#fff', position: 'relative'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <input 
-                      type="text" value={normalizePatrolName(patrol.name)} 
-                      onChange={e => handlePatrolSettingChange(patrol.id, 'name', normalizePatrolName(e.target.value))} 
-                      style={{ border: 'none', background: 'transparent', fontSize: '1.1rem', fontWeight: 700, color: '#fff', width: '100%', outline: 'none' }} 
+      {/* PLANNING GRID */}
+      <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+          gap: '2rem',
+          paddingBottom: '4rem'
+        }}>
+          {state.patrols.map(patrol => (
+            <div
+              key={patrol.id}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, patrol.id)}
+              style={{
+                background: colors.white,
+                borderRadius: '24px',
+                border: `1px solid ${colors.border}`,
+                boxShadow: shadowMd,
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                transition: transitions,
+                animation: 'fadeIn 0.5s ease-out'
+              }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = shadowLg}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = shadowMd}
+            >
+              {/* Card Header (Patrol) */}
+              <div style={{
+                background: colors.primary,
+                background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+                padding: '1.25rem 1.5rem',
+                color: 'white',
+                position: 'relative'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                    <Shield size={20} style={{ opacity: 0.8 }} />
+                    <input
+                      type="text"
+                      value={normalizePatrolName(patrol.name)}
+                      onChange={e => handlePatrolSettingChange(patrol.id, 'name', normalizePatrolName(e.target.value))}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        fontSize: '1.1rem',
+                        fontWeight: 800,
+                        color: 'white',
+                        width: '100%',
+                        outline: 'none',
+                        letterSpacing: '-0.01em'
+                      }}
+                      placeholder="Nome da Guarnição"
                     />
-                    <button onClick={() => removePatrol(patrol.id)} className="no-print" style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '4px', padding: '4px', display: 'flex' }} title="Remover Guarnição">
-                      <Trash2 size={16} />
-                    </button>
                   </div>
+                  <button
+                    onClick={() => removePatrol(patrol.id)}
+                    className="no-print"
+                    style={{
+                      background: 'rgba(255,255,255,0.15)',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      borderRadius: '10px',
+                      padding: '8px',
+                      display: 'flex',
+                      transition: transitions
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = colors.danger}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                    title="Remover Guarnição"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
 
-                {/* Patrol Config */}
-                <div className="no-print" style={{ padding: '0.75rem 1rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '0.5rem' }}>
-                  <select value={patrol.duration} onChange={e => handleDurationChange(patrol.id, e.target.value)} style={{ padding: '0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', outline: 'none' }}>
-                    <option value="6h">6H</option>
-                    <option value="8h">8H</option>
+                {/* Status Pills inside header */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <div style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    background: 'rgba(255,255,255,0.15)',
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    backdropFilter: 'blur(4px)'
+                  }}>
+                    {patrol.duration}
+                  </div>
+                  {patrol.timeSpan && (
+                    <div style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      background: 'rgba(255,255,255,0.15)',
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      backdropFilter: 'blur(4px)'
+                    }}>
+                      {patrol.timeSpan}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Configuration Controls */}
+              <div className="no-print" style={{
+                padding: '1rem 1.5rem',
+                background: '#f8fafc',
+                borderBottom: `1px solid ${colors.border}`,
+                display: 'flex',
+                gap: '0.75rem'
+              }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Clock size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: colors.textMuted }} />
+                  <select
+                    value={patrol.duration}
+                    onChange={e => handleDurationChange(patrol.id, e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem 0.5rem 0.5rem 2rem',
+                      borderRadius: '8px',
+                      border: `1px solid ${colors.border}`,
+                      background: 'white',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: colors.text,
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="6h">Duração: 6 Horas</option>
+                    <option value="8h">Duração: 8 Horas</option>
                   </select>
-                  <select value={patrol.timeSpan} onChange={e => handlePatrolSettingChange(patrol.id, 'timeSpan', e.target.value)} style={{ flex: 1, padding: '0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.8rem', outline: 'none' }}>
-                    <option value="">Selecione...</option>
+                </div>
+
+                <div style={{ position: 'relative', flex: 1.5 }}>
+                  <select
+                    value={patrol.timeSpan}
+                    onChange={e => handlePatrolSettingChange(patrol.id, 'timeSpan', e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      border: `1px solid ${colors.border}`,
+                      background: 'white',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: colors.text,
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="">Selecione Horário...</option>
                     {getTimeOptions(patrol.duration).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
+              </div>
 
-                {/* Print Title Only */}
-                <div className="print-only" style={{ display: 'none', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', fontSize: '0.9rem', color: '#475569', background: '#f1f5f9' }}>
-                  {patrol.timeSpan ? `Horário: ${patrol.timeSpan} (${patrol.duration})` : `Carga: ${patrol.duration}`}
-                </div>
+              {/* Slots Container */}
+              <div style={{
+                padding: '1.5rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                flex: 1,
+                background: 'linear-gradient(180deg, #ffffff 0%, #f9fafb 100%)'
+              }}>
+                {Array.from({ length: 3 }).map((_, index) => {
+                  const m = patrol.members[index];
+                  const roleName = ROLES[index];
+                  const isActiveSlot = activeSlot?.patrolId === patrol.id && activeSlot?.roleIndex === index;
 
-                {/* Members Slots */}
-                <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
-                  {Array.from({ length: 3 }).map((_, index) => {
-                    const m = patrol.members[index];
-                    const roleName = ROLES[index];
-                    const isActiveSlot = activeSlot?.patrolId === patrol.id && activeSlot?.roleIndex === index;
-
-                    if (m) {
-                      return (
-                        <div key={m.id} draggable onDragStart={(e) => handleDragStart(e, m.id, patrol.id)} style={{
-                          background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0.75rem',
-                          display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative', cursor: 'grab',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                        }}>
-                          <div style={{ width: '4px', height: '100%', position: 'absolute', left: 0, top: 0, bottom: 0, background: '#0D3878', borderRadius: '8px 0 0 8px' }}></div>
-                          <div style={{ flex: 1, paddingLeft: '0.5rem' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: '2px' }}>{roleName}</div>
-                            <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.9rem' }}>{m.rank} {m.name}</div>
-                          </div>
-                          <button onClick={() => removeFromSlot(patrol.id, index)} className="no-print" style={{ background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '6px', cursor: 'pointer', display: 'flex' }}>
-                            <X size={16} />
-                          </button>
-                        </div>
-                      );
-                    }
-
+                  if (m) {
                     return (
-                      <div key={`empty-${index}`} onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })} style={{
-                        border: isActiveSlot ? '2px dashed #0D3878' : '2px dashed #e2e8f0', borderRadius: '8px', padding: '0.75rem',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer',
-                        background: isActiveSlot ? '#f0f7ff' : '#f8fafc', transition: 'all 0.2s', minHeight: '66px'
-                      }}>
-                        <div style={{ paddingLeft: '0.5rem' }}>
-                          <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>{roleName}</div>
-                          <div style={{ fontSize: '0.85rem', color: isActiveSlot ? '#0D3878' : '#cbd5e1', fontWeight: 500 }}>
-                            {isActiveSlot ? 'Clique em um militar...' : 'Espaço Vazio'}
+                      <div
+                        key={m.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, m.id, patrol.id)}
+                        style={{
+                          background: colors.white,
+                          border: `1px solid ${colors.border}`,
+                          borderRadius: '16px',
+                          padding: '1rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '1rem',
+                          position: 'relative',
+                          cursor: 'grab',
+                          boxShadow: shadowSm,
+                          transition: transitions
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.boxShadow = shadowMd; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = colors.border; e.currentTarget.style.boxShadow = shadowSm; }}
+                      >
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '12px',
+                          background: '#f0f9ff',
+                          color: colors.primary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <GripVertical size={18} style={{ opacity: 0.5 }} />
+                        </div>
+
+                        <div style={{ flex: 1 }}>
+                          <div style={{
+                            fontSize: '0.65rem',
+                            color: colors.textMuted,
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            marginBottom: '2px'
+                          }}>
+                            {roleName}
+                          </div>
+                          <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.95rem' }}>
+                            {m.rank} {m.name}
                           </div>
                         </div>
-                        {isActiveSlot && <MousePointer2 size={18} color="#0D3878" style={{ animation: 'bounce 1s infinite' }} />}
+
+                        <button
+                          onClick={() => removeFromSlot(patrol.id, index)}
+                          className="no-print"
+                          style={{
+                            background: '#fef2f2',
+                            color: colors.danger,
+                            border: 'none',
+                            borderRadius: '10px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            transition: transitions
+                          }}
+                          onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.color = 'white'; }}
+                          onMouseOut={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = colors.danger; }}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
                     );
-                  })}
-                </div>
+                  }
 
-
-              </div>
-            ))}
-          </div>
-        </div>
-
-      {/* Modal Selection (reaproveitando estilo original do AdminDashboard com leves melhorias) */}
-      {selectionMode && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
-          <div style={{ background: 'white', borderRadius: '16px', width: '90%', maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0D3878', color: 'white' }}>
-              <div>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Shield size={20}/> Selecionar Militares</h3>
-                <p style={{ margin: '0.25rem 0 0 0', opacity: 0.8, fontSize: '0.9rem' }}>Selecione até {MAX_MEMBERS} militares</p>
-              </div>
-              <button onClick={closeSelectionModal} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={20} /></button>
-            </div>
-            
-            <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem', background: '#f8fafc' }}>
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ flex: 2, position: 'relative' }}>
-                  <Search size={18} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-                  <input type="text" placeholder="Buscar por nome ou Nº..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', boxSizing: 'border-box' }} />
-                </div>
-                
-                <select style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', outline: 'none', fontWeight: 500 }} value={selectedDate} onChange={e => setSelectedDate(e.target.value)}>
-                  {(() => {
-                    const [yearStr, monthStr] = selectedMonth ? selectedMonth.split('-') : [new Date().getFullYear(), new Date().getMonth() + 1];
-                    const year = parseInt(yearStr);
-                    const month = parseInt(monthStr);
-                    const daysInMonth = selectedMonth ? new Date(year, month, 0).getDate() : 31;
-                    
-                    return Array.from({length: daysInMonth}, (_, i) => i+1).map(d => {
-                      let wdayCap = '';
-                      if (selectedMonth) {
-                        const date = new Date(year, month - 1, d);
-                        const wday = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-                        wdayCap = ' - ' + wday.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
-                      }
-                      return <option key={d} value={d}>Dia {d}{wdayCap}</option>
-                    });
-                  })()}
-                </select>
-
-                <div style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                   <Users size={18} color="#0369a1" />
-                   <span style={{ fontSize: '0.9rem' }}>Disponíveis:</span>
-                   <span style={{ background: '#0369a1', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 700 }}>{filteredPool.length}</span>
-                </div>
-
-                <select style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', outline: 'none', fontWeight: 500 }} value={selectedShift} onChange={e => setSelectedShift(e.target.value)}>
-                  <option value="Todos">Turno: Todos</option>
-                  {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
-                </select>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                {filteredPool.map(p => {
-                  const isSelected = selectedMembers.some(m => m.id === p.id);
-                  const isDisabled = !isSelected && selectedMembers.length >= MAX_MEMBERS;
                   return (
-                    <div key={p.id} onClick={() => !isDisabled && toggleMemberSelection(p)} style={{
-                      padding: '1rem', border: isSelected ? '2px solid #0D3878' : '1px solid #cbd5e1', borderRadius: '12px', background: isSelected ? '#f0f7ff' : '#fff',
-                      cursor: isDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '1rem', opacity: isDisabled && !isSelected ? 0.5 : 1, transition: 'all 0.2s', boxShadow: isSelected ? '0 4px 6px -1px rgba(13,56,120,0.1)' : 'none'
-                    }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: isSelected ? 'none' : '2px solid #cbd5e1', background: isSelected ? '#009C3B' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {isSelected && <Check size={14} color="white" />}
+                    <div
+                      key={`empty-${index}`}
+                      onClick={() => setActiveSlot({ patrolId: patrol.id, roleIndex: index })}
+                      style={{
+                        border: isActiveSlot ? `2px solid ${colors.primary}` : `2px dashed ${colors.accent}`,
+                        borderRadius: '16px',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        background: isActiveSlot ? '#f0f7ff' : 'transparent',
+                        transition: transitions,
+                        minHeight: '80px',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                      onMouseOver={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.primary; e.currentTarget.style.background = '#f8fafc'; } }}
+                      onMouseOut={e => { if (!isActiveSlot) { e.currentTarget.style.borderColor = colors.accent; e.currentTarget.style.background = 'transparent'; } }}
+                    >
+                      {isActiveSlot && (
+                        <div style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: '4px',
+                          background: colors.primary
+                        }} />
+                      )}
+                      <div>
+                        <div style={{
+                          fontSize: '0.65rem',
+                          color: isActiveSlot ? colors.primary : colors.textMuted,
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}>
+                          {roleName}
+                        </div>
+                        <div style={{
+                          fontSize: '0.85rem',
+                          color: isActiveSlot ? colors.primary : colors.accent,
+                          fontWeight: 600,
+                          marginTop: '4px'
+                        }}>
+                          {isActiveSlot ? 'Aguardando seleção...' : 'Vago'}
+                        </div>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 600, color: '#1e293b' }}>{p.rank} {p.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Nº {p.numero_ordem || p.matricula}</div>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: isActiveSlot ? colors.primary : '#f1f5f9',
+                        color: isActiveSlot ? 'white' : colors.accent,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: transitions
+                      }}>
+                        {isActiveSlot ? <MousePointer2 size={16} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={16} />}
                       </div>
-                      <div style={{ background: p.service_count >= 8 ? '#fecaca' : '#e0f2fe', color: p.service_count >= 8 ? '#991b1b' : '#0369a1', padding: '0.25rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700 }}>{p.service_count}/8</div>
                     </div>
                   );
                 })}
               </div>
             </div>
+          ))}
+        </div>
+      </div>
 
-            <div style={{ padding: '1.25rem 1.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}>
-              <div style={{ fontSize: '0.95rem', color: '#475569' }}><strong>{selectedMembers.length}</strong> de {MAX_MEMBERS} selecionados</div>
+      {/* MODAL SELECTION (POOL) */}
+      {selectionMode && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            background: colors.white,
+            borderRadius: '24px',
+            width: '95%',
+            maxWidth: '1000px',
+            height: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: shadowLg,
+            overflow: 'hidden',
+            border: `1px solid ${colors.border}`
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '1.5rem 2rem',
+              background: colors.primary,
+              background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+              color: 'white',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Shield size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Banco de Voluntários</h3>
+                  <p style={{ margin: 0, opacity: 0.8, fontSize: '0.85rem', fontWeight: 500 }}>
+                    Selecione até {MAX_MEMBERS} militares para compor a guarnição
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeSelectionModal}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  borderRadius: '12px',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: transitions
+                }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Search & Filters */}
+            <div style={{
+              padding: '1.5rem 2rem',
+              background: '#f8fafc',
+              borderBottom: `1px solid ${colors.border}`,
+              display: 'flex',
+              gap: '1rem',
+              alignItems: 'center'
+            }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <Search size={18} color={colors.textMuted} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar por nome, matricula ou Nº ordem..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.85rem 1rem 0.85rem 3rem',
+                    borderRadius: '12px',
+                    border: `1px solid ${colors.border}`,
+                    outline: 'none',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    boxShadow: shadowSm,
+                    transition: transitions
+                  }}
+                  onFocus={e => { e.target.style.borderColor = colors.primary; e.target.style.boxShadow = '0 0 0 3px rgba(13, 56, 120, 0.1)'; }}
+                  onBlur={e => { e.target.style.borderColor = colors.border; e.target.style.boxShadow = shadowSm; }}
+                />
+              </div>
+
+              <select
+                style={{
+                  padding: '0.6rem 1rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: colors.white,
+                  color: colors.text,
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  boxShadow: shadowSm,
+                  minWidth: '160px'
+                }}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+              >
+                {(() => {
+                  const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                  if (!currentCycle) return null;
+
+                  const startDate = new Date(currentCycle.data_inicio);
+                  const endDate = new Date(currentCycle.data_fim);
+                  const days = [];
+                  let curr = new Date(startDate);
+                  while (curr <= endDate) {
+                    days.push(new Date(curr));
+                    curr.setDate(curr.getDate() + 1);
+                  }
+
+                  return days.map(date => {
+                    const d = date.getDate();
+                    const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+                    const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                    const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
+                    const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
+                    return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                  });
+                })()}
+              </select>
+
+              <select
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.border}`,
+                  background: colors.white,
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  minWidth: '180px'
+                }}
+                value={selectedShift}
+                onChange={e => setSelectedShift(e.target.value)}
+              >
+                <option value="Todos">Turno: Todos</option>
+                {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+              </select>
+
+              <div style={{
+                padding: '0.85rem 1.25rem',
+                borderRadius: '12px',
+                background: '#f0fdf4',
+                color: '#166534',
+                border: '1px solid #bbf7d0',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
+                {filteredPool.length} Disponíveis
+              </div>
+            </div>
+
+            {/* Modal Pool Grid */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '2rem',
+              background: '#f1f5f9',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '1.25rem',
+              alignContent: 'start'
+            }}>
+              {filteredPool.length === 0 ? (
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: colors.textMuted }}>
+                  <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar encontrado</p>
+                  <p style={{ fontSize: '0.9rem' }}>Tente ajustar os filtros ou a busca</p>
+                </div>
+              ) : (
+                filteredPool.map(p => {
+                  const isSelected = selectedMembers.some(m => m.id === p.id);
+                  const isDisabled = !isSelected && selectedMembers.length >= MAX_MEMBERS;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => !isDisabled && toggleMemberSelection(p)}
+                      style={{
+                        padding: '1.25rem',
+                        border: isSelected ? `2px solid ${colors.primary}` : `1px solid ${colors.border}`,
+                        borderRadius: '20px',
+                        background: isSelected ? '#f0f7ff' : colors.white,
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        opacity: isDisabled && !isSelected ? 0.6 : 1,
+                        transition: transitions,
+                        boxShadow: isSelected ? '0 10px 15px -3px rgba(13, 56, 120, 0.1)' : shadowSm,
+                        position: 'relative'
+                      }}
+                      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '14px',
+                        background: isSelected ? colors.primary : '#f1f5f9',
+                        color: isSelected ? 'white' : colors.textMuted,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {isSelected ? <Check size={24} strokeWidth={3} /> : <UserCircle size={28} />}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, color: colors.text, fontSize: '1rem', lineHeight: 1.2 }}>
+                          {p.rank} {p.name}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: colors.textMuted, marginTop: '4px', fontWeight: 600 }}>
+                          Nº {p.numero_ordem || p.matricula}
+                        </div>
+                      </div>
+
+                      {/* Service Counter Badge */}
+                      <div style={{
+                        background: p.service_count >= 8 ? '#fef2f2' : '#f0f9ff',
+                        color: p.service_count >= 8 ? '#dc2626' : '#0369a1',
+                        padding: '6px 10px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        border: `1px solid ${p.service_count >= 8 ? '#fee2e2' : '#e0f2fe'}`
+                      }}>
+                        {p.service_count}/8
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '1.5rem 2.5rem',
+              borderTop: `1px solid ${colors.border}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: colors.white
+            }}>
+              <div>
+                <span style={{ fontSize: '1.1rem', color: colors.text, fontWeight: 700 }}>
+                  {selectedMembers.length} selecionados
+                </span>
+                <span style={{ marginLeft: '0.5rem', color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>
+                  (limite de {MAX_MEMBERS})
+                </span>
+              </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={closeSelectionModal} style={{ padding: '0.75rem 1.5rem', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
-                <button onClick={confirmSelection} style={{ padding: '0.75rem 2rem', background: '#0D3878', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 6px -1px rgba(13,56,120,0.2)' }}>
-                  Confirmar
+                <button
+                  onClick={closeSelectionModal}
+                  style={{
+                    padding: '0.85rem 2rem',
+                    background: '#f1f5f9',
+                    color: colors.textMuted,
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    transition: transitions
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
+                  onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmSelection}
+                  disabled={selectedMembers.length === 0}
+                  style={{
+                    padding: '0.85rem 3rem',
+                    background: selectedMembers.length > 0 ? colors.primary : colors.accent,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: selectedMembers.length > 0 ? 'pointer' : 'not-allowed',
+                    fontWeight: 700,
+                    boxShadow: selectedMembers.length > 0 ? '0 10px 20px rgba(13, 56, 120, 0.2)' : 'none',
+                    transition: transitions
+                  }}
+                >
+                  Confirmar Escala
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Global CSS for Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        select {
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 0.75rem center;
+          padding-right: 2.5rem !important;
+        }
+      `}</style>
     </div>
   );
 }

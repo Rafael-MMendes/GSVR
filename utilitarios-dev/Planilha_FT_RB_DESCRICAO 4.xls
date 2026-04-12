@@ -1,0 +1,1012 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>test</x:Name><x:WorksheetOptions><x:DisplayGridlines></x:DisplayGridlines></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head><body><table>
+					<tbody><tr><td><b>P/G</b></td><td><b>NOME</b></td><td><b>&nbsp;CPF</b></td><td><b>DATA</b></td><td><b>CMD</b></td><td><b>OPM</b></td><td><b>MODALIDADE</b></td><td><b>GUARNIÇÃO</b></td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> E. LIMA</td><td> CPF:&nbsp;00475357507</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 03</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> E. LIMA</td><td> CPF:&nbsp;00475357507</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FISCO 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> E. LIMA</td><td> CPF:&nbsp;00475357507</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL GOUVEIA 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> E. LIMA</td><td> CPF:&nbsp;00475357507</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 MATA GRANDE</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PARICONHA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3° CIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALEXAANDRINO</td><td> CPF:&nbsp;00657269522</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CORIOLANO</td><td> CPF:&nbsp;00850281423</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CORIOLANO</td><td> CPF:&nbsp;00850281423</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CORIOLANO</td><td> CPF:&nbsp;00850281423</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CORIOLANO</td><td> CPF:&nbsp;00850281423</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CORIOLANO</td><td> CPF:&nbsp;00850281423</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FAGUNDES</td><td> CPF:&nbsp;00920580432</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 MATA GRANDE</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FAGUNDES</td><td> CPF:&nbsp;00920580432</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FAGUNDES</td><td> CPF:&nbsp;00920580432</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - PIRANHAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FAGUNDES</td><td> CPF:&nbsp;00920580432</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL BEZERRA</td><td> CPF:&nbsp;00973463570</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSEMAR</td><td> CPF:&nbsp;01196351511</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSEMAR</td><td> CPF:&nbsp;01196351511</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSEMAR</td><td> CPF:&nbsp;01196351511</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSEMAR</td><td> CPF:&nbsp;01196351511</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSEMAR</td><td> CPF:&nbsp;01196351511</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ELIELSON</td><td> CPF:&nbsp;01432523481</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ANTONIO</td><td> CPF:&nbsp;01564452557</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3 CIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ANTONIO</td><td> CPF:&nbsp;01564452557</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ANTONIO</td><td> CPF:&nbsp;01564452557</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ANTONIO</td><td> CPF:&nbsp;01564452557</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 3 CIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ANTONIO</td><td> CPF:&nbsp;01564452557</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 17-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 21-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  2</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  5</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 29-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MAURO</td><td> CPF:&nbsp;02322167460</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 20-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 25-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 27-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> ALAN KLEBER</td><td> CPF:&nbsp;02715243405</td><td> 10-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLÁVIO</td><td> CPF:&nbsp;02771615410</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLÁVIO</td><td> CPF:&nbsp;02771615410</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> TAVARES</td><td> CPF:&nbsp;02803393484</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CASTILHO</td><td> CPF:&nbsp;02829560507</td><td> 18-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CASTILHO</td><td> CPF:&nbsp;02829560507</td><td> 26-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CASTILHO</td><td> CPF:&nbsp;02829560507</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CASTILHO</td><td> CPF:&nbsp;02829560507</td><td> 11-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ELIENAI</td><td> CPF:&nbsp;02936774411</td><td> 05-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT MARCOS DOS CORAIS</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ACLEYTON</td><td> CPF:&nbsp;03152404409</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ACLEYTON</td><td> CPF:&nbsp;03152404409</td><td> 22-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ACLEYTON</td><td> CPF:&nbsp;03152404409</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PARICONHA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ACLEYTON</td><td> CPF:&nbsp;03152404409</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> CABO</td><td> SIMONE CORRÊA</td><td> CPF:&nbsp;03349582532</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> SIMONE CORRÊA</td><td> CPF:&nbsp;03349582532</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> CABO</td><td> SIMONE CORRÊA</td><td> CPF:&nbsp;03349582532</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT </td>
+					</tr>
+					<tr><td> CABO</td><td> SIMONE CORRÊA</td><td> CPF:&nbsp;03349582532</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> CABO</td><td> SIMONE CORRÊA</td><td> CPF:&nbsp;03349582532</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01 DELMIRO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 21-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTOS FISCAL 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> AUGUSTO</td><td> CPF:&nbsp;03390131418</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 24-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GOMES</td><td> CPF:&nbsp;03497341436</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARTINS</td><td> CPF:&nbsp;03517069507</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARTINS</td><td> CPF:&nbsp;03517069507</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORCA TAREFA POSTO FISCAL</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARTINS</td><td> CPF:&nbsp;03517069507</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARTINS</td><td> CPF:&nbsp;03517069507</td><td> 11-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JOVINO</td><td> CPF:&nbsp;03666327524</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL</td><td> CPF:&nbsp;03681493588</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> RAFAEL SANTOS</td><td> CPF:&nbsp;03681493588</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 3 CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01 DELMIRO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  2</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 24-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> C. PEREIRA</td><td> CPF:&nbsp;03696736465</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SALOMAO</td><td> CPF:&nbsp;03907636406</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3 CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 3 CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FLAVIANA</td><td> CPF:&nbsp;03989768484</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 27-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORCA TAREFA POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CINTRA</td><td> CPF:&nbsp;03993910451</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3°CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AUFRAM</td><td> CPF:&nbsp;04008148540</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL GOUVEIA 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> FEITOSA</td><td> CPF:&nbsp;04020579458</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT06</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FILHO</td><td> CPF:&nbsp;04146548462</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTIA</td><td> CPF:&nbsp;04159863540</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA PIRANHAS</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTIA</td><td> CPF:&nbsp;04159863540</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  5</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTIA</td><td> CPF:&nbsp;04159863540</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTIA</td><td> CPF:&nbsp;04159863540</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> YURI</td><td> CPF:&nbsp;04349408444</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SANTOS</td><td> CPF:&nbsp;04491264554</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SANTOS</td><td> CPF:&nbsp;04491264554</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SANTOS</td><td> CPF:&nbsp;04491264554</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA PIRANHAS</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> QUEIROZ</td><td> CPF:&nbsp;04512828419</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 05</td>
+					</tr>
+					<tr><td> CABO</td><td> CAMILA</td><td> CPF:&nbsp;04573423583</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - EVENTO DO GOVERNADOR</td>
+					</tr>
+					<tr><td> CABO</td><td> CAMILA</td><td> CPF:&nbsp;04573423583</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> CABO</td><td> CAMILA</td><td> CPF:&nbsp;04573423583</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - PIRANHAS</td>
+					</tr>
+					<tr><td> CABO</td><td> CAMILA</td><td> CPF:&nbsp;04573423583</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> CABO</td><td> RAFAEL</td><td> CPF:&nbsp;04583458576</td><td> 19-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> CABO</td><td> RAFAEL</td><td> CPF:&nbsp;04583458576</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> CABO</td><td> RAFAEL</td><td> CPF:&nbsp;04583458576</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> J.SANTOS</td><td> CPF:&nbsp;04591473589</td><td> 18-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> J.SANTOS</td><td> CPF:&nbsp;04591473589</td><td> 26-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> J.SANTOS</td><td> CPF:&nbsp;04591473589</td><td> 28-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> J.SANTOS</td><td> CPF:&nbsp;04591473589</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 03</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> J.SANTOS</td><td> CPF:&nbsp;04591473589</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 17-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 19-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 24-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 31-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 01-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 02-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 06-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NICOLAU</td><td> CPF:&nbsp;04675737439</td><td> 08-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CLODOALDO JÚNIOR</td><td> CPF:&nbsp;04725847402</td><td> 26-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CLODOALDO JÚNIOR</td><td> CPF:&nbsp;04725847402</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CLODOALDO JÚNIOR</td><td> CPF:&nbsp;04725847402</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CLODOALDO JÚNIOR</td><td> CPF:&nbsp;04725847402</td><td> 11-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> CABO</td><td> JADIEL</td><td> CPF:&nbsp;04793418503</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ANDREON</td><td> CPF:&nbsp;04834403459</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ANDREON</td><td> CPF:&nbsp;04834403459</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ANDREON</td><td> CPF:&nbsp;04834403459</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT EMANCIPAÇÃO DE PARICONHA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ANDREON</td><td> CPF:&nbsp;04834403459</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MAILTON</td><td> CPF:&nbsp;04937992490</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MAILTON</td><td> CPF:&nbsp;04937992490</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01 DELMIRO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MAILTON</td><td> CPF:&nbsp;04937992490</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MAILTON</td><td> CPF:&nbsp;04937992490</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DIAS</td><td> CPF:&nbsp;05075229409</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DIAS</td><td> CPF:&nbsp;05075229409</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DIAS</td><td> CPF:&nbsp;05075229409</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> PEDRO DE OLIVEIRA</td><td> CPF:&nbsp;05359116455</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WALMARIO</td><td> CPF:&nbsp;05422322517</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WALMARIO</td><td> CPF:&nbsp;05422322517</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> F. CARVALHO</td><td> CPF:&nbsp;05430473502</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> F. CARVALHO</td><td> CPF:&nbsp;05430473502</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MARIA</td><td> CPF:&nbsp;05527529596</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DAMIÃO</td><td> CPF:&nbsp;05614697500</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT02 DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 03</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 20-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 05</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 04</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 4</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MONTEIRO</td><td> CPF:&nbsp;05626561463</td><td> 10-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CAVALCANTE</td><td> CPF:&nbsp;05829243407</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> NILDA</td><td> CPF:&nbsp;06141549446</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AVELINO</td><td> CPF:&nbsp;06407787556</td><td> 19-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AVELINO</td><td> CPF:&nbsp;06407787556</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AVELINO</td><td> CPF:&nbsp;06407787556</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AVELINO</td><td> CPF:&nbsp;06407787556</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3°CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> AVELINO</td><td> CPF:&nbsp;06407787556</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FREITAS</td><td> CPF:&nbsp;06511014410</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FREITAS</td><td> CPF:&nbsp;06511014410</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FREITAS</td><td> CPF:&nbsp;06511014410</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FREITAS</td><td> CPF:&nbsp;06511014410</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> FREITAS</td><td> CPF:&nbsp;06511014410</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> THALES</td><td> CPF:&nbsp;06546508532</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MARIA LAYS</td><td> CPF:&nbsp;06647595481</td><td> 30-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT04</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MARIA LAYS</td><td> CPF:&nbsp;06647595481</td><td> 07-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 04 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALMEIDA</td><td> CPF:&nbsp;06647805559</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALMEIDA</td><td> CPF:&nbsp;06647805559</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - EVENTO DO GOVERNADOR</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CARLOS</td><td> CPF:&nbsp;06709505480</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LIZANDRA</td><td> CPF:&nbsp;06728161562</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LIZANDRA</td><td> CPF:&nbsp;06728161562</td><td> 27-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LIZANDRA</td><td> CPF:&nbsp;06728161562</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LIZANDRA</td><td> CPF:&nbsp;06728161562</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LIZANDRA</td><td> CPF:&nbsp;06728161562</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 03</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 18-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 20-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 05</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 04</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WDSON</td><td> CPF:&nbsp;06747113438</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 4</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> AQUINO</td><td> CPF:&nbsp;06825409433</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> PEDRO NETO</td><td> CPF:&nbsp;06867027431</td><td> 22-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> PEDRO NETO</td><td> CPF:&nbsp;06867027431</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> PEDRO NETO</td><td> CPF:&nbsp;06867027431</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> PEDRO NETO</td><td> CPF:&nbsp;06867027431</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> PEDRO NETO</td><td> CPF:&nbsp;06867027431</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 03</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT COMANDO</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 05</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 04</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> PEREIRA</td><td> CPF:&nbsp;06895110437</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 4</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> D. NASCIMENTO</td><td> CPF:&nbsp;07133899400</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> GUEDES</td><td> CPF:&nbsp;07242175330</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> GUEDES</td><td> CPF:&nbsp;07242175330</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> GUEDES</td><td> CPF:&nbsp;07242175330</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3°CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSUE</td><td> CPF:&nbsp;07309480562</td><td> 16-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOSUE</td><td> CPF:&nbsp;07309480562</td><td> 24-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> VICTOR HUGO</td><td> CPF:&nbsp;07652744423</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EWERTON</td><td> CPF:&nbsp;07685533421</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EWERTON</td><td> CPF:&nbsp;07685533421</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS  </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EWERTON</td><td> CPF:&nbsp;07685533421</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EWERTON</td><td> CPF:&nbsp;07685533421</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - PIRANHAS</td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CLOVES</td><td> CPF:&nbsp;07712466416</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CLOVES</td><td> CPF:&nbsp;07712466416</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> CAPITÃO</td><td> CLOVES</td><td> CPF:&nbsp;07712466416</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 05</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA </td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> CABO</td><td> CINTRA</td><td> CPF:&nbsp;08741541464</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA VELADA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 3 CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT EMANCIPAÇÃO DE PARICONHA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> BERNARDES</td><td> CPF:&nbsp;08799322447</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT02 DELMIRO</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 3 CIA</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 MATA GRANDE</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  2</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 03</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3</td>
+					</tr>
+					<tr><td> CABO</td><td> LEONELSON</td><td> CPF:&nbsp;08989177430</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> CARVALHO</td><td> CPF:&nbsp;09601191402</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> M SANTOS</td><td> CPF:&nbsp;09694808499</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> M SANTOS</td><td> CPF:&nbsp;09694808499</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> M SANTOS</td><td> CPF:&nbsp;09694808499</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> M SANTOS</td><td> CPF:&nbsp;09694808499</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> DEIZIANE</td><td> CPF:&nbsp;10124044476</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> DEIZIANE</td><td> CPF:&nbsp;10124044476</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 25-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 29-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SERGIO</td><td> CPF:&nbsp;10604776454</td><td> 09-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALEF LIRA</td><td> CPF:&nbsp;10851074421</td><td> 17-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALEF LIRA</td><td> CPF:&nbsp;10851074421</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALEF LIRA</td><td> CPF:&nbsp;10851074421</td><td> 10-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> CABO</td><td> RENATO MOREIRA</td><td> CPF:&nbsp;11723604488</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS  </td>
+					</tr>
+					<tr><td> CABO</td><td> RENATO MOREIRA</td><td> CPF:&nbsp;11723604488</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> CABO</td><td> RENATO MOREIRA</td><td> CPF:&nbsp;11723604488</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> RENATO MOREIRA</td><td> CPF:&nbsp;11723604488</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTOS FISCAL 01</td>
+					</tr>
+					<tr><td> CABO</td><td> RENATO MOREIRA</td><td> CPF:&nbsp;11723604488</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 19-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 03 POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> WILSON</td><td> CPF:&nbsp;11969310464</td><td> 08-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GICÉLIO</td><td> CPF:&nbsp;12133895426</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GICÉLIO</td><td> CPF:&nbsp;12133895426</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORCA TAREFA POSTO FISCAL</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GICÉLIO</td><td> CPF:&nbsp;12133895426</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GICÉLIO</td><td> CPF:&nbsp;12133895426</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GICÉLIO</td><td> CPF:&nbsp;12133895426</td><td> 10-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> CABO</td><td> ALLISSON</td><td> CPF:&nbsp;12207731405</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> CÉSAR</td><td> CPF:&nbsp;12387543416</td><td> 05-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 MATA GRANDE</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALENCAR</td><td> CPF:&nbsp;12441175440</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 04</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ISABELLE</td><td> CPF:&nbsp;12803337401</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HERCULES</td><td> CPF:&nbsp;13190351406</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS  </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HERCULES</td><td> CPF:&nbsp;13190351406</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HERCULES</td><td> CPF:&nbsp;13190351406</td><td> 31-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HERCULES</td><td> CPF:&nbsp;13190351406</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HERCULES</td><td> CPF:&nbsp;13190351406</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 16-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 23-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 31-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 3 CIA </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> SOUZA</td><td> CPF:&nbsp;38731422870</td><td> 06-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL GOUVEIA 02</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 16-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 17-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 19-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 20-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01 </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 23-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01 </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 24-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01 </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 25-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01 </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> EDERALDO</td><td> CPF:&nbsp;47256079400</td><td> 31-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS 01 </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> OTACÍLIO</td><td> CPF:&nbsp;50691775400</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - VELADA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 30-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> DA SILVA</td><td> CPF:&nbsp;55398847449</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT VELADA</td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º TENENTE</td><td> HENRIQUE</td><td> CPF:&nbsp;60515082449</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 16-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 22-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA POSTO FISCAL </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 23-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 28-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 02-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTOS FISCAL 01</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FISCO 02</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> MACIEL</td><td> CPF:&nbsp;63538016453</td><td> 05-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JAILSON</td><td> CPF:&nbsp;63607263434</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT - EVENTO DO GOVERNADOR</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JAILSON</td><td> CPF:&nbsp;63607263434</td><td> 20-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA PIRANHAS</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> JAILSON</td><td> CPF:&nbsp;63607263434</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> GRECIO</td><td> CPF:&nbsp;69907030597</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> GRECIO</td><td> CPF:&nbsp;69907030597</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> GRECIO</td><td> CPF:&nbsp;69907030597</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> GRECIO</td><td> CPF:&nbsp;69907030597</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 MATA GRANDE</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3° CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FISCO 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> SATIRO</td><td> CPF:&nbsp;74072269468</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> VALTER</td><td> CPF:&nbsp;78684706404</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> VALTER</td><td> CPF:&nbsp;78684706404</td><td> 21-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> VALTER</td><td> CPF:&nbsp;78684706404</td><td> 25-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> VALTER</td><td> CPF:&nbsp;78684706404</td><td> 29-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 16-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> HEIDER</td><td> CPF:&nbsp;86342754420</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 23-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 28-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 02 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. EDIMILSON</td><td> CPF:&nbsp;87158043568</td><td> 05-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 21-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 MATA GRANDE</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3 CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 26-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3ª CIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3° CIA</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 03-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  3</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS ARAÚJO</td><td> CPF:&nbsp;88856437449</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3CIA</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WILSON</td><td> CPF:&nbsp;89704843534</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WILSON</td><td> CPF:&nbsp;89704843534</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WILSON</td><td> CPF:&nbsp;89704843534</td><td> 29-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WILSON</td><td> CPF:&nbsp;89704843534</td><td> 03-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> WILSON</td><td> CPF:&nbsp;89704843534</td><td> 04-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 01-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 02-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT02 DELMIRO</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> JURANDIR</td><td> CPF:&nbsp;94189862568</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 17-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 23-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 30-03-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT FAZENDARIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 06-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 3A CIA </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 07-04-2026</td><td> CPE</td><td> CPM/I-Faz</td><td> FORÇA TAREFA</td><td> FT 01 POSTO FISCAL </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CRISTIANO</td><td> CPF:&nbsp;94556229553</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> J. GOIS</td><td> CPF:&nbsp;98859188504</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> J. GOIS</td><td> CPF:&nbsp;98859188504</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+			</tbody></table></body></html>
