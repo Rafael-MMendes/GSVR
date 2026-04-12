@@ -1,0 +1,334 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>test</x:Name><x:WorksheetOptions><x:DisplayGridlines></x:DisplayGridlines></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head><body><table>
+					<tbody><tr><td><b>P/G</b></td><td><b>NOME</b></td><td><b>&nbsp;CPF</b></td><td><b>DATA</b></td><td><b>CMD</b></td><td><b>OPM</b></td><td><b>MODALIDADE</b></td><td><b>GUARNIÇÃO</b></td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> J. ANDRÉ</td><td> CPF:&nbsp;00217199500</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> J. ANDRÉ</td><td> CPF:&nbsp;00217199500</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> J. ANDRÉ</td><td> CPF:&nbsp;00217199500</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> J. ANDRÉ</td><td> CPF:&nbsp;00217199500</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ARITANO</td><td> CPF:&nbsp;00976330466</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ARITANO</td><td> CPF:&nbsp;00976330466</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ARITANO</td><td> CPF:&nbsp;00976330466</td><td> 08-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 - COPES</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARÇAL</td><td> CPF:&nbsp;01047820480</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARÇAL</td><td> CPF:&nbsp;01047820480</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARÇAL</td><td> CPF:&nbsp;01047820480</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARÇAL</td><td> CPF:&nbsp;01047820480</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> JONES</td><td> CPF:&nbsp;01156149584</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> JONES</td><td> CPF:&nbsp;01156149584</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> JONES</td><td> CPF:&nbsp;01156149584</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> JONES</td><td> CPF:&nbsp;01156149584</td><td> 03-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> JONES</td><td> CPF:&nbsp;01156149584</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 DELMIRO GOUVEIA</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 03-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 04-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 01 </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 10-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LIMA FILHO</td><td> CPF:&nbsp;01408030500</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JEANCARLO</td><td> CPF:&nbsp;01470974525</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JEANCARLO</td><td> CPF:&nbsp;01470974525</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JEANCARLO</td><td> CPF:&nbsp;01470974525</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FREIRE</td><td> CPF:&nbsp;01794901507</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FREIRE</td><td> CPF:&nbsp;01794901507</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FREIRE</td><td> CPF:&nbsp;01794901507</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> FREIRE</td><td> CPF:&nbsp;01794901507</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CALDEIRA</td><td> CPF:&nbsp;02310483435</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CALDEIRA</td><td> CPF:&nbsp;02310483435</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CALDEIRA</td><td> CPF:&nbsp;02310483435</td><td> 12-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CRUZ</td><td> CPF:&nbsp;02807317529</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CRUZ</td><td> CPF:&nbsp;02807317529</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> CRUZ</td><td> CPF:&nbsp;02807317529</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> AMANDA</td><td> CPF:&nbsp;03668615578</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> AMANDA</td><td> CPF:&nbsp;03668615578</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> AMANDA</td><td> CPF:&nbsp;03668615578</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03 - COPES</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CAMPOS</td><td> CPF:&nbsp;04000558480</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CAMPOS</td><td> CPF:&nbsp;04000558480</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CAMPOS</td><td> CPF:&nbsp;04000558480</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 04 COPES</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> CAMPOS</td><td> CPF:&nbsp;04000558480</td><td> 31-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 17-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 18-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 24-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03 DELMIRO GOUVEIA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 08-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> BISPO</td><td> CPF:&nbsp;04020609462</td><td> 09-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FTSUBCOMANDO</td>
+					</tr>
+					<tr><td> CABO</td><td> ADRIEL</td><td> CPF:&nbsp;04107165531</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02 </td>
+					</tr>
+					<tr><td> CABO</td><td> MARCUS SANTOS</td><td> CPF:&nbsp;04449540581</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> MARCUS SANTOS</td><td> CPF:&nbsp;04449540581</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> MARCUS SANTOS</td><td> CPF:&nbsp;04449540581</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 04 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> MARCUS SANTOS</td><td> CPF:&nbsp;04449540581</td><td> 31-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> MARCUS SANTOS</td><td> CPF:&nbsp;04449540581</td><td> 05-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> ALMEIDA SILVA</td><td> CPF:&nbsp;04770413530</td><td> 24-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> GRASIEL</td><td> CPF:&nbsp;04801329500</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> JEAN</td><td> CPF:&nbsp;04918812589</td><td> 06-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> CABO</td><td> JEAN</td><td> CPF:&nbsp;04918812589</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> RAONI</td><td> CPF:&nbsp;05448439594</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LEONARDO</td><td> CPF:&nbsp;05618406527</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LEONARDO</td><td> CPF:&nbsp;05618406527</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> LEONARDO</td><td> CPF:&nbsp;05618406527</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> ALEX NUNES</td><td> CPF:&nbsp;05671465532</td><td> 17-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> JOSE</td><td> CPF:&nbsp;05671465532</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> ALEX NUNES</td><td> CPF:&nbsp;05671465532</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ITALO</td><td> CPF:&nbsp;05825643524</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ITALO</td><td> CPF:&nbsp;05825643524</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ITALO</td><td> CPF:&nbsp;05825643524</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> M. NASCIMENTO</td><td> CPF:&nbsp;05853953575</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> M. NASCIMENTO</td><td> CPF:&nbsp;05853953575</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> M. NASCIMENTO</td><td> CPF:&nbsp;05853953575</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> CABO</td><td> SOARES</td><td> CPF:&nbsp;05857117550</td><td> 17-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> SOARES</td><td> CPF:&nbsp;05857117550</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> SOARES</td><td> CPF:&nbsp;05857117550</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> SOARES</td><td> CPF:&nbsp;05857117550</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> PABLO</td><td> CPF:&nbsp;06301261518</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> CABO</td><td> PABLO</td><td> CPF:&nbsp;06301261518</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> CABO</td><td> PABLO</td><td> CPF:&nbsp;06301261518</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> ANDRADE</td><td> CPF:&nbsp;06483748582</td><td> 21-03-2026</td><td> CME</td><td> ROTAM</td><td> FORÇA TAREFA</td><td> FT ROTAM ESTAGIO 03</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> ANDRADE</td><td> CPF:&nbsp;06483748582</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> ANDRADE</td><td> CPF:&nbsp;06483748582</td><td> 04-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 20-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 22-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 29-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 01-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 06-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PIMENTEL</td><td> CPF:&nbsp;06502347401</td><td> 11-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> CABO</td><td> TEOBALDO</td><td> CPF:&nbsp;06835632461</td><td> 04-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> TEOBALDO</td><td> CPF:&nbsp;06835632461</td><td> 05-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> TEOBALDO</td><td> CPF:&nbsp;06835632461</td><td> 12-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> VINÍCIUS FERREIRA</td><td> CPF:&nbsp;06847966432</td><td> 09-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 16-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 19-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 09</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 20-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 10</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 28-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 31-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 05</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 01-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 05-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 07</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VINICIUS</td><td> CPF:&nbsp;06977788437</td><td> 08-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 06</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> MARCONDE</td><td> CPF:&nbsp;07097022566</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03 COPES</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> MARCONDE</td><td> CPF:&nbsp;07097022566</td><td> 01-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> ASPIRANTE A OFICIAL</td><td> MARCONDE</td><td> CPF:&nbsp;07097022566</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALEXSANDRO LIMA</td><td> CPF:&nbsp;07179273422</td><td> 22-03-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ALEXSANDRO LIMA</td><td> CPF:&nbsp;07179273422</td><td> 09-04-2026</td><td> CPRM</td><td> 4º BPM</td><td> FORÇA TAREFA</td><td> FT 16 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MATEUS</td><td> CPF:&nbsp;07298073559</td><td> 20-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MATEUS</td><td> CPF:&nbsp;07298073559</td><td> 27-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> MATEUS</td><td> CPF:&nbsp;07298073559</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> FRANÇA</td><td> CPF:&nbsp;07456546576</td><td> 22-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> MAGALHÃES</td><td> CPF:&nbsp;07573627459</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> MAGALHÃES</td><td> CPF:&nbsp;07573627459</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ITALO</td><td> CPF:&nbsp;07720244567</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARCELINO</td><td> CPF:&nbsp;07734715451</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARCELINO</td><td> CPF:&nbsp;07734715451</td><td> 25-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARCELINO</td><td> CPF:&nbsp;07734715451</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 04 COPES</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> MARCELINO</td><td> CPF:&nbsp;07734715451</td><td> 05-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> LOURENÇO</td><td> CPF:&nbsp;07868307439</td><td> 19-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> CABO</td><td> LOURENÇO</td><td> CPF:&nbsp;07868307439</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> LOURENÇO</td><td> CPF:&nbsp;07868307439</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> CABO</td><td> LOURENÇO</td><td> CPF:&nbsp;07868307439</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ROZENDO</td><td> CPF:&nbsp;08019950516</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> ROZENDO</td><td> CPF:&nbsp;08019950516</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> MIRON</td><td> CPF:&nbsp;08181549422</td><td> 08-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 - COPES</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VITOR</td><td> CPF:&nbsp;08480960450</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03 - COPES</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VITOR</td><td> CPF:&nbsp;08480960450</td><td> 08-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 - COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> RIOS</td><td> CPF:&nbsp;08697654424</td><td> 17-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> RIOS</td><td> CPF:&nbsp;08697654424</td><td> 21-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> RIOS</td><td> CPF:&nbsp;08697654424</td><td> 23-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> RIOS</td><td> CPF:&nbsp;08697654424</td><td> 10-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 02 COPES</td>
+					</tr>
+					<tr><td> CABO</td><td> CLAUDIA</td><td> CPF:&nbsp;09814622435</td><td> 21-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT MESSIAS</td>
+					</tr>
+					<tr><td> CABO</td><td> CLAUDIA</td><td> CPF:&nbsp;09814622435</td><td> 29-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO MESSIAS</td>
+					</tr>
+					<tr><td> CABO</td><td> CLAUDIA</td><td> CPF:&nbsp;09814622435</td><td> 04-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO MESSIAS </td>
+					</tr>
+					<tr><td> CABO</td><td> CLAUDIA</td><td> CPF:&nbsp;09814622435</td><td> 05-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT MESSIAS</td>
+					</tr>
+					<tr><td> CABO</td><td> CLAUDIA</td><td> CPF:&nbsp;09814622435</td><td> 12-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO MESSIAS </td>
+					</tr>
+					<tr><td> CABO</td><td> JOSEAN</td><td> CPF:&nbsp;10797625402</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02 </td>
+					</tr>
+					<tr><td> CABO</td><td> JOSEAN</td><td> CPF:&nbsp;10797625402</td><td> 29-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> JOSEAN</td><td> CPF:&nbsp;10797625402</td><td> 06-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> CABO</td><td> JOSEAN</td><td> CPF:&nbsp;10797625402</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JAMES</td><td> CPF:&nbsp;10891388494</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JAMES</td><td> CPF:&nbsp;10891388494</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> CABO</td><td> ROMARIO</td><td> CPF:&nbsp;11010284401</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> CABO</td><td> ROMARIO</td><td> CPF:&nbsp;11010284401</td><td> 29-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> CABO</td><td> ROMARIO</td><td> CPF:&nbsp;11010284401</td><td> 06-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT01</td>
+					</tr>
+					<tr><td> CABO</td><td> ROMARIO</td><td> CPF:&nbsp;11010284401</td><td> 11-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PEREIRA</td><td> CPF:&nbsp;11324167440</td><td> 19-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 09</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PEREIRA</td><td> CPF:&nbsp;11324167440</td><td> 01-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 07</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PEREIRA</td><td> CPF:&nbsp;11324167440</td><td> 08-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> PEREIRA</td><td> CPF:&nbsp;11324167440</td><td> 09-04-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> FERRAZ</td><td> CPF:&nbsp;12141940443</td><td> 01-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> FERRAZ</td><td> CPF:&nbsp;12141940443</td><td> 09-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOÃO FARIAS</td><td> CPF:&nbsp;12276495413</td><td> 24-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOÃO FARIAS</td><td> CPF:&nbsp;12276495413</td><td> 29-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOÃO FARIAS</td><td> CPF:&nbsp;12276495413</td><td> 30-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> JOÃO FARIAS</td><td> CPF:&nbsp;12276495413</td><td> 31-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VICTOR LAERTE</td><td> CPF:&nbsp;15503363477</td><td> 01-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> VICTOR LAERTE</td><td> CPF:&nbsp;15503363477</td><td> 09-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS GUERRA</td><td> CPF:&nbsp;49433164415</td><td> 27-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT  5</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS GUERRA</td><td> CPF:&nbsp;49433164415</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 03</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARCOS GUERRA</td><td> CPF:&nbsp;49433164415</td><td> 11-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 05</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> LEIDSON</td><td> CPF:&nbsp;64369188253</td><td> 24-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 01 </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> JOSINALDO</td><td> CPF:&nbsp;75860988400</td><td> 18-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> JOSINALDO</td><td> CPF:&nbsp;75860988400</td><td> 26-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT COPES 02</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> JOSINALDO</td><td> CPF:&nbsp;75860988400</td><td> 28-03-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 03 - COPES</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> JOSINALDO</td><td> CPF:&nbsp;75860988400</td><td> 03-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 01</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> JOSINALDO</td><td> CPF:&nbsp;75860988400</td><td> 07-04-2026</td><td> CME</td><td> COPES</td><td> FORÇA TAREFA</td><td> FT 01 COPES </td>
+					</tr>
+			</tbody></table></body></html>

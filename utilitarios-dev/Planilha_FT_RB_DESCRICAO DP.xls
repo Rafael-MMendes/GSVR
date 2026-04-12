@@ -1,0 +1,196 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>test</x:Name><x:WorksheetOptions><x:DisplayGridlines></x:DisplayGridlines></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head><body><table>
+					<tbody><tr><td><b>P/G</b></td><td><b>NOME</b></td><td><b>&nbsp;CPF</b></td><td><b>DATA</b></td><td><b>CMD</b></td><td><b>OPM</b></td><td><b>MODALIDADE</b></td><td><b>GUARNIÇÃO</b></td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 19-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT PO CENTRO 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 21-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 22-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 25-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT PO CENTRO 03</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 27-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 28-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT JOGO CRB X VITÓRIA - SETOR 4 / PAT 3</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> J. JUNIOR</td><td> CPF:&nbsp;00969571402</td><td> 04-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT MESSIAS</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> GILDENA</td><td> CPF:&nbsp;01984059440</td><td> 21-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PO MARCO DOS CORAIS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 20-03-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO  ADM</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 24-03-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO ADM</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 26-03-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO ADM </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 28-03-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO ADM</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 02-04-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO ADM </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 06-04-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RONDA NO BAIRRO - APOIO ADM</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> MICHELINY</td><td> CPF:&nbsp;02251720464</td><td> 10-04-2026</td><td> SEPREV</td><td> PRB CENTRO</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB APOIO ADM</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 20-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 21-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PO MARCO DOS CORAIS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 28-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 03-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORCO MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 04-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT MESSIAS</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 05-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT JOGO CSAXATLETICO SETOR 02</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> THIAGO</td><td> CPF:&nbsp;02773796446</td><td> 06-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT APOIO QCG CENTRO </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 16-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 07</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 18-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 02, SETOR 03</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 26-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 07 </td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 28-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PAT 1 SETOR 5</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 30-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 07</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 31-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 05</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 01-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> SETOR 5 PATRULHA 2 - FT JOGO CRB X AVAÍ</td>
+					</tr>
+					<tr><td> 2º SARGENTO</td><td> ROBERTSON</td><td> CPF:&nbsp;03671983477</td><td> 06-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> PATRULHA 06</td>
+					</tr>
+					<tr><td> TENENTE CORONEL</td><td> FIGUEREDO</td><td> CPF:&nbsp;03877967469</td><td> 16-03-2026</td><td> CPRA</td><td> 3º BPM</td><td> FORÇA TAREFA</td><td> FT CPRA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 17-03-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 5 CIA 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 18-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> CRB X FIGUEIRENSE</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 28-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> CRB X E C VITORIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 01-04-2026</td><td> CME</td><td> CPM/I-RAIO</td><td> FORÇA TAREFA</td><td> CRB X AVAÍ </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 05-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> SETOR 5, PATRULHA 1</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> SOUZA</td><td> CPF:&nbsp;05188475430</td><td> 08-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT APOIO AO QCG CENTRO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> VANESSA</td><td> CPF:&nbsp;06761805406</td><td> 29-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT EXTRA BLOCO SUPER AMIGO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> VANESSA</td><td> CPF:&nbsp;06761805406</td><td> 11-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 18-03-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 02 5CPMI </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 19-03-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 02 - CANAÃ E OURO PRETO</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 21-03-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 27-03-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT PROTEÇÃO URBANA 01</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 03-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT OP. REFORÇO MESSIAS</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 08-04-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT REFORCO 5 CIA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> EMERSON RODRIGUES</td><td> CPF:&nbsp;07425413477</td><td> 10-04-2026</td><td> CPRNZM</td><td> 14º BPM</td><td> FORÇA TAREFA</td><td> FT REFORÇO MESSIAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 17-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB MOTO 02</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 19-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB MOTO 01 ORLA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 23-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB MOTO 01 ORLA </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 24-03-2026</td><td> CPRM</td><td> 1º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO 01 ASSESSORIAS</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 31-03-2026</td><td> CPRM</td><td> 1º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO 01 ASSESSORIAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 08-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB MOTO 01 ORLA</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> C. MORENO</td><td> CPF:&nbsp;07888156444</td><td> 10-04-2026</td><td> CPRM</td><td> 1º BPM</td><td> FORÇA TAREFA</td><td> FT APOIO 01 ASSESSORIAS </td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 17-03-2026</td><td> CPRM</td><td> 4ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 48</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 18-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT  PATRULHA 1 SETOR 3</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 19-03-2026</td><td> CPRM</td><td> 4ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 48 (MARECHAL)</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 26-03-2026</td><td> CPRM</td><td> 4ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 48</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 31-03-2026</td><td> CPRM</td><td> 4ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 47 AREA LAGUNA 2 E 3</td>
+					</tr>
+					<tr><td> 3º SARGENTO</td><td> DANILO</td><td> CPF:&nbsp;08946836407</td><td> 01-04-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> SETOR 3 PATRULHA 3 - FT JOGO CRB X AVAÍ</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 18-03-2026</td><td> CPRM</td><td> 1º BPM</td><td> FORÇA TAREFA</td><td> FT CENTRO  </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 20-03-2026</td><td> CPRM</td><td> 8º BPM</td><td> FORÇA TAREFA</td><td> FT 39 RIO LARGO </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 28-03-2026</td><td> CPRM</td><td> 8º BPM</td><td> FORÇA TAREFA</td><td> FT 39 RIO LARGO</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 04-04-2026</td><td> CPRM</td><td> 1º BPM</td><td> FORÇA TAREFA</td><td> OPERAÇÃO PROTEÇÃO URBANA 03 </td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 08-04-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 02</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 09-04-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT REFORCO 5CIA</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 11-04-2026</td><td> CPRM</td><td> 5ª CPM/I</td><td> FORÇA TAREFA</td><td> FT 02 5A CIA/I</td>
+					</tr>
+					<tr><td> SOLDADO</td><td> HÍTILA</td><td> CPF:&nbsp;11308703406</td><td> 12-04-2026</td><td> CPRM</td><td> 8º BPM</td><td> FORÇA TAREFA</td><td> FT PROTECAO URBANA 02</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> LOURENÇO</td><td> CPF:&nbsp;74062450410</td><td> 07-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB VTR 02 ORLA - 2° TURNO</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> LOURENÇO</td><td> CPF:&nbsp;74062450410</td><td> 11-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB VTR 02 ORLA</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 16-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB BIKE 01 ORLA </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 18-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RONDA NO BAIRRO - BIKE 01</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 21-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RONDA NO BAIRRO - BIKE 01</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 31-03-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB PO M. CORAIS ORLA </td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 04-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB PO 01 MARCO DOS CORAIS</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 11-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB VTR 01 ORLA SUPERVISÃO</td>
+					</tr>
+					<tr><td> 1º TENENTE</td><td> LUZIA VILELA</td><td> CPF:&nbsp;84205130406</td><td> 12-04-2026</td><td> SEPREV</td><td> PRB ORLA</td><td> POLICAMENTO DE RONDA NO BAIRRO</td><td> RB VTR 03</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 19-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 22-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 25-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FORÇA TAREFA 02</td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 28-03-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PARICONHA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 01-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT 02 DELMIRO </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 05-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 07-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT EMANCIPAÇÃO DE PARICONHA </td>
+					</tr>
+					<tr><td> 1º SARGENTO</td><td> MARNO GUERRA</td><td> CPF:&nbsp;89411064434</td><td> 12-04-2026</td><td> CPRS</td><td> 9º BPM</td><td> FORÇA TAREFA</td><td> FT PIRANHAS </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> GILMAR</td><td> CPF:&nbsp;92312551420</td><td> 19-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> GILMAR</td><td> CPF:&nbsp;92312551420</td><td> 23-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> GILMAR</td><td> CPF:&nbsp;92312551420</td><td> 26-03-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> GILMAR</td><td> CPF:&nbsp;92312551420</td><td> 08-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS </td>
+					</tr>
+					<tr><td> SUBTENENTE</td><td> GILMAR</td><td> CPF:&nbsp;92312551420</td><td> 09-04-2026</td><td> CPRS</td><td> 7º BPM</td><td> FORÇA TAREFA</td><td> FT CPRS</td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 16-03-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENACAO </td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 18-03-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENACAO</td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 23-03-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENACAO </td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 26-03-2026</td><td> CPRM</td><td> CPRM OP</td><td> FORÇA TAREFA</td><td> FT COORDENAÇÃO </td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 30-03-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENAÇÃO</td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 01-04-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENACAO</td>
+					</tr>
+					<tr><td> MAJOR</td><td> NAVARRO</td><td> CPF:&nbsp;92606806468</td><td> 08-04-2026</td><td> CPE</td><td> BPTRAN</td><td> FORÇA TAREFA</td><td> FT COORDENACAO</td>
+					</tr>
+			</tbody></table></body></html>

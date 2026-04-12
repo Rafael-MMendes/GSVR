@@ -13,6 +13,7 @@ export function AnalyticsDashboard() {
   const [efetivo, setEfetivo] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [ciclos, setCiclos] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
   const [selectedCiclo, setSelectedCiclo] = useState('');
   const [stats, setStats] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
@@ -51,9 +52,23 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     if (selectedCiclo) {
+      const fetchVolunteers = async () => {
+        try {
+          const res = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCiclo}`);
+          setVolunteers(res.data);
+        } catch (e) {
+          console.error('Erro ao buscar voluntários:', e);
+        }
+      };
+      fetchVolunteers();
+    }
+  }, [selectedCiclo]);
+
+  useEffect(() => {
+    if (selectedCiclo && volunteers.length >= 0) {
       filterByCiclo();
     }
-  }, [selectedCiclo, efetivo, servicos]);
+  }, [selectedCiclo, volunteers, servicos]);
 
   const loadData = async () => {
     setLoading(true);
@@ -75,19 +90,21 @@ export function AnalyticsDashboard() {
 
   const filterByCiclo = () => {
     const servicosCiclo = servicos.filter(s => s.id_ciclo === parseInt(selectedCiclo));
-    buildStats(efetivo, servicosCiclo);
+    buildStats(volunteers, servicosCiclo);
   };
 
   const buildStats = (efetivoData, servicosData) => {
     const map = {};
     
     efetivoData.forEach(e => {
-      map[e.id_militar] = {
-        id: e.id_militar,
-        numero_ordem: e.matricula,
-        rank: e.posto_graduacao,
-        name: e.nome_guerra,
-        motorista: e.motorista,
+      // Usa id_militar dos voluntários para o mapa
+      const id = e.id_militar;
+      map[id] = {
+        id: id,
+        numero_ordem: e.numero_ordem || e.matricula,
+        rank: e.rank || e.posto_graduacao,
+        name: e.name || e.nome_guerra,
+        motorista: e.motorista_req !== undefined ? e.motorista_req : e.motorista,
         count6h: 0,
         count8h: 0,
       };
@@ -246,7 +263,7 @@ export function AnalyticsDashboard() {
                       <div style={{ fontWeight: 600 }}>{s.rank} {s.name}</div>
                     </td>
                     <td style={{ padding: '0.85rem 1rem' }}>
-                      {s.motorista === 'Sim'
+                      {(s.motorista === 'Sim' || s.motorista === true)
                         ? <span style={{ background: '#10b981', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>SIM</span>
                         : <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Não</span>
                       }
