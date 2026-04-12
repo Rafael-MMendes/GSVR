@@ -566,6 +566,11 @@ h3 { font-size: 1.25rem; }
   40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .text-primary {
   color: var(--primary);
 }

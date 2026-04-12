@@ -1,3 +1,16 @@
+## v1.19.5 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UX/Interatividade] Gestão Dinâmica de Funções**: Implementada a funcionalidade de alteração de funções (Comandante, Motorista, Patrulheiro) diretamente nos cards de guarnição.
+  - Rótulos de função transformados em dropdowns interativos para agilizar ajustes.
+  - Sistema de salvamento automático disparado instantaneamente ao alterar uma função.
+  - Proteção visual: Adicionado indicador de carregamento (overlay com blur e spinner) em cada card individual durante o processo de sincronização com o banco.
+  - Integridade: Lógica de troca (swap) automática que mantém sempre um profissional exclusivo por função na guarnição.
+
+---
+
 ## v1.19.4 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

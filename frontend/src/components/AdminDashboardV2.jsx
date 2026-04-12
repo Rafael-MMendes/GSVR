@@ -40,6 +40,8 @@ export function AdminDashboardV2() {
   const [selectionMode, setSelectionMode] = useState(null);
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [loadingVolunteers, setLoadingVolunteers] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingPatrolId, setSavingPatrolId] = useState(null);
 
   const [state, setState] = useState({
     pool: [],
@@ -348,8 +350,48 @@ export function AdminDashboardV2() {
       // Feedback opcional ou apenas sucesso silencioso na UI
     } catch (error) {
       console.error('Erro ao excluir guarnição:', error);
-      const msg = error.response?.data?.error || error.message;
+      const errorData = error.response?.data;
+      const msg = (typeof errorData === 'object' ? errorData.error : null) || error.response?.statusText || error.message;
       alert(`Erro ao excluir guarnição: ${msg}`);
+    }
+  };
+
+  const handleRoleChange = async (patrolId, sourceIdx, targetIdx) => {
+    if (sourceIdx === targetIdx) return;
+    
+    setSavingPatrolId(patrolId);
+    setIsSaving(true);
+
+    try {
+      let updatedPatrols = [];
+      setState(prev => {
+        const pIdx = prev.patrols.findIndex(p => p.id === patrolId);
+        if (pIdx === -1) return prev;
+        
+        updatedPatrols = [...prev.patrols];
+        const newMembers = [...updatedPatrols[pIdx].members];
+        
+        // Swap logic: Se o destino estiver ocupado, as funções são trocadas entre os dois militares
+        const temp = newMembers[targetIdx];
+        newMembers[targetIdx] = newMembers[sourceIdx];
+        newMembers[sourceIdx] = temp;
+        
+        updatedPatrols[pIdx] = { ...updatedPatrols[pIdx], members: newMembers };
+        return { ...prev, patrols: updatedPatrols };
+      });
+
+      // Aguarda um pequeno delay para o estado refletir e chama o salvamento
+      setTimeout(async () => {
+        await saveSchedule();
+        setSavingPatrolId(null);
+        setIsSaving(false);
+      }, 100);
+
+    } catch (err) {
+      console.error('Erro ao trocar função:', err);
+      alert("Erro ao trocar função: " + err.message);
+      setSavingPatrolId(null);
+      setIsSaving(false);
     }
   };
 
@@ -691,12 +733,26 @@ export function AdminDashboardV2() {
             >
               {/* Card Header (Patrol) */}
               <div style={{
-                background: colors.primary,
-                background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+                background: colors.primaryGradient,
                 padding: '1.25rem 1.5rem',
                 color: 'white',
-                position: 'relative'
+                position: 'relative',
+                overflow: 'hidden'
               }}>
+                {savingPatrolId === patrol.id && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(2px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 20
+                  }}>
+                    <MousePointer2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
                     <Shield size={20} style={{ opacity: 0.8 }} />
@@ -870,15 +926,32 @@ export function AdminDashboardV2() {
                         </div>
 
                         <div style={{ flex: 1 }}>
-                          <div style={{
-                            fontSize: '0.65rem',
-                            color: colors.textMuted,
-                            fontWeight: 800,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            marginBottom: '2px'
-                          }}>
-                            {roleName}
+                          <div style={{ marginBottom: '2px' }}>
+                            <select
+                              value={index}
+                              onChange={(e) => handleRoleChange(patrol.id, index, parseInt(e.target.value))}
+                              disabled={isSaving}
+                              style={{
+                                fontSize: '0.65rem',
+                                color: colors.textMuted,
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                background: 'transparent',
+                                border: 'none',
+                                outline: 'none',
+                                cursor: isSaving ? 'wait' : 'pointer',
+                                padding: 0,
+                                appearance: 'none',
+                                MozAppearance: 'none',
+                                WebkitAppearance: 'none'
+                              }}
+                              title="Clique para trocar função"
+                            >
+                              {ROLES.map((role, rIdx) => (
+                                <option key={rIdx} value={rIdx}>{role}</option>
+                              ))}
+                            </select>
                           </div>
                           <div style={{ fontWeight: 700, color: colors.text, fontSize: '0.95rem' }}>
                             {m.rank} {m.name}

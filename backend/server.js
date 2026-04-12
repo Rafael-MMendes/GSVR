@@ -1958,18 +1958,23 @@ app.post('/api/schedules', async (req, res) => {
 app.delete('/api/schedules/patrol', async (req, res) => {
   try {
     const { nome_recurso, data_servico: date, id_ciclo } = req.query;
+    console.log(`[API] Tentativa de exclusão: Recurso=${nome_recurso}, Dia=${date}, Ciclo=${id_ciclo}`);
     
     if (!nome_recurso || !date || !id_ciclo) {
       return res.status(400).json({ error: "Parâmetros nome_recurso, data_servico e id_ciclo são obrigatórios." });
     }
 
     // 1. Validar e localizar ciclo
-    const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [id_ciclo]);
-    if (!ciclo) return res.status(404).json({ error: "Ciclo não encontrado." });
+    const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [parseInt(id_ciclo)]);
+    if (!ciclo) {
+      console.warn(`[API] Ciclo ${id_ciclo} não encontrado para exclusão.`);
+      return res.status(404).json({ error: `Ciclo ${id_ciclo} não encontrado no banco de dados.` });
+    }
 
     // 2. Calcular data ISO correspondente (seguindo mesma lógica de salvamento)
     const baseDate = new Date(ciclo.data_inicio);
     const dataServicoISO = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    console.log(`[API] Data calculada para exclusão: ${dataServicoISO}`);
 
     // 3. Verificar vínculos impeditivos (Serviços já vinculados a execuções na ternária)
     const vinculados = await db.query(`
@@ -1983,6 +1988,7 @@ app.delete('/api/schedules/patrol', async (req, res) => {
     `, [nome_recurso, dataServicoISO, id_ciclo]);
 
     if (vinculados.rows.length > 0) {
+      console.warn(`[API] Exclusão bloqueada: ${vinculados.rows.length} serviços já executados vinculados à guarnição ${nome_recurso}.`);
       return res.status(400).json({ 
         error: "Não é possível excluir esta guarnição: existem serviços já executados ou finalizados vinculados a este planejamento.",
         code: "FK_VIOLATION_EXECUTION"
@@ -1997,6 +2003,8 @@ app.delete('/api/schedules/patrol', async (req, res) => {
         AND id_ciclo = $3
     `, [nome_recurso, dataServicoISO, id_ciclo]);
 
+    console.log(`[API] Exclusão realizada: ${deleteRes.rowCount} registros removidos.`);
+
     res.json({ 
       success: true, 
       message: `Guarnição ${nome_recurso} excluída com sucesso.`,
@@ -2004,7 +2012,7 @@ app.delete('/api/schedules/patrol', async (req, res) => {
     });
 
   } catch (e) {
-    console.error('[API] Erro ao excluir guarnição:', e);
+    console.error('[API] Erro interno ao excluir guarnição:', e);
     res.status(500).json({ error: "Erro interno ao processar exclusão: " + e.message });
   }
 });
