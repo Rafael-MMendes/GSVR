@@ -1747,42 +1747,45 @@ app.get('/api/schedules', async (req, res) => {
 
     if (rows.length === 0) return res.json([]);
 
-    // Reconstrói o array de patrulhas agrupando por cartao_viatura (patrol_id)
-    const patrolMap = new Map();
+    // Reconstrói o array de patrulhas agrupando por nome e horário sem sobrescrever slots ocupados
+    const patrols = [];
 
     for (const row of rows) {
-      const key = row.patrol_id || 'p1';
+      const patrolName = row.patrol_name || 'FORÇA TAREFA';
+      const roleIndex = PATROL_ROLES.indexOf(row.funcao);
+      const slot = roleIndex >= 0 ? roleIndex : 0;
+      
+      // Localiza uma guarnição que já tenha este nome e horário, mas que ainda não tenha este cargo preenchido
+      let patrol = patrols.find(p => 
+        p.name === patrolName && 
+        p.timeSpan === (row.horario_servico || '') &&
+        p.members[slot] === null
+      );
 
-      if (!patrolMap.has(key)) {
-        patrolMap.set(key, {
-          id:       key,
-          name:     row.patrol_name  || 'FORÇA TAREFA',
+      // Se não houver uma guarnição compatível com vaga nesse cargo, cria uma nova instância
+      if (!patrol) {
+        patrol = {
+          id:       `${row.patrol_id || 'p'}_${patrols.length}`,
+          name:     patrolName,
           duration: row.patrol_duration || '6h',
           timeSpan: row.horario_servico || '',
-          members:  [null, null, null]   // [Comandante, Motorista, Patrulheiro]
-        });
-      }
-
-      const patrol = patrolMap.get(key);
-      const roleIndex = PATROL_ROLES.indexOf(row.funcao);
-      // Se a função não for reconhecida, ocupa o primeiro slot livre
-      const slot = roleIndex >= 0 ? roleIndex : patrol.members.indexOf(null);
-
-      if (slot >= 0 && slot < patrol.members.length) {
-        patrol.members[slot] = {
-          id:            row.volunteer_id || row.id_escala,
-          id_militar:    row.id_militar,
-          name:          row.name,
-          rank:          row.rank,
-          phone:         row.phone,
-          motorista:     row.motorista,
-          numero_ordem:  row.numero_ordem,
-          service_count: parseInt(row.service_count) || 0
+          members:  [null, null, null]
         };
+        patrols.push(patrol);
       }
+
+      patrol.members[slot] = {
+        id:            row.volunteer_id || row.id_escala,
+        id_militar:    row.id_militar,
+        name:          row.name,
+        rank:          row.rank,
+        phone:         row.phone,
+        motorista:     row.motorista,
+        numero_ordem:  row.numero_ordem,
+        service_count: parseInt(row.service_count) || 0
+      };
     }
 
-    const patrols = [...patrolMap.values()];
     res.json([{ id: 1, date, id_ciclo, patrols }]);
 
   } catch (e) {
@@ -1840,8 +1843,10 @@ app.post('/api/schedules', async (req, res) => {
     const baseDate = new Date(ciclo.data_inicio);
     const dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
 
+    // Inicia transação para garantir atomicidade (importante para triggers de relacionamento)
+    await db.query('BEGIN');
+
     // Remove escalas existentes do dia (substituição completa do planejamento diário)
-    // SERVICOS_EXECUTADOS referencia id_escala com ON DELETE SET NULL, sem perda de dados
     await db.run(
       'DELETE FROM ESCALA_PLANEJAMENTO WHERE id_ciclo = $1 AND data_servico = $2',
       [ciclo.id_ciclo, dataServico]
@@ -1933,25 +1938,19 @@ app.post('/api/schedules', async (req, res) => {
 
           inserted++;
         } catch (insertErr) {
-          console.error(`[API] Erro ao inserir escala militar=${member.id_militar}:`, insertErr.message);
-          errors.push(`${member.name || member.id_militar}: ${insertErr.message}`);
+          await db.query('ROLLBACK');
+          throw insertErr;
         }
       }
     }
 
-    if (errors.length > 0 && inserted === 0) {
-      console.error('[API] Falha total no salvamento:', errors);
-      return res.status(500).json({ 
-        error: `Nenhum registro salvo. Detalhe do primeiro erro: ${errors[0]}`, 
-        details: errors 
-      });
-    }
-
-    res.json({ success: true, inserted, warnings: errors.length > 0 ? errors : undefined });
+    await db.query('COMMIT');
+    res.json({ success: true, inserted });
 
   } catch (e) {
+    try { await db.query('ROLLBACK'); } catch (rbErr) {}
     console.error('[API] Error saving schedules:', e);
-    res.status(500).json({ error: 'Erro interno no servidor: ' + e.message });
+    res.status(500).json({ error: 'Erro na transação de salvamento: ' + e.message });
   }
 });
 

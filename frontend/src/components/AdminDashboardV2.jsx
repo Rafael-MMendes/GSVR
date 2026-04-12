@@ -33,7 +33,7 @@ export function AdminDashboardV2() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState('');
-  const [selectedDate, setSelectedDate] = useState('1');
+  const [selectedDate, setSelectedDate] = useState(String(new Date().getDate()));
   const [selectedShift, setSelectedShift] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSlot, setActiveSlot] = useState(null);
@@ -131,28 +131,40 @@ export function AdminDashboardV2() {
     loadVolunteers();
   }, [selectedCycleId]);
 
-  useEffect(() => {
+  const loadSchedule = async () => {
     if (!selectedCycleId || volunteersRef.current.length === 0) return;
-    const loadSchedule = async () => {
-      try {
-        const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedCycleId}`);
-        loadScheduleData(volunteersRef.current, schedRes.data, selectedCycleId, selectedDate);
-      } catch (e) {
-        loadScheduleData(volunteersRef.current, [], selectedCycleId, selectedDate);
-      }
-    };
+    try {
+      const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedCycleId}`);
+      loadScheduleData(volunteersRef.current, schedRes.data, selectedCycleId, selectedDate);
+    } catch (e) {
+      loadScheduleData(volunteersRef.current, [], selectedCycleId, selectedDate);
+    }
+  };
+
+  useEffect(() => {
     loadSchedule();
   }, [selectedDate, volunteers, selectedCycleId]);
 
-  const saveConfig = async () => {
+  const saveSchedule = async (overridePatrols = null) => {
     try {
-      await axios.post(`${API_URL}/schedules`, { date: selectedDate, id_ciclo: selectedCycleId, patrols: state.patrols });
-      alert('Escala salva com sucesso!');
+      const patrolsToSave = overridePatrols || state.patrols;
+      if (!patrolsToSave || patrolsToSave.length === 0) return;
+      
+      await axios.post(`${API_URL}/schedules`, { 
+        date: selectedDate, 
+        id_ciclo: selectedCycleId, 
+        patrols: patrolsToSave 
+      });
+      
+      // Recarregar do banco após o salvamento para garantir sincronia total
+      await loadSchedule();
     } catch (error) {
       console.error('Erro ao salvar escala:', error);
-      alert('Erro ao salvar escala: ' + (error.response?.data?.error || error.message));
+      alert('Erro ao sincronizar com o banco: ' + (error.response?.data?.error || error.message));
     }
   };
+
+  const saveConfig = saveSchedule; // compatibilidade com possíveis referências antigas
 
   const filteredPool = useMemo(() => {
     return state.pool.filter(p => {
@@ -265,14 +277,8 @@ export function AdminDashboardV2() {
         }
       }
 
-      // Auto-save
-      setSavingPatrolId(patrolId === 'NEW' ? null : patrolId);
-      setIsSaving(true);
-      setTimeout(async () => {
-        await saveSchedule();
-        setSavingPatrolId(null);
-        setIsSaving(false);
-      }, 100);
+      // Sincronização automática
+      saveSchedule(newPatrols);
 
       return { ...prev, patrols: newPatrols };
     });
@@ -406,15 +412,15 @@ export function AdminDashboardV2() {
         newMembers[sourceIdx] = temp;
         
         updatedPatrols[pIdx] = { ...updatedPatrols[pIdx], members: newMembers };
+
+        // Sincronização automática com os dados atualizados
+        saveSchedule(updatedPatrols).finally(() => {
+          setSavingPatrolId(null);
+          setIsSaving(false);
+        });
+
         return { ...prev, patrols: updatedPatrols };
       });
-
-      // Aguarda um pequeno delay para o estado refletir e chama o salvamento
-      setTimeout(async () => {
-        await saveSchedule();
-        setSavingPatrolId(null);
-        setIsSaving(false);
-      }, 100);
 
     } catch (err) {
       console.error('Erro ao trocar função:', err);
@@ -492,7 +498,8 @@ export function AdminDashboardV2() {
     warning: '#f59e0b',
     white: '#ffffff',
     glass: 'rgba(255, 255, 255, 0.85)',
-    border: '#e2e8f0'
+    border: '#e2e8f0',
+    primaryGradient: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)'
   };
 
   const transitions = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
@@ -748,17 +755,17 @@ export function AdminDashboardV2() {
               onDrop={(e) => handleDrop(e, patrol.id)}
               style={{
                 background: colors.white,
-                borderRadius: '24px',
+                borderRadius: '28px',
                 border: `1px solid ${colors.border}`,
                 boxShadow: shadowMd,
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                transition: transitions,
+                transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                 animation: 'fadeIn 0.5s ease-out'
               }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = shadowLg}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = shadowMd}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; e.currentTarget.style.transform = 'translateY(-5px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowMd; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
               {/* Card Header (Patrol) */}
               <div style={{
@@ -806,17 +813,19 @@ export function AdminDashboardV2() {
                     onClick={() => removePatrol(patrol.id)}
                     className="no-print"
                     style={{
-                      background: 'rgba(255,255,255,0.15)',
-                      border: 'none',
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
                       color: 'white',
                       cursor: 'pointer',
-                      borderRadius: '10px',
+                      borderRadius: '12px',
                       padding: '8px',
                       display: 'flex',
-                      transition: transitions
+                      transition: transitions,
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                     }}
-                    onMouseOver={e => e.currentTarget.style.background = colors.danger}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                    onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
+                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
                     title="Remover Guarnição"
                   >
                     <Trash2 size={16} />
@@ -1063,13 +1072,14 @@ export function AdminDashboardV2() {
                       <div style={{
                         width: '32px',
                         height: '32px',
-                        borderRadius: '8px',
+                        borderRadius: '10px',
                         background: isActiveSlot ? colors.primary : '#f1f5f9',
                         color: isActiveSlot ? 'white' : colors.accent,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: transitions
+                        transition: transitions,
+                        boxShadow: isActiveSlot ? '0 4px 10px rgba(13, 56, 120, 0.3)' : 'none'
                       }}>
                         {isActiveSlot ? <MousePointer2 size={16} style={{ animation: 'bounce 1s infinite' }} /> : <Plus size={16} />}
                       </div>

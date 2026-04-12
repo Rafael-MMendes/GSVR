@@ -249,10 +249,9 @@ async function setupDB() {
             );
 
             -- 8. Tabela de Relacionamento Ternário com Surrogate Key e Status
-            DROP TABLE IF EXISTS ESCALA_EFETIVO_SERVICO CASCADE;
-            CREATE TABLE ESCALA_EFETIVO_SERVICO (
+            CREATE TABLE IF NOT EXISTS ESCALA_EFETIVO_SERVICO (
                 id_vinculo SERIAL PRIMARY KEY,
-                id_escala INTEGER REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE CASCADE,
+                id_escala INTEGER REFERENCES ESCALA_PLANEJAMENTO(id_escala) ON DELETE SET NULL,
                 id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar) ON DELETE CASCADE,
                 id_execucao INTEGER REFERENCES SERVICOS_EXECUTADOS(id_execucao) ON DELETE CASCADE,
                 status VARCHAR(50) NOT NULL,
@@ -741,9 +740,42 @@ async function setupDB() {
           -- Trigger para Planejamento: Cria registro inicial
           CREATE OR REPLACE FUNCTION trg_planejamento_ternaria()
           RETURNS TRIGGER AS $$
+          DECLARE
+              v_id_execucao INTEGER;
+              v_vinculo_id INTEGER;
           BEGIN
-              INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
-              VALUES (NEW.id_escala, NEW.id_militar, 'Planejado e não executado');
+              -- 1. Tenta localizar se já existe uma execução (SERVICOS_EXECUTADOS) para este militar nesta data
+              SELECT id_execucao INTO v_id_execucao
+              FROM SERVICOS_EXECUTADOS
+              WHERE id_militar = NEW.id_militar
+                AND data_execucao = NEW.data_servico
+              LIMIT 1;
+
+              IF v_id_execucao IS NOT NULL THEN
+                  -- 2. Se houver execução, verifica se já existe um registro na ternária vinculado a ela
+                  SELECT id_vinculo INTO v_vinculo_id
+                  FROM ESCALA_EFETIVO_SERVICO
+                  WHERE id_execucao = v_id_execucao AND id_militar = NEW.id_militar
+                  LIMIT 1;
+
+                  IF v_vinculo_id IS NOT NULL THEN
+                      -- 3. Caso o registro exista (criado pela execução), vincula a nova escala planejada e atualiza status
+                      UPDATE ESCALA_EFETIVO_SERVICO
+                      SET id_escala = NEW.id_escala,
+                          status = 'Planejado e executado',
+                          editado_em = CURRENT_TIMESTAMP
+                      WHERE id_vinculo = v_vinculo_id;
+                  ELSE
+                      -- 4. Registro de execução existe mas não está na ternária? Cria um novo vinculado
+                      INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, id_execucao, status)
+                      VALUES (NEW.id_escala, NEW.id_militar, v_id_execucao, 'Planejado e executado');
+                  END IF;
+              ELSE
+                  -- 5. Sem execução prévia: Comportamento padrão (Cria apenas planejamento)
+                  INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
+                  VALUES (NEW.id_escala, NEW.id_militar, 'Planejado e não executado');
+              END IF;
+
               RETURN NEW;
           END;
           $$ LANGUAGE plpgsql;

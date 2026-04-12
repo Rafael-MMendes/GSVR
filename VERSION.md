@@ -1,3 +1,61 @@
+## v1.20.0 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Core] Refatoração da Integridade de Dados e Tabela Ternária**: Correção crítica nos relacionamentos entre Planejamento e Execução.
+  - **Fim da Perda de Dados no Startup**: Removido o comando `DROP TABLE` que reiniciava a tabela `ESCALA_EFETIVO_SERVICO` a cada reinicialização do servidor. Agora utiliza `CREATE TABLE IF NOT EXISTS`.
+  - **Relacionamentos Atômicos**: Implementadas transações SQL (`BEGIN`/`COMMIT`) na rota de salvamento de escalas para garantir que o planejamento e seus vínculos ternários sejam criados de forma indissociável.
+  - **Triggers Inteligentes (Merge)**: Aprimorada a trigger `trg_planejamento_ternaria` no banco de dados para detectar e vincular execuções pré-existentes ao novo planejamento, evitando registros duplicados ou órfãos.
+  - **Persistência de Histórico**: Alterada a regra de exclusão para `ON DELETE SET NULL` em vínculos de escala, garantindo que registros de serviço já executados não sejam apagados acidentalmente ao se alterar o planejamento diário.
+
+---
+
+## v1.19.10 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Back-end] Correção no Agrupamento de Guarnições**: Resolvido o bug crítico onde equipes diferentes com o mesmo nome (ex: duas "FORÇA TAREFA") eram mescladas em um único card no dashboard.
+  - Agrupamento Inteligente: O sistema agora detecta colisões de cargos (ex: dois comandantes para o mesmo recurso) e separa automaticamente as equipes em cards distintos.
+  - Sincronização Precisa: Garante que 100% dos militares escalados no banco de dados sejam visíveis no dashboard, preservando a autonomia de cada equipe planejada.
+
+---
+
+## v1.19.9 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Design] Refinamento Premium do Card de Guarnição**: Atualizado o layout dos cards para uma estética moderna, profissional e "Wowed".
+  - Implementada transição suave com elevação (`translateY`) e sombras profundas dinâmicas ao interagir com o card.
+  - Header modernizado com o novo `primaryGradient` e botões de ação (Lixeira) em estilo glassmorphism (vidro fosco).
+  - Escaneabilidade Aprimorada: Ajustes em tipografia, bordas (28px) e espaçamentos para uma leitura mais confortável da equipe.
+  - Micro-animações e feedbacks visuais nos slots vazios para uma experiência mais fluida.
+
+---
+
+## v1.19.8 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Sincronização] Integridade Total com o Banco**: Refatorada a lógica de salvamento para garantir que o dashboard sempre reflita exatamente o estado persistido no banco de dados.
+  - Implementada recarga automática dos dados (`loadSchedule`) imediatamente após qualquer salvamento (troca de função ou substituição de integrante).
+  - Otimização do fluxo de dados: As atualizações agora passam os dados diretamente para a persistência, eliminando delays e garantindo que o que você vê é o que foi salvo.
+  - Sincronização em tempo real: Qualquer alteração no banco de dados é refletida no dashboard após cada ação administrativa.
+
+---
+
+## v1.19.7 — 2026-04-12
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Usabilidade] Data Inicial Dinâmica**: O dashboard administrativo agora inicializa automaticamente na data atual do sistema, facilitando o gerenciamento imediato da escala do dia.
+
+---
+
 ## v1.19.6 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
