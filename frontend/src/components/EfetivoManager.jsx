@@ -209,22 +209,22 @@ export function EfetivoManager() {
         <div className="responsive-table-container" style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
           <table className="admin-table" style={{ border: 'none' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('status_ativo')}>
+              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('status_ativo')}>
                   Status {sortConfig.key === 'status_ativo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('posto_graduacao')}>
                   Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_guerra')}>
                   Nome de Guerra {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_completo')}>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_completo')}>
                   Identificação {sortConfig.key === 'nome_completo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>CPF</th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telefone</th>
-                <th style={{ color: '#64748b', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>CPF</th>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>Telefone</th>
+                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', padding: '16px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -260,19 +260,19 @@ export function EfetivoManager() {
                   </td>
                   <td style={{ color: '#475569' }}>{m.cpf ? String(m.cpf).padStart(11, '0') : '-'}</td>
                   <td style={{ color: '#475569' }}>{formatPhone(m.telefone)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="action-btn-group">
                       <button
-                        className="btn-icon"
+                        className="action-btn action-btn-primary"
                         onClick={() => openEdit(m)}
-                        style={{ color: '#3b82f6', background: '#eff6ff', border: 'none', padding: '8px', borderRadius: '10px' }}
+                        title="Editar Militar"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
-                        className="btn-icon"
+                        className="action-btn action-btn-danger"
                         onClick={() => handleDelete(m.id_militar)}
-                        style={{ color: '#ef4444', background: '#fef2f2', border: 'none', padding: '8px', borderRadius: '10px' }}
+                        title="Excluir Militar"
                       >
                         <Trash2 size={16} />
                       </button>

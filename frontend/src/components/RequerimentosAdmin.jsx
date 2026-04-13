@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban } from 'lucide-react';
+import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2 } from 'lucide-react';
 import { maskPhone, formatPhone } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -392,22 +392,22 @@ export function RequerimentosAdmin() {
         <div className="responsive-table-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+              <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                   Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
                   Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
                   Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
                   Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Ações</th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -449,32 +449,24 @@ export function RequerimentosAdmin() {
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="action-btn-group">
                       <button
-                        className="btn btn-outline"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                        className="action-btn action-btn-info"
                         onClick={() => openViewModal(v)}
-                        title="Visualizar"
+                        title="Visualizar Detalhes"
                       >
                         <Eye size={16} />
                       </button>
                       <button
-                        className="btn btn-outline"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                        className="action-btn action-btn-primary"
                         onClick={() => openEditModal(v)}
-                        title="Editar"
+                        title="Editar Requerimento"
                       >
-                        ✏️
+                        <Edit2 size={16} />
                       </button>
                       <button
-                        className="btn btn-outline"
-                        style={{
-                          padding: '0.4rem 0.6rem',
-                          fontSize: '0.8rem',
-                          color: v.ativo === false ? 'var(--danger)' : 'var(--warning)',
-                          background: v.ativo === false ? 'rgba(239, 68, 68, 0.1)' : 'transparent'
-                        }}
+                        className="action-btn action-btn-warning"
                         onClick={() => openCancelModal(v)}
                         title={v.ativo === false ? 'Disponibilidade Cancelada' : 'Cancelar Disponibilidade'}
                         disabled={v.ativo === false}
@@ -482,10 +474,9 @@ export function RequerimentosAdmin() {
                         <Ban size={16} />
                       </button>
                       <button
-                        className="btn btn-outline"
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', color: 'var(--danger)' }}
+                        className="action-btn action-btn-danger"
                         onClick={() => handleDelete(v.id)}
-                        title="Excluir"
+                        title="Excluir Requerimento"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -583,10 +574,10 @@ export function RequerimentosAdmin() {
             <div className="responsive-table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.8rem' }}>
                 <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
+                  <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
+                    <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
                     {daysInMonth.map(day => (
-                      <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
+                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
                         {String(day).padStart(2, '0')}
                       </th>
                     ))}
@@ -666,10 +657,10 @@ export function RequerimentosAdmin() {
             <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
+                  <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
+                    <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
                     {daysInMonth.map(day => (
-                      <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
+                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
                         {String(day).padStart(2, '0')}
                       </th>
                     ))}

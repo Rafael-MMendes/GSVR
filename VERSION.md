@@ -1,3 +1,25 @@
+## v1.27.2 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Iconografia de Ações Premium**: Implementado um novo sistema global de botões de ação (`.action-btn`) com design sofisticado, estados de hover dinâmicos e cores semânticas suaves.
+- **[UI/UX] Padronização Global de Dashboards**: Aplicada a nova iconografia em todos os módulos de gestão (`UserManager`, `EfetivoManager`, `ServicosExecutadosManager`, `TiposServicoManager`, `RequerimentosAdmin`, `OpmManager` e `CicloManager`), garantindo uma experiência de usuário coesa e profissional em todo o ecossistema GSVR.
+- **[Clean Code] Centralização de Estilos**: Migrados os estilos de botões de ação para o `index.css`, eliminando duplicação de código e facilitando manutenções visuais futuras.
+
+---
+
+## v1.27.1 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Padronização de Cabeçalhos de Grid**: Implementado o fundo azul institucional (`var(--primary)`) e texto branco em todos os cabeçalhos (`th`) das tabelas de gestão (`UserManager`, `ServicosExecutadosManager`, `RequerimentosAdmin`, `TiposServicoManager`).
+- **[UI/UX] Consistência Estrita**: Reforçada a especificidade dos estilos inline nos cabeçalhos para garantir a identidade visual "Premium" e evitar conflitos com o CSS global, removendo bordas redundantes e padronizando o padding.
+- **[UI/UX] Refinamento dos Modais de Requerimentos**: Grade de disponibilidade nos modais de edição e visualização agora seguem o padrão visual do cabeçalho principal.
+
+---
+
 ## v1.27.0 — 2026-04-13
 **Autor:** Rafael Mendes
 **Email:** rafael.mendes@example.com
@@ -5,6 +27,7 @@
 ### Mudanças:
 - **[UI/UX] Padronização Global Premium**: Refatoração integral de todos os módulos administrativos (OPM, Efetivo, Usuários, Serviços Executados, Ciclos, Tipos de Serviço e Roles) para o novo design system unificado.
 - **[UI/UX] Consolidação Visual**: Implementado uso consistente de modais premium (`.modal-content-premium`), formulários estilizados (`.form-control`) e tabelas administrativas padronizadas (`.admin-table`) em todo o sistema.
+- **[UI/UX] Refinamento de Contraste**: Atualizado o cabeçalho do grid de efetivo para utilizar o azul institucional (`var(--primary)`), garantindo melhor hierarquia visual e harmonia com os botões principais.
 - **[Clean Code] Otimização de CSS**: Removidos estilos redundantes e blocos `<style>` locais em favor de classes utilitárias globais no `index.css`, resultando em um código mais limpo e fácil de manter.
 
 ---

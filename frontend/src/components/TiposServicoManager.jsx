@@ -119,19 +119,19 @@ export function TiposServicoManager() {
       ) : (
         <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <tr>
-                <th onClick={() => requestSort('descricao')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+            <thead>
+              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
+                <th onClick={() => requestSort('descricao')} style={{ background: 'var(--primary)', padding: '1rem', color: 'white', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                     Descrição Categoria {sortConfig.key === 'descricao' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('carga_horaria')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('carga_horaria')} style={{ background: 'var(--primary)', padding: '1rem', color: 'white', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                     Carga Horária {sortConfig.key === 'carga_horaria' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => requestSort('valor_remuneracao')} style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+                <th onClick={() => requestSort('valor_remuneracao')} style={{ background: 'var(--primary)', padding: '1rem', color: 'white', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                     Valor (R$) {sortConfig.key === 'valor_remuneracao' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
-                <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem' }}>Status</th>
-                <th style={{ padding: '1rem', color: '#64748b', fontWeight: 600, fontSize: '0.85rem', textAlign: 'end' }}>Ações</th>
+                <th style={{ background: 'var(--primary)', padding: '1rem', color: 'white', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                <th style={{ background: 'var(--primary)', padding: '1rem', color: 'white', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'end' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -152,10 +152,12 @@ export function TiposServicoManager() {
                           {tipo.ativo ? 'Ativo' : 'Inativo'}
                       </span>
                   </td>
-                  <td style={{ padding: '1rem', textAlign: 'end' }}>
-                    <button onClick={() => openEdit(tipo)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }} title="Editar Valores">
-                      <Edit2 size={18} />
-                    </button>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="action-btn-group">
+                      <button className="action-btn action-btn-primary" onClick={() => openEdit(tipo)} title="Editar Valores">
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

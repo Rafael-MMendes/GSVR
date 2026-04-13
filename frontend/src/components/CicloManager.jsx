@@ -156,12 +156,12 @@ export function CicloManager() {
                         <span>{ciclo.opm_sigla} - {ciclo.opm_descricao}</span>
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => openEdit(ciclo)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6' }} title="Editar">
-                    <Edit2 size={18} />
+                <div className="action-btn-group">
+                  <button className="action-btn action-btn-primary" onClick={() => openEdit(ciclo)} title="Editar">
+                    <Edit2 size={16} />
                   </button>
-                  <button onClick={() => handleDelete(ciclo.id_ciclo)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }} title="Excluir">
-                    <Trash2 size={18} />
+                  <button className="action-btn action-btn-danger" onClick={() => handleDelete(ciclo.id_ciclo)} title="Excluir">
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>

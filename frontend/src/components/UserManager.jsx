@@ -231,18 +231,18 @@ export function UserManager() {
               <div className="responsive-table-container">
                 <table className="admin-table">
                   <thead>
-                    <tr>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                    <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ textAlign: 'center' }}>Nível</th>
-                      <th style={{ textAlign: 'right' }}>Ações</th>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Nível</th>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -270,18 +270,18 @@ export function UserManager() {
               <div className="responsive-table-container">
                 <table className="admin-table">
                   <thead>
-                    <tr>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                    <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ textAlign: 'center' }}>Nível</th>
-                      <th style={{ textAlign: 'right' }}>Ações</th>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Nível</th>
+                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -481,17 +481,17 @@ function UserRow({ user, onToggle, onReset, onDelete, onPerms, loading }) {
         </span>
       </td>
       <td style={{ textAlign: 'right' }}>
-        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-          <button className="action-icon" disabled={loading} onClick={() => onPerms(user)} title="Gerenciar Permissões Individuais">
+        <div className="action-btn-group">
+          <button className="action-btn action-btn-info" disabled={loading} onClick={() => onPerms(user)} title="Gerenciar Permissões Individuais">
             <Key size={16} />
           </button>
-          <button className="action-icon" disabled={loading} onClick={() => onToggle(user)} title="Alternar Permissão Admin">
+          <button className="action-btn action-btn-warning" disabled={loading} onClick={() => onToggle(user)} title="Alternar Permissão Admin">
             {user.is_admin ? <ShieldOff size={16} /> : <Shield size={16} />}
           </button>
-          <button className="action-icon" disabled={loading} onClick={() => onReset(user)} title="Resetar Senha para CPF">
+          <button className="action-btn action-btn-success" disabled={loading} onClick={() => onReset(user)} title="Resetar Senha para CPF">
             <RefreshCw size={16} />
           </button>
-          <button className="action-icon delete" disabled={loading || user.numero_ordem === '999999'} onClick={() => onDelete(user)} title="Remover Conta de Acesso">
+          <button className="action-btn action-btn-danger" disabled={loading || user.numero_ordem === '999999'} onClick={() => onDelete(user)} title="Remover Conta de Acesso">
             <Trash2 size={16} />
           </button>
         </div>

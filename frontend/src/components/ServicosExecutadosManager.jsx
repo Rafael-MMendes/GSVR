@@ -330,8 +330,8 @@ export function ServicosExecutadosManager() {
         <div className="responsive-table-container">
           <table className="admin-table">
             <thead>
-              <tr>
-                <th style={{ width: '40px' }}>
+              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', width: '40px' }}>
                   <input 
                     type="checkbox" 
                     checked={selectedIds.size === filtered.length && filtered.length > 0}
@@ -339,26 +339,26 @@ export function ServicosExecutadosManager() {
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </th>
-                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
                     Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                     Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                     Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
                     Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
                     Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
                     Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ textAlign: 'center' }}>Feriado</th>
-                <th>Ações</th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center' }}>Feriado</th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -403,10 +403,10 @@ export function ServicosExecutadosManager() {
                     <td style={{ textAlign: 'center' }}>
                       {s.eh_feriado ? <span style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 600 }}>✓ Sim</span> : <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Não</span>}
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button className="btn-icon" onClick={() => openEdit(s)} title="Editar"><Edit2 size={14} /></button>
-                        <button className="btn-icon btn-icon-danger" onClick={() => handleDelete(s.id_execucao)} title="Excluir"><Trash2 size={14} /></button>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="action-btn-group">
+                        <button className="action-btn action-btn-primary" onClick={() => openEdit(s)} title="Editar"><Edit2 size={14} /></button>
+                        <button className="action-btn action-btn-danger" onClick={() => handleDelete(s.id_execucao)} title="Excluir"><Trash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>

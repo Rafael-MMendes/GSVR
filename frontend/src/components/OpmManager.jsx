@@ -93,12 +93,12 @@ export function OpmManager() {
             <div key={opm.id_opm} className="card" style={{ borderTop: '4px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.2rem' }}>{opm.sigla}</h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => openEdit(opm)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6' }} title="Editar">
-                    <Edit2 size={18} />
+                <div className="action-btn-group">
+                  <button className="action-btn action-btn-primary" onClick={() => openEdit(opm)} title="Editar">
+                    <Edit2 size={16} />
                   </button>
-                  <button onClick={() => handleDelete(opm.id_opm)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }} title="Excluir">
-                    <Trash2 size={18} />
+                  <button className="action-btn action-btn-danger" onClick={() => handleDelete(opm.id_opm)} title="Excluir">
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
