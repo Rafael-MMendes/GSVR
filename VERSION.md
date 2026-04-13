@@ -1,3 +1,36 @@
+## v1.27.5 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Hotfix] Correção Crítica no Título de Ciclo**: Resolvido o erro "undefined NaN" que ocorria no `ServicosExecutadosManager` devido a incompatibilidades de formato de data e fuso horário.
+- **[Core] Inteligência de Formatação Multinível**: O sistema agora prioriza o `period_name` já processado pelo backend e utiliza um parsing de fallback resiliente, garantindo que o ciclo ("Maio/Junho 2026") seja exibido corretamente em todos os cenários.
+- **[UI/UX] Robustez Visual**: Implementadas proteções contra dados nulos ou malformados na exibição do contexto operacional da página.
+
+---
+
+## v1.27.4 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Refinamento de Título de Ciclo**: Ajustada a formatação do ciclo no cabeçalho da página de `ServicosExecutadosManager`.
+- **[UI/UX] Padronização de Data**: Implementada a conversão automática das datas de início e fim do ciclo para o formato amigável "Mês/Mês Ano" (ex: "Maio/Junho 2026"), seguindo a identidade visual premium do sistema.
+- **[Core] Formatter Robusto**: Desenvolvida lógica baseada em nomes de meses em português para garantir exibição correta independente do fuso horário local.
+
+---
+
+## v1.27.3 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Evolução do Gerenciamento de Ciclos**: Migrada a seleção de ciclo do dropdown de filtros para o título principal da página no `ServicosExecutadosManager`.
+- **[UI/UX] Design Minimalista e Focado**: O ciclo agora é exibido como um rótulo textual elegante (ex: "Maio/Junho 2026") integrado ao título, reduzindo a carga cognitiva e seguindo o padrão premium de navegação por contexto.
+- **[Core] Inteligência de Seleção Inicial**: Aprimorada a lógica de carregamento para selecionar automaticamente o ciclo com status 'Aberto' na inicialização do módulo.
+
+---
+
 ## v1.27.2 — 2026-04-13
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

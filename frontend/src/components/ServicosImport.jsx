@@ -15,14 +15,14 @@ export function ServicosImport({ onBack }) {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
-        if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
-            setError("Por favor, selecione apenas arquivos Excel (.xlsx ou .xls)");
-            return;
-        }
-        setFile(selectedFile);
-        setError(null);
-        setResult(null);
-        setPreview(null);
+      if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
+        setError("Por favor, selecione apenas arquivos Excel (.xlsx ou .xls)");
+        return;
+      }
+      setFile(selectedFile);
+      setError(null);
+      setResult(null);
+      setPreview(null);
     }
   };
 
@@ -73,7 +73,7 @@ export function ServicosImport({ onBack }) {
         <header style={{ marginBottom: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
             {onBack && (
-              <button 
+              <button
                 onClick={onBack}
                 style={{
                   background: 'none',
@@ -98,16 +98,16 @@ export function ServicosImport({ onBack }) {
             <div style={{ padding: '10px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: '#10b981' }}>
               <ClipboardCheck size={24} />
             </div>
-            <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>Importação de Serviços Executados (GSVR)</h2>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#0f172a' }}>Importar Serviços Executados (SVR)</h2>
           </div>
           <p style={{ color: '#64748b', margin: 0 }}>
-            Importe a planilha de descrição de serviços do GSVR para o sistema.
+            Importe serviços dde SVR da planilha baixada do DASHBOARD PMAL.
           </p>
         </header>
 
         {!result && (
           <div style={{ marginBottom: '2.5rem' }}>
-            <div 
+            <div
               style={{
                 border: '2px dashed #e2e8f0',
                 borderRadius: '16px',
@@ -126,19 +126,19 @@ export function ServicosImport({ onBack }) {
                 if (droppedFile) handleFileChange({ target: { files: [droppedFile] } });
               }}
             >
-              <input 
-                type="file" 
-                onChange={handleFileChange} 
+              <input
+                type="file"
+                onChange={handleFileChange}
                 accept=".xlsx, .xls"
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
               />
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                <div style={{ 
-                    width: '64px', height: '64px', background: file ? '#10b981' : 'white', 
-                    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)', color: file ? 'white' : 'var(--text-muted)',
-                    transition: 'all 0.3s'
+                <div style={{
+                  width: '64px', height: '64px', background: file ? '#10b981' : 'white',
+                  borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)', color: file ? 'white' : 'var(--text-muted)',
+                  transition: 'all 0.3s'
                 }}>
                   {file ? <CheckCircle2 size={32} /> : <Upload size={32} />}
                 </div>
@@ -153,7 +153,7 @@ export function ServicosImport({ onBack }) {
               </div>
             </div>
 
-            <div style={{ 
+            <div style={{
               marginTop: '1.5rem', padding: '1rem', background: '#f1f5f9', borderRadius: '12px',
               display: 'flex', gap: '12px', color: '#475569', fontSize: '0.875rem', lineHeight: '1.5'
             }}>
@@ -166,138 +166,138 @@ export function ServicosImport({ onBack }) {
         )}
 
         {error && (
-            <div style={{ 
-                padding: '1rem', background: '#fff1f2', border: '1px solid #fda4af', 
-                borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', gap: '12px', color: '#e11d48'
-            }}>
-                <AlertCircle size={20} />
-                <span>{error}</span>
-            </div>
+          <div style={{
+            padding: '1rem', background: '#fff1f2', border: '1px solid #fda4af',
+            borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', gap: '12px', color: '#e11d48'
+          }}>
+            <AlertCircle size={20} />
+            <span>{error}</span>
+          </div>
         )}
 
         {result && (
-          <div style={{ 
-              textAlign: 'center', padding: '2rem', background: '#f0fdf4', borderRadius: '16px', 
-              border: '1px solid #bbf7d0', marginBottom: '2rem'
+          <div style={{
+            textAlign: 'center', padding: '2rem', background: '#f0fdf4', borderRadius: '16px',
+            border: '1px solid #bbf7d0', marginBottom: '2rem'
           }}>
-            <div style={{ 
-                width: '64px', height: '64px', background: '#22c55e', color: 'white',
-                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 1.5rem'
+            <div style={{
+              width: '64px', height: '64px', background: '#22c55e', color: 'white',
+              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 1.5rem'
             }}>
-                <CheckCircle2 size={40} />
+              <CheckCircle2 size={40} />
             </div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>Importação Concluída!</h3>
+            <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>Dados importados com sucesso!</h3>
             <p style={{ color: '#15803d', marginBottom: '2rem' }}>{result.message}</p>
-            
-            <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-                gap: '1rem' 
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '1rem'
             }}>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Importados</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>{result.stats.imported}</div>
-                </div>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Duplicados/S.Dados</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>{result.stats.skipped || 0}</div>
-                </div>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Erros</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>{result.stats.errors}</div>
-                </div>
+              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Importados</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>{result.stats.imported}</div>
+              </div>
+              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Duplicados/S.Dados</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>{result.stats.skipped || 0}</div>
+              </div>
+              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Erros</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>{result.stats.errors}</div>
+              </div>
             </div>
 
             {result.errorDetails && result.errorDetails.length > 0 && (
-                <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                    <h5 style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <AlertCircle size={14} /> Detalhamento:
-                    </h5>
-                    <div style={{ 
-                        background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', 
-                        padding: '0.75rem', fontSize: '0.75rem', color: '#991b1b',
-                        maxHeight: '200px', overflowY: 'auto'
-                    }}>
-                        {result.errorDetails.map((err, i) => (
-                            <div key={i} style={{ marginBottom: '4px', paddingBottom: '4px', borderBottom: i < result.errorDetails.length - 1 ? '1px solid #fecaca' : 'none' }}>
-                                <strong>{err.militar}:</strong> {err.error}
-                            </div>
-                        ))}
+              <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                <h5 style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={14} /> Detalhamento:
+                </h5>
+                <div style={{
+                  background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px',
+                  padding: '0.75rem', fontSize: '0.75rem', color: '#991b1b',
+                  maxHeight: '200px', overflowY: 'auto'
+                }}>
+                  {result.errorDetails.map((err, i) => (
+                    <div key={i} style={{ marginBottom: '4px', paddingBottom: '4px', borderBottom: i < result.errorDetails.length - 1 ? '1px solid #fecaca' : 'none' }}>
+                      <strong>{err.militar}:</strong> {err.error}
                     </div>
+                  ))}
                 </div>
+              </div>
             )}
 
-            <button 
-                className="btn btn-primary" 
-                style={{ marginTop: '2.5rem', paddingLeft: '2rem', paddingRight: '2rem' }}
-                onClick={() => setResult(null)}
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: '2.5rem', paddingLeft: '2rem', paddingRight: '2rem' }}
+              onClick={() => setResult(null)}
             >
-                Nova Importação
+              Nova Importação
             </button>
           </div>
         )}
 
         {!result && (
-            <>
-              {preview && (
-                <div style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                  <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
-                      📋 Colunas Detectadas — {preview.total_rows} registros
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Aba: {preview.sheet}</span>
-                  </div>
-                  <div style={{ overflowX: 'auto', maxHeight: '220px', overflowY: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                      <thead>
-                        <tr style={{ background: '#f1f5f9' }}>
-                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>#</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Coluna</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Mapeamento</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Exemplo</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preview.colunas.map((col) => (
-                          <tr key={col.index} style={{ borderTop: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '5px 12px', color: '#94a3b8' }}>{col.index}</td>
-                            <td style={{ padding: '5px 12px', fontWeight: 500, color: '#1e293b' }}>{col.header}</td>
-                            <td style={{ padding: '5px 12px' }}>
-                              <code style={{ background: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>{col.normalizado}</code>
-                            </td>
-                            <td style={{ padding: '5px 12px', color: '#64748b', fontStyle: 'italic' }}>{String(col.exemplo)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+          <>
+            {preview && (
+              <div style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                    📋 Colunas Detectadas — {preview.total_rows} registros
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Aba: {preview.sheet}</span>
                 </div>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                <button
-                    className="btn btn-secondary"
-                    disabled={!file || previewing}
-                    onClick={handlePreview}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                    {previewing ? <><Loader2 size={16} className="animate-spin" /> Analisando...</> : <>Analisar Planilha</>}
-                </button>
-                <button
-                    className="btn btn-primary"
-                    disabled={!file || loading}
-                    onClick={handleUpload}
-                    style={{ minWidth: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#10b981', border: 'none' }}
-                >
-                    {loading ? (
-                        <><Loader2 size={18} className="animate-spin" /> Importando...</>
-                    ) : (
-                        <>Iniciar Importação <ArrowRight size={18} /></>
-                    )}
-                </button>
+                <div style={{ overflowX: 'auto', maxHeight: '220px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9' }}>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>#</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Coluna</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Mapeamento</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Exemplo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.colunas.map((col) => (
+                        <tr key={col.index} style={{ borderTop: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '5px 12px', color: '#94a3b8' }}>{col.index}</td>
+                          <td style={{ padding: '5px 12px', fontWeight: 500, color: '#1e293b' }}>{col.header}</td>
+                          <td style={{ padding: '5px 12px' }}>
+                            <code style={{ background: '#ecfdf5', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>{col.normalizado}</code>
+                          </td>
+                          <td style={{ padding: '5px 12px', color: '#64748b', fontStyle: 'italic' }}>{String(col.exemplo)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button
+                className="btn btn-secondary"
+                disabled={!file || previewing}
+                onClick={handlePreview}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                {previewing ? <><Loader2 size={16} className="animate-spin" /> Analisando...</> : <>Analisar Planilha</>}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={!file || loading}
+                onClick={handleUpload}
+                style={{ minWidth: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#10b981', border: 'none' }}
+              >
+                {loading ? (
+                  <><Loader2 size={18} className="animate-spin" /> Importando...</>
+                ) : (
+                  <>Iniciar Importação <ArrowRight size={18} /></>
+                )}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

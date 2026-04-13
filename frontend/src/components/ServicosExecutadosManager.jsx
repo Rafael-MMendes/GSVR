@@ -8,7 +8,7 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/ap
 const formatDateDisplay = (dateValue) => {
   if (!dateValue) return '---';
   try {
-    const dateStr = String(dateValue).split('T')[0]; 
+    const dateStr = String(dateValue).split('T')[0];
     const [ano, mes, dia] = dateStr.split('-');
     return `${dia}/${mes}/${ano}`;
   } catch (e) {
@@ -77,7 +77,11 @@ export function ServicosExecutadosManager() {
       ]);
       setCiclos(resCiclos.data);
       setEfetivo(resEfetivo.data.filter(e => e.status_ativo));
-      if (resCiclos.data.length > 0 && !filterCiclo) {
+      // Priorizar ciclo aberto (status 'Aberto') para seleção inicial
+      const active = resCiclos.data.find(c => c.status === 'Aberto');
+      if (active && !filterCiclo) {
+        setFilterCiclo(active.id_ciclo);
+      } else if (resCiclos.data.length > 0 && !filterCiclo) {
         setFilterCiclo(resCiclos.data[0].id_ciclo);
       }
     } catch (e) {
@@ -200,14 +204,14 @@ export function ServicosExecutadosManager() {
     s.matricula?.includes(searchTerm)
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
     // Tratamento especial para números/valores
     if (sortConfig.key === 'valor_remuneracao') {
-        aVal = parseFloat(aVal || 0);
-        bVal = parseFloat(bVal || 0);
+      aVal = parseFloat(aVal || 0);
+      bVal = parseFloat(bVal || 0);
     }
 
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -227,20 +231,54 @@ export function ServicosExecutadosManager() {
   const totalValor = filtered.filter(s => s.status_presenca === 'Presente')
     .reduce((acc, s) => acc + parseFloat(s.valor_remuneracao || 0), 0);
 
+  const selectedCicloText = (() => {
+    const c = ciclos.find(item => String(item.id_ciclo) === String(filterCiclo));
+    if (!c) return 'Selecione um Ciclo';
+    
+    // Se o backend já enviou o period_name formatado (ex: "Maio / Junho - 2026")
+    if (c.period_name) {
+      return c.period_name.replace(' / ', '/').replace(' - ', ' ');
+    }
+
+    const monthNames = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    try {
+      // Tenta formatar a partir das datas brutas de início e fim
+      const d1 = c.data_inicio ? new Date(String(c.data_inicio).split('T')[0] + 'T12:00:00') : null;
+      const d2 = c.data_fim ? new Date(String(c.data_fim).split('T')[0] + 'T12:00:00') : null;
+      
+      if (d1 && !isNaN(d1.getTime())) {
+        const m1 = monthNames[d1.getMonth()];
+        const m2 = d2 && !isNaN(d2.getTime()) ? monthNames[d2.getMonth()] : m1;
+        const ano = d1.getFullYear();
+        
+        return m1 === m2 ? `${m1} ${ano}` : `${m1}/${m2} ${ano}`;
+      }
+    } catch (e) {
+      console.warn('Erro ao formatar ciclo via Date:', e);
+    }
+
+    return c.referencia_mes_ano || 'Ciclo ' + c.id_ciclo;
+  })();
+
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h2 style={{ margin: 0, color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ClipboardCheck /> Serviços Executados
+            <ClipboardCheck size={28} />
+            Serviços Executados — Ciclo Ativo: <span style={{ fontWeight: 400, }}>{selectedCicloText}</span>
           </h2>
           <p style={{ margin: '5px 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>
             Registro e controle dos serviços realizados pelos militares
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button 
-            className="btn btn-secondary" 
+          <button
+            className="btn btn-secondary"
             onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'import-servicos' }))}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
           >
@@ -274,15 +312,7 @@ export function ServicosExecutadosManager() {
 
       {/* Filtros */}
       <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div style={{ flex: 1, minWidth: '200px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-            <Filter size={12} style={{ marginRight: '4px' }} /> Ciclo / Mês
-          </label>
-          <select className="form-control" style={{ margin: 0 }} value={filterCiclo} onChange={e => setFilterCiclo(e.target.value)}>
-            <option value="">Todos os ciclos</option>
-            {ciclos.map(c => <option key={c.id_ciclo} value={c.id_ciclo}>{c.referencia_mes_ano} — {c.opm_sigla}</option>)}
-          </select>
-        </div>
+
         <div style={{ flex: 1, minWidth: '200px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Militar</label>
           <select className="form-control" style={{ margin: 0 }} value={filterMilitar} onChange={e => setFilterMilitar(e.target.value)}>
@@ -310,9 +340,9 @@ export function ServicosExecutadosManager() {
       {/* Botões de ação em massa */}
       {selectedIds.size > 0 && (
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleDeleteSelected} 
+          <button
+            className="btn btn-primary"
+            onClick={handleDeleteSelected}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
           >
             <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
@@ -332,30 +362,30 @@ export function ServicosExecutadosManager() {
             <thead>
               <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', width: '40px' }}>
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={selectedIds.size === filtered.length && filtered.length > 0}
                     onChange={handleSelectAll}
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
-                    Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
-                    Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
-                    Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
-                    Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
-                    Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
-                    Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center' }}>Feriado</th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px' }}>Ações</th>
@@ -372,8 +402,8 @@ export function ServicosExecutadosManager() {
                 filtered.map(s => (
                   <tr key={s.id_execucao}>
                     <td>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={selectedIds.has(s.id_execucao)}
                         onChange={() => handleSelectOne(s.id_execucao)}
                         style={{ width: '18px', height: '18px', cursor: 'pointer' }}
