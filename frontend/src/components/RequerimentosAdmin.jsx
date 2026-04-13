@@ -6,7 +6,7 @@ import { maskPhone, formatPhone } from '../utils/formatters';
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
 const ranks = [
-  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
+  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM",
   "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
 ];
 
@@ -44,6 +44,7 @@ export function RequerimentosAdmin() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelingItem, setCancelingItem] = useState(null);
   const [cancelingLoading, setCancelingLoading] = useState(false);
+  const [cancelingSelection, setCancelingSelection] = useState({});
 
   const [formData, setFormData] = useState({
     numero_ordem: '',
@@ -74,7 +75,7 @@ export function RequerimentosAdmin() {
         status: c.status
       }));
       setMonths(ciclos);
-      
+
       const cicloAtivo = ciclos.find(c => c.status === 'Aberto');
       if (cicloAtivo) {
         setSelectedMonth(cicloAtivo.month_key);
@@ -104,7 +105,7 @@ export function RequerimentosAdmin() {
 
   const handleDelete = async (id) => {
     if (!confirm('Tem certeza que deseja excluir este requerimento?')) return;
-    
+
     try {
       await axios.delete(`${API_URL}/volunteers/${id}`);
       fetchVolunteers();
@@ -214,23 +215,45 @@ export function RequerimentosAdmin() {
 
   const openCancelModal = (volunteer) => {
     setCancelingItem(volunteer);
+    setCancelingSelection({}); // Começa com seletores em branco conforme solicitado
     setShowCancelModal(true);
+  };
+
+  const toggleCancelShiftSelection = (day, shift) => {
+    setCancelingSelection(prev => {
+      const dayStr = String(day);
+      const dayShifts = prev[dayStr] || [];
+      const isSelected = dayShifts.includes(shift);
+      const newShifts = isSelected ? dayShifts.filter(s => s !== shift) : [...dayShifts, shift];
+      const newSelection = { ...prev };
+      if (newShifts.length > 0) {
+        newSelection[dayStr] = newShifts;
+      } else {
+        delete newSelection[dayStr];
+      }
+      return newSelection;
+    });
   };
 
   const handleCancelAvailability = async () => {
     if (!cancelingItem) return;
+    
+    // Verifica se há algo selecionado
+    if (Object.keys(cancelingSelection).length === 0) {
+      alert('Selecione ao menos um turno para cancelar.');
+      return;
+    }
+
+    if (!confirm('Deseja realmente cancelar os turnos selecionados?')) return;
 
     setCancelingLoading(true);
     try {
       await axios.put(`${API_URL}/volunteers/${cancelingItem.id}/cancel-availability`, {
-        numero_ordem: cancelingItem.numero_ordem,
-        name: cancelingItem.name,
-        rank: cancelingItem.rank,
-        phone: cancelingItem.phone,
-        availability: cancelingItem.availability_completa || cancelingItem.availability || {}
+        availability: cancelingSelection
       });
       setShowCancelModal(false);
       setCancelingItem(null);
+      setCancelingSelection({});
       fetchVolunteers();
     } catch (error) {
       console.error('Error canceling availability:', error);
@@ -288,14 +311,19 @@ export function RequerimentosAdmin() {
     );
   }).sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
     // Tratamento especial para números
     if (sortConfig.key === 'numero_ordem') {
-        aVal = parseInt(aVal.replace(/\D/g, '')) || 0;
-        bVal = parseInt(bVal.replace(/\D/g, '')) || 0;
+      aVal = parseInt(aVal?.toString().replace(/\D/g, '')) || 0;
+      bVal = parseInt(bVal?.toString().replace(/\D/g, '')) || 0;
+    }
+
+    if (sortConfig.key === 'turnos') {
+      aVal = Object.values(a.availability || {}).flat().length;
+      bVal = Object.values(b.availability || {}).flat().length;
     }
 
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -313,19 +341,19 @@ export function RequerimentosAdmin() {
 
   return (
     <div className="container" style={{ maxWidth: '1400px' }}>
-      <div className="admin-controls-header" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-          padding: '1rem',
-          background: 'var(--card-bg)',
-          borderRadius: '12px',
-          border: '1px solid var(--border-color)'
+      <div className="admin-controls-header" style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+        padding: '1rem',
+        background: 'var(--card-bg)',
+        borderRadius: '12px',
+        border: '1px solid var(--border-color)'
       }}>
-        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gerenciamento de Requerimentos</h2>
+        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gestão de Requerimentos</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={openFolderModal} disabled={!activeCycle} style={{ width: 'auto' }}>
             <FolderOpen size={18} style={{ marginRight: '0.5rem' }} />
@@ -366,24 +394,26 @@ export function RequerimentosAdmin() {
             <thead>
               <tr style={{ background: 'var(--primary)', color: 'white' }}>
                 <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
-                    Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
-                    Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
-                    Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
                 <th style={{ padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
-                <th style={{ padding: '0.75rem', textAlign: 'center' }}>Turnos</th>
+                <th style={{ padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
+                  Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
                 <th style={{ padding: '0.75rem', textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {filteredVolunteers.map((v, idx) => (
-                <tr key={v.id} style={{ 
-                  background: v.ativo === false ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)'), 
+                <tr key={v.id} style={{
+                  background: v.ativo === false ? 'rgba(239, 68, 68, 0.05)' : (idx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)'),
                   borderBottom: v.ativo === false ? '2px solid var(--danger)' : '1px solid var(--border-color)',
                   opacity: v.ativo === false ? 0.7 : 1
                 }}>
@@ -401,11 +431,11 @@ export function RequerimentosAdmin() {
                   <td style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
                       {v.ativo === false && (
-                        <span style={{ 
-                          background: 'var(--danger)', 
-                          color: 'white', 
-                          padding: '0.15rem 0.4rem', 
-                          borderRadius: '4px', 
+                        <span style={{
+                          background: 'var(--danger)',
+                          color: 'white',
+                          padding: '0.15rem 0.4rem',
+                          borderRadius: '4px',
                           fontSize: '0.7rem',
                           fontWeight: 'bold'
                         }}>
@@ -414,8 +444,8 @@ export function RequerimentosAdmin() {
                       )}
                       <span>
                         {Object.keys(v.availability || {}).length > 0
-                          ? `${Object.values(v.availability).flat().length} turnos`
-                          : 'Nenhum'}
+                          ? `${Object.values(v.availability).flat().length}`
+                          : '0'}
                       </span>
                     </div>
                   </td>
@@ -439,9 +469,9 @@ export function RequerimentosAdmin() {
                       </button>
                       <button
                         className="btn btn-outline"
-                        style={{ 
-                          padding: '0.4rem 0.6rem', 
-                          fontSize: '0.8rem', 
+                        style={{
+                          padding: '0.4rem 0.6rem',
+                          fontSize: '0.8rem',
                           color: v.ativo === false ? 'var(--danger)' : 'var(--warning)',
                           background: v.ativo === false ? 'rgba(239, 68, 68, 0.1)' : 'transparent'
                         }}
@@ -492,11 +522,11 @@ export function RequerimentosAdmin() {
               </button>
             </div>
 
-            <div className="form-grid-stack" style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                gap: '1rem', 
-                marginBottom: '1.5rem' 
+            <div className="form-grid-stack" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.5rem'
             }}>
               <div className="form-group">
                 <label>Nº de Ordem</label>
@@ -616,20 +646,20 @@ export function RequerimentosAdmin() {
               </button>
             </div>
 
-            <div className="form-grid-stack" style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
-                gap: '1rem', 
-                marginBottom: '1.5rem', 
-                background: 'var(--card-bg)', 
-                padding: '1rem', 
-                borderRadius: '8px' 
+            <div className="form-grid-stack" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '1rem',
+              marginBottom: '1.5rem',
+              background: 'var(--card-bg)',
+              padding: '1rem',
+              borderRadius: '8px'
             }}>
-              <div><strong>Nº Ordem:</strong><br/>{viewingVolunteer.numero_ordem}</div>
-              <div><strong>Posto/Grad:</strong><br/>{viewingVolunteer.rank}</div>
-              <div><strong>Nome:</strong><br/>{viewingVolunteer.name}</div>
-              <div><strong>Telefone:</strong><br/>{formatPhone(viewingVolunteer.phone)}</div>
-              <div><strong>Motorista:</strong><br/>{viewingVolunteer.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
+              <div><strong>Nº Ordem:</strong><br />{viewingVolunteer.numero_ordem}</div>
+              <div><strong>Posto/Grad:</strong><br />{viewingVolunteer.rank}</div>
+              <div><strong>Nome:</strong><br />{viewingVolunteer.name}</div>
+              <div><strong>Telefone:</strong><br />{formatPhone(viewingVolunteer.phone)}</div>
+              <div><strong>Motorista:</strong><br />{viewingVolunteer.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
             </div>
 
             <h4 style={{ marginBottom: '1rem' }}>Grade de Disponibilidade</h4>
@@ -696,9 +726,9 @@ export function RequerimentosAdmin() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {/* Header do Modal com Status do Ciclo */}
-              <div style={{ 
-                background: 'rgba(56, 189, 248, 0.05)', 
-                borderLeft: '4px solid var(--accent)', 
+              <div style={{
+                background: 'rgba(56, 189, 248, 0.05)',
+                borderLeft: '4px solid var(--accent)',
                 padding: '1rem',
                 borderRadius: '0 8px 8px 0'
               }}>
@@ -714,12 +744,12 @@ export function RequerimentosAdmin() {
               </div>
 
               {/* Seletor de Arquivos Customizado */}
-              <div 
+              <div
                 onClick={() => fileInputRef.current?.click()}
-                style={{ 
-                  border: '2px dashed var(--border-color)', 
-                  borderRadius: '12px', 
-                  padding: '2rem', 
+                style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '2rem',
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
@@ -737,8 +767,8 @@ export function RequerimentosAdmin() {
                   <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Selecionar PDFs dos Voluntários</div>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Clique ou arraste vários arquivos simultâneos</div>
                 </div>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   ref={fileInputRef}
                   onChange={handleFileSelect}
                   accept=".pdf"
@@ -762,14 +792,14 @@ export function RequerimentosAdmin() {
 
               {/* Painel de Resultados (Apenas após processamento) */}
               {importResult && (
-                <div style={{ 
-                  borderRadius: '12px', 
-                  overflow: 'hidden', 
+                <div style={{
+                  borderRadius: '12px',
+                  overflow: 'hidden',
                   border: `1px solid ${importResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                   background: 'rgba(0,0,0,0.2)'
                 }}>
-                  <div style={{ 
-                    padding: '1rem', 
+                  <div style={{
+                    padding: '1rem',
                     background: importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
@@ -807,11 +837,11 @@ export function RequerimentosAdmin() {
                         <div style={{ color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
                           ❌ Não Encontrados no Efetivo ({importResult.results.filter(r => !r.success).length}):
                         </div>
-                        <div style={{ 
-                          maxHeight: '150px', 
-                          overflowY: 'auto', 
-                          background: 'rgba(239, 68, 68, 0.05)', 
-                          padding: '0.8rem', 
+                        <div style={{
+                          maxHeight: '150px',
+                          overflowY: 'auto',
+                          background: 'rgba(239, 68, 68, 0.05)',
+                          padding: '0.8rem',
                           borderRadius: '8px',
                           display: 'flex',
                           flexDirection: 'column',
@@ -844,11 +874,11 @@ export function RequerimentosAdmin() {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-              <button 
-                className="btn btn-outline" 
+              <button
+                className="btn btn-outline"
                 onClick={() => { setShowFolderModal(false); setSelectedFiles([]); setImportResult(null); }}
-                style={{ 
-                  padding: '0.75rem 1.5rem', 
+                style={{
+                  padding: '0.75rem 1.5rem',
                   minWidth: '120px',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid var(--border-color)',
@@ -857,12 +887,12 @@ export function RequerimentosAdmin() {
               >
                 Cancelar
               </button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleImportFromFiles} 
+              <button
+                className="btn btn-primary"
+                onClick={handleImportFromFiles}
                 disabled={importing || selectedFiles.length === 0 || (!selectedMonth && !activeCycle)}
-                style={{ 
-                  padding: '0.75rem 2rem', 
+                style={{
+                  padding: '0.75rem 2rem',
                   minWidth: '150px',
                   display: 'flex',
                   alignItems: 'center',
@@ -905,7 +935,8 @@ export function RequerimentosAdmin() {
             background: 'white', borderRadius: '12px', padding: '1.5rem',
             maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            animation: 'slideUp 0.3s ease-out'
+            animation: 'slideUp 0.3s ease-out',
+            color: 'var(--danger)' // Fonte em vermelho conforme solicitado
           }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -924,29 +955,29 @@ export function RequerimentosAdmin() {
               marginBottom: '1.5rem', border: '1px solid var(--border-color)'
             }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
-                <div><strong>Nº Ordem:</strong><br/>{cancelingItem.numero_ordem}</div>
-                <div><strong>Posto/Grad:</strong><br/>{cancelingItem.rank}</div>
-                <div><strong>Nome:</strong><br/>{cancelingItem.name}</div>
-                <div><strong>Telefone:</strong><br/>{formatPhone(cancelingItem.phone)}</div>
-                <div><strong>Motorista:</strong><br/>{cancelingItem.motorista_req ? '✅ Sim' : '❌ Não'}</div>
+                <div><strong>Nº Ordem:</strong><br />{cancelingItem.numero_ordem}</div>
+                <div><strong>Posto/Grad:</strong><br />{cancelingItem.rank}</div>
+                <div><strong>Nome:</strong><br />{cancelingItem.name}</div>
+                <div><strong>Telefone:</strong><br />{formatPhone(cancelingItem.phone)}</div>
+                <div><strong>Motorista:</strong><br />{cancelingItem.motorista_req ? '✅ Sim' : '❌ Não'}</div>
               </div>
             </div>
 
             {/* Alerta */}
             <div style={{
-              background: 'rgba(239, 68, 68, 0.05)', borderLeft: '4px solid var(--danger)',
+              background: 'rgba(56, 189, 248, 0.05)', borderLeft: '4px solid var(--primary)',
               padding: '0.75rem 1rem', borderRadius: '0 8px 8px 0', marginBottom: '1rem',
-              fontSize: '0.85rem', color: 'var(--text-secondary)'
+              fontSize: '0.85rem'
             }}>
-              <strong style={{ color: 'var(--danger)' }}>⚠️ Atenção:</strong> Esta ação marcará todos os turnos de disponibilidade abaixo como <strong>INATIVOS</strong> (vermelho). Os turnos já inativos aparecerão marcados em vermelho escuro.
+              <strong style={{ color: 'var(--primary)' }}>ℹ️ Instrução:</strong> Os blocos em azul claro representam a disponibilidade <strong>ATIVA</strong>. Clique nos turnos que deseja cancelar para marcá-los em vermelho (X).
             </div>
 
             {/* Grade de Disponibilidade */}
-            <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem' }}>Disponibilidade que será cancelada:</h4>
+            <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem' }}>Selecione os turnos para cancelar:</h4>
             <div className="responsive-table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', marginBottom: '1.5rem' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.75rem' }}>
                 <thead>
-                  <tr style={{ background: 'var(--danger)', color: 'white' }}>
+                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
                     <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
                     {daysInMonth.map(day => (
                       <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
@@ -962,36 +993,40 @@ export function RequerimentosAdmin() {
                       {daysInMonth.map(day => {
                         const dayStr = String(day);
                         const availabilityData = cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dayStr] || [];
-                        
-                        // Verifica se é um array de objetos (availability_completa) ou array de strings (availability)
-                        const isAtivo = Array.isArray(availabilityData) 
+
+                        const isAtivo = Array.isArray(availabilityData)
                           ? availabilityData.some(item => {
-                              const turno = typeof item === 'string' ? item : item.turno;
-                              const ativo = typeof item === 'string' ? true : item.ativo;
-                              return turno === shift && ativo !== false;
-                            })
+                            const turno = typeof item === 'string' ? item : item.turno;
+                            const ativo = typeof item === 'string' ? true : item.ativo;
+                            return turno === shift && ativo !== false;
+                          })
                           : false;
-                        
+
                         const isCancelado = Array.isArray(availabilityData)
                           ? availabilityData.some(item => {
-                              const turno = typeof item === 'string' ? item : item.turno;
-                              const ativo = typeof item === 'string' ? true : item.ativo;
-                              return turno === shift && ativo === false;
-                            })
+                            const turno = typeof item === 'string' ? item : item.turno;
+                            const ativo = typeof item === 'string' ? true : item.ativo;
+                            return turno === shift && ativo === false;
+                          })
                           : false;
+
+                        const isSelectedToCancel = cancelingSelection[dayStr]?.includes(shift);
 
                         return (
                           <td
                             key={day}
+                            onClick={() => isAtivo && toggleCancelShiftSelection(day, shift)}
                             style={{
                               textAlign: 'center',
-                              backgroundColor: isCancelado ? 'rgba(239, 68, 68, 0.3)' : (isAtivo ? 'var(--danger)' : 'transparent'),
-                              color: isCancelado ? 'rgba(255,255,255,0.5)' : (isAtivo ? 'white' : 'transparent'),
-                              fontWeight: isCancelado ? 'bold' : 'normal',
-                              textDecoration: isCancelado ? 'line-through' : 'none'
+                              cursor: isAtivo ? 'pointer' : 'default',
+                              backgroundColor: isCancelado ? '#f1f5f9' : (isSelectedToCancel ? 'var(--danger)' : (isAtivo ? '#e0f2fe' : 'transparent')),
+                              color: isSelectedToCancel ? 'white' : (isCancelado ? '#94a3b8' : (isAtivo ? '#0369a1' : 'transparent')),
+                              border: '1px solid #e2e8f0',
+                              fontWeight: 'bold',
+                              transition: 'all 0.1s ease'
                             }}
                           >
-                            {(isAtivo || isCancelado) ? 'X' : '·'}
+                            {isSelectedToCancel ? 'X' : (isCancelado ? '·' : (isAtivo ? '✓' : ''))}
                           </td>
                         );
                       })}

@@ -188,7 +188,7 @@ export function AnalyticsDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h2 style={{ margin: 0 }}>
-            Analítico SVR — {ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name || 'Serviços do Mês'}
+            Analítico SVR - Ciclo Ativo: {ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name || 'Serviços do Mês'}
           </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.9rem' }}>
             Contagem de serviços por militar · Limite mensal: {MAX_SERVICES} serviços

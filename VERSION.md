@@ -4,7 +4,8 @@
 
 ### Mudanças:
 - **[Analytics] Padronização de Ciclos**: Implementada exibição humanizada dos ciclos operacionais no Dashboard Analítico utilizando o formato "Mês / Mês - Ano".
-- **[UI/UX] Busca Dinâmica e Simplificação**: Implementada barra de busca em tempo real no dashboard analítico. O seletor (dropdown) e o botão de atualização foram removidos em favor de uma interface mais limpa e responsiva.
+- **[UI/UX] Filtros e Ordenação Inteligente**: Implementada barra de busca em tempo real e ordenação por quantidade de turnos no painel administrativo de requerimentos.
+- **[BackOffice] Cancelamento Cirúrgico**: Nova funcionalidade de cancelamento de disponibilidade que permite selecionar especificamente quais turnos desativar (ativo=false) via interface interativa, em vez de cancelar todo o requerimento.
 
 ---
 
