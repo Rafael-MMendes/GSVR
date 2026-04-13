@@ -419,61 +419,61 @@ export function ServicosExecutadosManager() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: 'white', padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0, color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ClipboardCheck size={20} /> {editingServico ? 'Editar Serviço' : 'Registrar Serviço Executado'}
+        <div className="modal-overlay">
+          <div className="modal-content-premium">
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {editingServico ? 'Editar Serviço' : 'Registrar Serviço'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
+              <p className="modal-subtitle">Informe os detalhes do serviço realizado</p>
             </div>
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gap: '1rem' }}>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Ciclo Operacional *</label>
-                  <select className="form-input" value={formData.id_ciclo} onChange={e => setFormData({ ...formData, id_ciclo: e.target.value })} required>
+                  <select className="form-control" value={formData.id_ciclo} onChange={e => setFormData({ ...formData, id_ciclo: e.target.value })} required>
                     <option value="">Selecione o ciclo...</option>
                     {ciclos.map(c => <option key={c.id_ciclo} value={c.id_ciclo}>{c.referencia_mes_ano} — {c.opm_sigla}</option>)}
                   </select>
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Militar *</label>
-                  <select className="form-input" value={formData.id_militar} onChange={e => setFormData({ ...formData, id_militar: e.target.value })} required>
+                  <select className="form-control" value={formData.id_militar} onChange={e => setFormData({ ...formData, id_militar: e.target.value })} required>
                     <option value="">Selecione o militar...</option>
                     {efetivo.map(m => <option key={m.id_militar} value={m.id_militar}>{m.posto_graduacao} {m.nome_guerra || m.nome_completo} — {m.matricula}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Data do Serviço *</label>
-                    <input type="date" className="form-input" value={formData.data_execucao} onChange={e => setFormData({ ...formData, data_execucao: e.target.value })} required />
+                    <input type="date" className="form-control" value={formData.data_execucao} onChange={e => setFormData({ ...formData, data_execucao: e.target.value })} required />
                   </div>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Carga Horária *</label>
-                    <select className="form-input" value={formData.carga_horaria} onChange={e => setFormData({ ...formData, carga_horaria: parseInt(e.target.value), valor_remuneracao: '' })}>
+                    <select className="form-control" value={formData.carga_horaria} onChange={e => setFormData({ ...formData, carga_horaria: parseInt(e.target.value), valor_remuneracao: '' })}>
                       {CARGA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Status de Presença *</label>
-                    <select className="form-input" value={formData.status_presenca} onChange={e => setFormData({ ...formData, status_presenca: e.target.value })}>
+                    <select className="form-control" value={formData.status_presenca} onChange={e => setFormData({ ...formData, status_presenca: e.target.value })}>
                       {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
-                  <div>
+                  <div className="form-group">
                     <label className="form-label">Valor (R$) — Automático</label>
-                    <input type="number" step="0.01" className="form-input" placeholder={formData.carga_horaria === 8 ? '250.00' : '192.03'} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
+                    <input type="number" step="0.01" className="form-control" placeholder={formData.carga_horaria === 8 ? '250.00' : '192.03'} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input type="checkbox" id="eh_feriado" checked={formData.eh_feriado} onChange={e => setFormData({ ...formData, eh_feriado: e.target.checked })} style={{ width: '18px', height: '18px' }} />
-                  <label htmlFor="eh_feriado" style={{ cursor: 'pointer', color: '#475569' }}>Serviço em Feriado</label>
+                  <label htmlFor="eh_feriado" className="form-label" style={{ marginBottom: 0, cursor: 'pointer' }}>Serviço em Feriado</label>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">
                   {editingServico ? 'Salvar Alterações' : 'Registrar Serviço'}
                 </button>
@@ -482,18 +482,6 @@ export function ServicosExecutadosManager() {
           </div>
         </div>
       )}
-
-      <style>{`
-        .admin-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .admin-table th { background: #f8fafc; padding: 12px 16px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
-        .admin-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
-        .admin-table tr:last-child td { border-bottom: none; }
-        .admin-table tr:hover { background: #f8fafc; }
-        .btn-icon { padding: 6px; border-radius: 6px; border: 1px solid #e2e8f0; background: white; color: #3b82f6; cursor: pointer; transition: all 0.2s; }
-        .btn-icon:hover { background: #3b82f6; color: white; }
-        .btn-icon-danger { color: #ef4444; }
-        .btn-icon-danger:hover { background: #ef4444; color: white; }
-      `}</style>
     </div>
   );
 }

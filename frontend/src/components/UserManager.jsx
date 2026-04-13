@@ -192,7 +192,7 @@ export function UserManager() {
             <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
-              className="form-input"
+              className="form-control"
               placeholder="Buscar usuário..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -205,7 +205,6 @@ export function UserManager() {
         </div>
       </header>
 
-      {/* Info Warning */}
       <div style={{ padding: '0.75rem 1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', gap: '10px', alignItems: 'center' }}>
         <CheckCircle2 size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
         <div style={{ color: '#1e40af', fontSize: '0.8rem' }}>
@@ -226,12 +225,11 @@ export function UserManager() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          {/* Seção Administradores */}
           <div>
             <SectionTitle icon={<Shield size={16} />} title={`Administradores (${admins.length})`} color="#ef4444" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div className="responsive-table-container">
-                <table className="user-table">
+                <table className="admin-table">
                   <thead>
                     <tr>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
@@ -266,12 +264,11 @@ export function UserManager() {
             </div>
           </div>
 
-          {/* Seção Regulares */}
           <div>
             <SectionTitle icon={<User size={16} />} title={`Acesso Padrão (${regulares.length})`} color="#64748b" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div className="responsive-table-container">
-                <table className="user-table">
+                <table className="admin-table">
                   <thead>
                     <tr>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
@@ -308,10 +305,9 @@ export function UserManager() {
         </div>
       )}
 
-      {/* Modal Permissões Customizadas */}
       {showPermsModal && selectedUser && (
         <div className="modal-overlay">
-          <div className="glass-panel" style={{ width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0, position: 'relative', overflow: 'hidden' }}>
+          <div className="modal-content-premium" style={{ width: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
             <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #f1f5f9' }}>
                <button className="btn-close" onClick={() => setShowPermsModal(false)}><X size={20} /></button>
                <h3 style={{ margin: 0, color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -387,23 +383,18 @@ export function UserManager() {
         </div>
       )}
 
-      {/* Modal Novo Usuário */}
       {showModal && (
         <div className="modal-overlay">
-          <div className="glass-panel" style={{ width: '450px', padding: '2rem', position: 'relative' }}>
-            <button className="btn-close" onClick={() => setShowModal(false)}><X size={20} /></button>
-            <h3 style={{ margin: '0 0 0.5rem 0', color: '#1e3a5f', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Plus /> Nova Conta de Acesso
-            </h3>
-            <p style={{ margin: '0 0 1.5rem 0', color: '#64748b', fontSize: '0.85rem' }}>
-              Crie um acesso para um militar já cadastrado no efetivo.
-            </p>
-
+          <div className="modal-content-premium" style={{ width: '450px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Nova Conta de Acesso</h3>
+              <p className="modal-subtitle">Crie um acesso para um militar já cadastrado no efetivo.</p>
+            </div>
             <form onSubmit={handleCreateUser}>
               <div className="form-group">
-                <label>Selecionar Militar</label>
+                <label className="form-label">Selecionar Militar</label>
                 <select 
-                  className="form-input" 
+                  className="form-control" 
                   value={newUserData.matricula}
                   onChange={e => setNewUserData({...newUserData, matricula: e.target.value})}
                   required
@@ -436,7 +427,7 @@ export function UserManager() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={loading || !newUserData.matricula}>
                   {loading ? 'Criando...' : 'Criar Acesso'}
                 </button>
@@ -446,23 +437,6 @@ export function UserManager() {
         </div>
       )}
 
-      <style>{`
-        .user-table { width: 100%; border-collapse: collapse; }
-        .user-table th { text-align: left; padding: 12px 16px; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; background: #fbfcfd; }
-        .user-table td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
-        .user-table tr:last-child td { border-bottom: none; }
-        .user-table tr:hover { background: #f8fafc; }
-        
-        .action-icon { padding: 6px; border-radius: 6px; background: transparent; border: 1px solid transparent; color: #64748b; cursor: pointer; transition: all 0.2s; }
-        .action-icon:hover { background: #f1f5f9; border-color: #e2e8f0; color: #1e293b; }
-        .action-icon.delete:hover { border-color: #fecaca; color: #ef4444; background: #fef2f2; }
-        
-        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s ease-out; }
-        .btn-close { position: absolute; top: 1.5rem; right: 1.5rem; background: transparent; border: none; color: #94a3b8; cursor: pointer; }
-        .btn-close:hover { color: #f43f5e; }
-        
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      `}</style>
     </div>
   );
 }

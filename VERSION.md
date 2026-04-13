@@ -1,3 +1,14 @@
+## v1.27.0 — 2026-04-13
+**Autor:** Rafael Mendes
+**Email:** rafael.mendes@example.com
+
+### Mudanças:
+- **[UI/UX] Padronização Global Premium**: Refatoração integral de todos os módulos administrativos (OPM, Efetivo, Usuários, Serviços Executados, Ciclos, Tipos de Serviço e Roles) para o novo design system unificado.
+- **[UI/UX] Consolidação Visual**: Implementado uso consistente de modais premium (`.modal-content-premium`), formulários estilizados (`.form-control`) e tabelas administrativas padronizadas (`.admin-table`) em todo o sistema.
+- **[Clean Code] Otimização de CSS**: Removidos estilos redundantes e blocos `<style>` locais em favor de classes utilitárias globais no `index.css`, resultando em um código mais limpo e fácil de manter.
+
+---
+
 ## v1.26.3 — 2026-04-13
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

@@ -202,55 +202,22 @@ export function CicloManager() {
       )}
 
       {isModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(8px)', zIndex: 1000, padding: '1rem'
-        }}>
-          <div className="glass-panel" style={{ 
-            background: 'white', 
-            padding: '2.5rem', 
-            width: '100%', 
-            maxWidth: '600px', 
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-            position: 'relative'
-          }}>
-            <button 
-                onClick={() => setIsModalOpen(false)}
-                aria-label="Fechar Modal"
-                style={{ 
-                    position: 'absolute', top: '1.5rem', right: '1.5rem', 
-                    background: '#f1f5f9', border: 'none', borderRadius: '50%', 
-                    padding: '8px', cursor: 'pointer', color: '#64748b',
-                    transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#1e293b'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
-            >
-                <X size={20} />
-            </button>
-
-            <div style={{ marginBottom: '2rem' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#0f172a', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {editingCiclo ? <Edit2 className="text-primary" /> : <Plus className="text-primary" />}
-                    {editingCiclo ? 'Ajustar Ciclo Operacional' : 'Novo Ciclo de Escala'}
-                </h3>
-                <p style={{ color: '#64748b', margin: 0, fontSize: '0.95rem' }}>
-                    Configure os parâmetros do período e a unidade responsável.
-                </p>
+        <div className="modal-overlay">
+          <div className="modal-content-premium">
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {editingCiclo ? 'Ajustar Ciclo Operacional' : 'Novo Ciclo de Escala'}
+              </h3>
+              <p className="modal-subtitle">Configure os parâmetros do período e a unidade responsável.</p>
             </div>
-
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Building2 size={16} /> Unidade Operacional (OPM)
-                </label>
+                <label className="form-label">Unidade Operacional (OPM)</label>
                 <select 
                     className="form-control" 
                     value={formData.id_opm} 
                     onChange={e => setFormData({ ...formData, id_opm: e.target.value })}
                     required
-                    style={{ cursor: 'pointer' }}
                 >
                     <option value="">Selecione a unidade...</option>
                     {opms.map(opm => (
@@ -259,30 +226,20 @@ export function CicloManager() {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Activity size={16} /> Status Inicial
-                  </label>
+              <div className="form-group">
+                  <label className="form-label">Status Inicial</label>
                   <select 
                     className="form-control" 
                     value={formData.status} 
                     onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    style={{ 
-                        cursor: 'pointer',
-                        borderLeft: `4px solid ${formData.status === 'Aberto' ? '#10b981' : '#64748b'}`
-                    }}
                   >
                     <option value="Aberto">Aberto (Inscrições liberadas)</option>
                     <option value="Fechado">Fechado (Somente consulta)</option>
                   </select>
-                </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <DollarSign size={16} /> Valor Total Previsto (Teto do Ciclo)
-                </label>
+              <div className="form-group">
+                <label className="form-label">Valor Total Previsto (Teto do Ciclo)</label>
                 <input 
                   type="number"
                   step="0.01"
@@ -303,11 +260,11 @@ export function CicloManager() {
                   marginBottom: '2rem'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: '#475569', fontWeight: 600, fontSize: '0.9rem' }}>
-                    <ClipboardCheck size={18} /> Vigência do Período
+                    Vigência do Período
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Início</label>
+                    <label className="form-label">Início</label>
                     <input 
                         type="date"
                         className="form-control" 
@@ -317,7 +274,7 @@ export function CicloManager() {
                     />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Término</label>
+                    <label className="form-label">Término</label>
                     <input 
                         type="date"
                         className="form-control" 
@@ -330,43 +287,15 @@ export function CicloManager() {
               </div>
 
               {formData.data_inicio && formData.data_fim && formData.data_inicio > formData.data_fim && (
-                <div style={{ 
-                    padding: '1rem', 
-                    background: '#fff1f2', 
-                    border: '1px solid #fda4af', 
-                    borderRadius: '8px', 
-                    marginBottom: '1.5rem', 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: '12px', 
-                    color: '#e11d48', 
-                    fontSize: '0.875rem',
-                    animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both'
-                }}>
-                    <AlertCircle size={20} style={{ marginTop: '2px' }} />
-                    <div>
-                        <strong style={{ display: 'block', marginBottom: '2px' }}>Inconsistência de Datas</strong>
-                        <span>A data de início não pode ser superior à data de término. Corrija para prosseguir.</span>
-                    </div>
+                <div style={{ padding: '1rem', background: '#fff1f2', border: '1px solid #fda4af', borderRadius: '8px', marginBottom: '1.5rem', color: '#e11d48', fontSize: '0.875rem' }}>
+                    A data de início não pode ser superior à data de término.
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                <button 
-                    type="button" 
-                    className="btn btn-outline" 
-                    onClick={() => setIsModalOpen(false)}
-                    style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
-                >
-                    Descartar
-                </button>
-                <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={formData.data_inicio > formData.data_fim}
-                    style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
-                >
-                    {editingCiclo ? 'Salvar Alterações' : 'Criar Ciclo Operacional'}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={formData.data_inicio > formData.data_fim}>
+                    {editingCiclo ? 'Salvar Alterações' : 'Criar Ciclo'}
                 </button>
               </div>
             </form>

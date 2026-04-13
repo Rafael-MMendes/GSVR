@@ -108,14 +108,14 @@ export function EfetivoManager() {
     m.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
     // Tratamento especial para números
     if (sortConfig.key === 'matricula' || sortConfig.key === 'numero_ordem') {
-        aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
-        bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;
+      aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
+      bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;
     }
 
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -152,7 +152,7 @@ export function EfetivoManager() {
             </div>
             Gestão de Efetivo
           </h2>
-          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '1rem' }}>Gerencie o cadastro de militares e identificações do batalhão</p>
+          <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '1rem' }}>Gerencie o cadastro de militares</p>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -319,27 +319,25 @@ export function EfetivoManager() {
       {/* MODAL DE CADASTRO/EDIÇÃO */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3>{editingMilitar ? 'Editar Militar' : 'Novo Militar'}</h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X size={24} />
-              </button>
+          <div className="modal-content-premium">
+            <div className="modal-header">
+              <h3 className="modal-title">{editingMilitar ? 'Editar Militar' : 'Novo Militar'}</h3>
+              <p className="modal-subtitle">Atualize as informações cadastrais do militar</p>
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div className="form-grid">
-                <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="form-group">
                   <label className="form-label">Nome Completo *</label>
-                  <input className="form-input" value={formData.nome_completo} onChange={e => setFormData({ ...formData, nome_completo: e.target.value })} required />
+                  <input className="form-control" value={formData.nome_completo} onChange={e => setFormData({ ...formData, nome_completo: e.target.value })} required />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Nome de Guerra</label>
-                  <input className="form-input" value={formData.nome_guerra} onChange={e => setFormData({ ...formData, nome_guerra: e.target.value })} />
+                  <input className="form-control" value={formData.nome_guerra} onChange={e => setFormData({ ...formData, nome_guerra: e.target.value })} />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Posto / Graduação *</label>
-                  <select className="form-input" value={formData.posto_graduacao} onChange={e => setFormData({ ...formData, posto_graduacao: e.target.value })} required>
+                  <select className="form-control" value={formData.posto_graduacao} onChange={e => setFormData({ ...formData, posto_graduacao: e.target.value })} required>
                     <option value="">Selecione...</option>
                     <option value="CEL PM">CORONEL PM</option>
                     <option value="TC PM">TC PM</option>
@@ -357,18 +355,18 @@ export function EfetivoManager() {
                   </select>
                 </div>
 
-                <div>
+                <div className="form-group">
                   <label className="form-label">Matrícula (Login) *</label>
-                  <input className="form-input" value={formData.matricula} onChange={e => setFormData({ ...formData, matricula: e.target.value })} required />
+                  <input className="form-control" value={formData.matricula} onChange={e => setFormData({ ...formData, matricula: e.target.value })} required />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Nº de Ordem</label>
-                  <input className="form-input" value={formData.numero_ordem} onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })} />
+                  <input className="form-control" value={formData.numero_ordem} onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })} />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">CPF *</label>
                   <input
-                    className="form-input"
+                    className="form-control"
                     value={formData.cpf}
                     onChange={e => {
                       const val = e.target.value.replace(/\D/g, '').substring(0, 11);
@@ -378,15 +376,15 @@ export function EfetivoManager() {
                     placeholder="Somente números"
                   />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">OPM / Lotação</label>
-                  <input className="form-input" value={formData.opm} onChange={e => setFormData({ ...formData, opm: e.target.value })} />
+                  <input className="form-control" value={formData.opm} onChange={e => setFormData({ ...formData, opm: e.target.value })} />
                 </div>
-                <div>
+                <div className="form-group">
                   <label className="form-label">Telefone</label>
-                  <input className="form-input" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: maskPhone(e.target.value) })} placeholder="(00) 00000-0000" />
+                  <input className="form-control" value={formData.telefone} onChange={e => setFormData({ ...formData, telefone: maskPhone(e.target.value) })} placeholder="(00) 00000-0000" />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '25px' }}>
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '1.5rem' }}>
                   <input type="checkbox" checked={formData.status_ativo} onChange={e => setFormData({ ...formData, status_ativo: e.target.checked })} />
                   <label className="form-label" style={{ marginBottom: 0 }}>Militar Ativo</label>
                 </div>
@@ -400,75 +398,6 @@ export function EfetivoManager() {
           </div>
         </div>
       )}
-
-      <style>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          backdrop-filter: blur(4px);
-          padding: 1rem;
-        }
-        .modal-content {
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          width: 100%;
-          max-width: 700px;
-          max-height: 90vh;
-          overflow-y: auto;
-          position: relative;
-          animation: modalAppear 0.3s ease-out;
-          padding: 2rem;
-        }
-        @keyframes modalAppear {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .admin-table {
-          width: 100%;
-          border-collapse: collapse;
-          background: white;
-        }
-        .admin-table th {
-          background: #f8fafc;
-          padding: 12px 16px;
-          text-align: left;
-          font-size: 0.75rem;
-          text-transform: uppercase;
-          color: #64748b;
-          font-weight: 600;
-          border-bottom: 2px solid #f1f5f9;
-        }
-        .admin-table td {
-          padding: 12px 16px;
-          border-bottom: 1px solid #f1f5f9;
-          vertical-align: middle;
-        }
-        .table-row-hover:hover {
-          background-color: #f8fafc !important;
-        }
-        .btn-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 8px;
-          border-radius: 10px;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .btn-icon:hover {
-          transform: scale(1.1);
-        }
-      `}</style>
     </div>
   );
 }
