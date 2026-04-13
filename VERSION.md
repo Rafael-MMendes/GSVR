@@ -1,3 +1,24 @@
+## v1.26.3 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Analytics] Padronização de Ciclos**: Implementada exibição humanizada dos ciclos operacionais no Dashboard Analítico utilizando o formato "Mês / Mês - Ano".
+- **[UI/UX] Busca Dinâmica e Simplificação**: Implementada barra de busca em tempo real no dashboard analítico. O seletor (dropdown) e o botão de atualização foram removidos em favor de uma interface mais limpa e responsiva.
+
+---
+
+## v1.26.2 — 2026-04-13
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Analytics] Visibilidade Total de Dados**: Refatorada a lógica do Dashboard Analítico para incluir todos os militares com serviços prestados no ciclo, independentemente de possuírem requerimento prévio.
+- **[Analytics] Consistência de Motoristas**: Ajustada a agregação de dados para priorizar o status de motorista informado no requerimento (voluntariado) em relação ao cadastro geral.
+- **[Core] Fallback de Efetivo**: Implementada integração com a lista completa do efetivo para preenchimento de metadados em registros de produtividade sem vínculo de voluntariado.
+
+---
+
 ## v1.26.1 — 2026-04-12
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -304,12 +325,6 @@
 ### Mudanças:
 - **[UX] Meses por Extenso**: Refinada a exibição de ciclos para utilizar nomes de meses por extenso (ex: "Março / Abril - 2026") em vez de numéricos, melhorando a clareza para os gestores.
 - **[Backend] Lógica SQL Nativa**: Implementada tradução de meses utilizando `CASE` nativo no PostgreSQL para garantir performance e consistência de idioma.
-
----
-
-## v1.19.0 — 2026-04-12
-
-## v1.18.2 — 2026-04-12
 
 ---
 

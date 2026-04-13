@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet } from 'lucide-react';
+import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet, Search } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 const MAX_SERVICES = 8;
@@ -17,6 +17,7 @@ export function AnalyticsDashboard() {
   const [selectedCiclo, setSelectedCiclo] = useState('');
   const [stats, setStats] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -26,7 +27,12 @@ export function AnalyticsDashboard() {
     setSortConfig({ key, direction });
   };
 
-  const sortedStats = [...stats].sort((a, b) => {
+  const filteredStats = stats.filter(s =>
+    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(s.numero_ordem).toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const sortedStats = [...filteredStats].sort((a, b) => {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
 
@@ -90,27 +96,46 @@ export function AnalyticsDashboard() {
 
   const filterByCiclo = () => {
     const servicosCiclo = servicos.filter(s => s.id_ciclo === parseInt(selectedCiclo));
-    buildStats(volunteers, servicosCiclo);
+    buildStats(volunteers, servicosCiclo, efetivo);
   };
 
-  const buildStats = (efetivoData, servicosData) => {
+  const buildStats = (volunteersData, servicosData, fullEfetivo = []) => {
     const map = {};
-    
-    efetivoData.forEach(e => {
-      // Usa id_militar dos voluntários para o mapa
-      const id = e.id_militar;
+
+    // 1. Iniciar com todos os que possuem requerimento no ciclo escolhido
+    volunteersData.forEach(v => {
+      const id = v.id_militar;
       map[id] = {
         id: id,
-        numero_ordem: e.numero_ordem || e.matricula,
-        rank: e.rank || e.posto_graduacao,
-        name: e.name || e.nome_guerra,
-        motorista: e.motorista_req !== undefined ? e.motorista_req : e.motorista,
+        numero_ordem: v.numero_ordem || v.matricula,
+        rank: v.rank || v.posto_graduacao,
+        name: v.name || v.nome_guerra,
+        // Prioriza a informação de motorista do requerimento (vontade do militar)
+        motorista: v.motorista_req !== undefined ? v.motorista_req : v.motorista,
         count6h: 0,
         count8h: 0,
       };
     });
 
+    // 2. Adicionar/Contabilizar quem executou serviços (mesmo sem requerimento)
+    // Isso garante que o dashboard reflita a realidade total de produtividade
     servicosData.forEach(s => {
+      if (!map[s.id_militar]) {
+        // Fallback para o cadastro geral caso o militar não esteja nos voluntários
+        const mil = fullEfetivo.find(e => e.id_militar === s.id_militar);
+        if (mil) {
+          map[s.id_militar] = {
+            id: s.id_militar,
+            numero_ordem: mil.matricula || mil.numero_ordem,
+            rank: mil.posto_graduacao,
+            name: mil.nome_completo || mil.nome_guerra,
+            motorista: mil.motorista,
+            count6h: 0,
+            count8h: 0,
+          };
+        }
+      }
+
       if (map[s.id_militar]) {
         if (s.carga_horaria === 8) {
           map[s.id_militar].count8h += 1;
@@ -162,30 +187,25 @@ export function AnalyticsDashboard() {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ margin: 0 }}>Analítico GSVR — Serviços do Mês</h2>
+          <h2 style={{ margin: 0 }}>
+            Analítico SVR — {ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name || 'Serviços do Mês'}
+          </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.9rem' }}>
             Contagem de serviços por militar · Limite mensal: {MAX_SERVICES} serviços
           </p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {ciclos.length > 0 && (
-            <select 
-              value={selectedCiclo} 
-              onChange={e => setSelectedCiclo(e.target.value)}
+          <div style={{ position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Buscar militar..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
               className="form-control"
-              style={{ minWidth: '150px' }}
-            >
-              {ciclos.map(c => (
-                <option key={c.id_ciclo} value={c.id_ciclo}>
-                  {c.referencia_mes_ano}
-                </option>
-              ))}
-            </select>
-          )}
-          <button className="btn btn-outline" onClick={loadData} disabled={loading}>
-            <RefreshCw size={16} />
-            {loading ? 'Carregando...' : 'Atualizar'}
-          </button>
+              style={{ paddingLeft: '2.5rem', width: '280px', borderRadius: '8px' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -193,8 +213,8 @@ export function AnalyticsDashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
         {[
           { icon: <TrendingUp size={22} color="#0D3878" />, label: 'Recurso Utilizado', value: formatarValor(recursoUtilizado), color: '#0D3878' },
-          { icon: <Clock size={22} color="#10b981" />, label: 'GSVR de 6 Horas', value: totalHoras6, color: '#10b981' },
-          { icon: <Clock size={22} color="#f59e0b" />, label: 'GSVR de 8 Horas', value: totalHoras8, color: '#f59e0b' },
+          { icon: <Clock size={22} color="#10b981" />, label: 'SVR de 6 Horas', value: totalHoras6, color: '#10b981' },
+          { icon: <Clock size={22} color="#f59e0b" />, label: 'SVR de 8 Horas', value: totalHoras8, color: '#f59e0b' },
           { icon: <Wallet size={22} color="#059669" />, label: 'Recurso Restante', value: formatarValor(recursoRestante), color: '#059669' },
         ].map(kpi => (
           <div key={kpi.label} className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem' }}>
@@ -222,26 +242,26 @@ export function AnalyticsDashboard() {
               <tr style={{ background: 'var(--primary)', color: 'white' }}>
                 <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>#</th>
                 <th onClick={() => requestSort('numero_ordem')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    N° Ordem {sortConfig.key === 'numero_ordem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  N° Ordem {sortConfig.key === 'numero_ordem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('name')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    Posto / Nome {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Posto / Nome {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Motorista</th>
                 <th onClick={() => requestSort('count6h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    GSVR 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  SVR 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('count8h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    GSVR 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  SVR 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('total')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    Total GSVRs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Total SVRs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('remaining')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    Restantes {sortConfig.key === 'remaining' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Restantes {sortConfig.key === 'remaining' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('valorTotal')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
-                    Valor Total {sortConfig.key === 'valorTotal' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                  Valor Total {sortConfig.key === 'valorTotal' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Situação</th>
                 <th style={{ padding: '0.85rem 1.5rem', textAlign: 'center', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Progresso</th>
