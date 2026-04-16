@@ -635,7 +635,7 @@ app.get('/api/volunteers', async (req, res) => {
 
   const q = `
      SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
-            e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'MM/YYYY') as month_key,
+            e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
             (SELECT json_object_agg(dia_mes, turnos) FROM (
               SELECT dia_mes, json_agg(horario_turno) as turnos
@@ -692,7 +692,7 @@ app.get('/api/months', async (req, res) => {
                 WHEN 5 THEN 'Maio' WHEN 6 THEN 'Junho' WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto'
                 WHEN 9 THEN 'Setembro' WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
               END) || ' de ' || TO_CHAR(data_inicio, 'YYYY') as period_name,
-             TO_CHAR(data_inicio, 'YYYY-MM') as month_key 
+             TO_CHAR(data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(data_fim, 'DD/MM/YYYY') as periodo_ciclo
       FROM CICLOS ORDER BY data_inicio DESC
     `;
     const ciclos = await db.all(query);
@@ -1280,7 +1280,7 @@ app.get('/api/servicos', async (req, res) => {
   try {
     const { ciclo_id, militar_id, data_inicio, data_fim } = req.query;
     let q = `
-      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, c.referencia_mes_ano
+      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo
       FROM SERVICOS_EXECUTADOS se
       JOIN EFETIVO e ON se.id_militar = e.id_militar
       JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
@@ -1919,7 +1919,7 @@ app.get('/api/reports/escalas-planejadas', async (req, res) => {
         e.matricula, 
         e.posto_graduacao, 
         e.nome_guerra, 
-        c.referencia_mes_ano as ciclo,
+        TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as ciclo,
         c.status as status_ciclo,
         ts.descricao as tipo_servico,
         ts.carga_horaria,
@@ -2343,8 +2343,131 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     console.log(`    Total dias processados: ${dayCounter}`);
   }
 
+  // ============================================================
+  // FRAGMENTAÇÃO DE DISPONIBILIDADE POR CICLO OPERACIONAL
+  // Distribui os dias de um requerimento civil (1-31) nos
+  // ciclos operacionais corretos (16 ao 15 do mês seguinte).
+  // ============================================================
+
+  /**
+   * Para cada dia do mapa de disponibilidade, constrói a data real
+   * e consulta qual ciclo operacional a cobre. Agrupa os dias por
+   * ciclo e chama upsertRequerimentoFragmento para cada um.
+   *
+   * @param {object} dbConn   - Conexão com o banco (db)
+   * @param {number} idMilitar - id_militar do efetivo
+   * @param {object} availability - { "16": [shifts], "17": [shifts], ... }
+   * @param {string} mesRef    - "YYYY-MM" (mês civil de referência)
+   * @returns {Array} Lista de { id_ciclo, id_requerimento, dias_inseridos }
+   */
+  async function distribuirDisponibilidadeEmCiclos(dbConn, idMilitar, availability, mesRef) {
+    const [anoStr, mesStr] = mesRef.split('-');
+    const ano = parseInt(anoStr, 10);
+    const mes = parseInt(mesStr, 10);
+
+    // Agrupa os dias do requerimento pelo id_ciclo correspondente
+    const cicloMap = new Map();
+
+    for (const [diaStr, shifts] of Object.entries(availability)) {
+      const dia = parseInt(diaStr, 10);
+      if (!dia || dia < 1 || dia > 31) continue;
+
+      const dataReal = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+      const ciclo = await dbConn.get(
+        `SELECT id_ciclo FROM CICLOS WHERE $1::date BETWEEN data_inicio AND data_fim LIMIT 1`,
+        [dataReal]
+      );
+
+      if (!ciclo) {
+        console.log(`[FRAG] Dia ${diaStr} (${dataReal}) nao coberto por nenhum ciclo — ignorado.`);
+        continue;
+      }
+
+      if (!cicloMap.has(ciclo.id_ciclo)) {
+        cicloMap.set(ciclo.id_ciclo, {});
+      }
+      cicloMap.get(ciclo.id_ciclo)[diaStr] = shifts;
+    }
+
+    console.log(`[FRAG] ${cicloMap.size} ciclo(s) identificado(s) para o militar ${idMilitar} no mes ${mesRef}`);
+
+    const results = [];
+    for (const [idCiclo, diasDoCiclo] of cicloMap.entries()) {
+      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo);
+      results.push({ id_ciclo: idCiclo, ...r });
+    }
+    return results;
+  }
+
+  /**
+   * Cria ou atualiza um REQUERIMENTO para um (militar, ciclo) específico
+   * e insere os turnos do fragmento. Opera com idempotência via ON CONFLICT.
+   */
+  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap) {
+    const existing = await dbConn.get(
+      'SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2',
+      [idMilitar, idCiclo]
+    );
+
+    let idReq;
+    if (existing) {
+      idReq = existing.id_requerimento;
+      // Remove apenas os dias que serão re-inseridos (cirúrgico, não apaga tudo)
+      const diasNumericos = Object.keys(diasMap).map(d => parseInt(d, 10));
+      if (diasNumericos.length > 0) {
+        await dbConn.query(
+          `DELETE FROM DISPONIBILIDADE_REQUERIMENTO
+           WHERE id_requerimento = $1 AND dia_mes = ANY($2::int[])`,
+          [idReq, diasNumericos]
+        );
+      }
+      console.log(`[FRAG] Requerimento existente atualizado: req=${idReq}, ciclo=${idCiclo}`);
+    } else {
+      const r = await dbConn.run(
+        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)',
+        [idMilitar, idCiclo]
+      );
+      idReq = r.lastID;
+      console.log(`[FRAG] Novo requerimento criado: req=${idReq}, ciclo=${idCiclo}`);
+    }
+
+    let diasInseridos = 0;
+    for (const [diaStr, shifts] of Object.entries(diasMap)) {
+      for (const shiftObj of shifts) {
+        await dbConn.run(
+          `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
+             (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista)
+           VALUES ($1, $2, $3, TRUE, $4)
+           ON CONFLICT (id_requerimento, dia_mes, horario_turno) DO NOTHING`,
+          [idReq, parseInt(diaStr, 10), shiftObj.shift || shiftObj, !!shiftObj.motorista]
+        );
+        diasInseridos++;
+      }
+    }
+
+    return { id_requerimento: idReq, dias_inseridos: diasInseridos };
+  }
+
   async function parseRequerimentoPDF(text, db) {
     const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '' };
+
+    // Extrair mês de referência do PDF (ex: "Abril/2026", "04/2026", "ABRIL DE 2026")
+    const MONTH_PT = { janeiro:1, fevereiro:2, marco:3, março:3, abril:4, maio:5, junho:6,
+                       julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
+    const mesNomeMatch = text.match(
+      /(?:MÊS|MES|REFERÊNCIA|REFERENCIA|PERÍODO|PERIODO|REQUERIMENTO)[^\n]{0,40}?(JANEIRO|FEVEREIRO|MAR[ÇC]O|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)[^\d]{0,10}(\d{4})/i
+    );
+    if (mesNomeMatch) {
+      const nomeMes = mesNomeMatch[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const numMes = MONTH_PT[nomeMes] || 0;
+      if (numMes) data.month_key = `${mesNomeMatch[2]}-${String(numMes).padStart(2,'0')}`;
+    }
+    // Fallback: formato numérico MM/YYYY no texto
+    if (!data.month_key) {
+      const mesNumMatch = text.match(/(0[1-9]|1[0-2])\/(20\d{2})/);
+      if (mesNumMatch) data.month_key = `${mesNumMatch[2]}-${mesNumMatch[1]}`;
+    }
 
     // Extrair Nº de Ordem ou Matrícula (mais flexível)
     // Busca por N.ORD, ORDEM, MATRICULA, MATR acompanhado de 3 a 10 dígitos
@@ -2454,15 +2577,9 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   }
 
   app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
-    let { id_ciclo, month_key } = req.body;
+    let { id_ciclo } = req.body;
     
-    // Fallback: se não veio id_ciclo mas veio month_key, tenta encontrar o ciclo
-    if (!id_ciclo && month_key) {
-      const ciclo = await db.get('SELECT id_ciclo FROM CICLOS WHERE referencia_mes_ano = $1', [month_key]);
-      if (ciclo) id_ciclo = ciclo.id_ciclo;
-    }
-
-    console.log('Import request:', { id_ciclo, month_key, filesCount: req.files?.length });
+    console.log('Import request:', { id_ciclo, filesCount: req.files?.length });
     if (!req.files || !id_ciclo) return res.status(400).json({ error: "Ciclo não informado ou arquivos ausentes." });
     try {
       const volunteers = [], errors = [];
@@ -2554,24 +2671,39 @@ app.get('/api/financeiro/resumo', async (req, res) => {
             continue;
           }
           
-          const existing = await db.get('SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2', [m.id_militar, item.id_ciclo]);
-          let id_req;
-          if (existing) {
-            id_req = existing.id_requerimento;
-            await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1', [id_req]);
-          } else {
-            const r = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [m.id_militar, cycle.id_ciclo]);
-            id_req = r.lastID;
+          // Determina o mês de referência civil do requerimento.
+          // Prioridade: (1) extraído do PDF, (2) enviado pelo frontend, (3) mês do ciclo preferencial.
+          let mesRef = item.month_key || req.body.mes_referencia || '';
+          if (!mesRef && cycle) {
+            // Fallback: usa o mês de início do ciclo enviado pelo frontend
+            const d = new Date(cycle.data_inicio);
+            mesRef = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           }
-          for (const [day, shifts] of Object.entries(item.availability)) {
-            for (const shiftObj of shifts) {
-              await db.run(
-                'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista) VALUES ($1, $2, $3, TRUE, $4)', 
-                [id_req, parseInt(day), shiftObj.shift || shiftObj, !!shiftObj.motorista]
-              );
+
+          let ciclosAfetados = [];
+
+          if (mesRef && Object.keys(item.availability).length > 0) {
+            // CAMINHO PRINCIPAL: Fragmentação automática por ciclo operacional
+            const fragmentResults = await distribuirDisponibilidadeEmCiclos(
+              db, m.id_militar, item.availability, mesRef
+            );
+            ciclosAfetados = fragmentResults.map(r => r.id_ciclo);
+            console.log(`[IMPORT] Militar ${item.numero_ordem}: ${fragmentResults.length} ciclo(s) afetado(s).`);
+          } else {
+            // FALLBACK SEGURO: sem mês de referência, usa o ciclo preferencial fixo (comportamento antigo)
+            console.warn(`[IMPORT] Militar ${item.numero_ordem}: sem mes_referencia, usando ciclo fixo ${cycle?.id_ciclo}.`);
+            if (cycle) {
+              await upsertRequerimentoFragmento(db, m.id_militar, cycle.id_ciclo, item.availability);
+              ciclosAfetados = [cycle.id_ciclo];
             }
           }
-          results.push({ numero_ordem: item.numero_ordem, success: true });
+
+          results.push({
+            numero_ordem: item.numero_ordem,
+            name: item.name || '',
+            success: true,
+            ciclos_afetados: ciclosAfetados
+          });
         } catch (e) { results.push({ numero_ordem: item.numero_ordem, success: false, error: e.message }); }
       }
       res.json({ success: true, processed: volunteers.length, results, errors: errors.slice(0, 20) });

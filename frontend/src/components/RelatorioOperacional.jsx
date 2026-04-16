@@ -19,7 +19,7 @@ export const RelatorioOperacional = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'referencia_mes_ano', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'periodo_ciclo', direction: 'desc' });
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -111,8 +111,8 @@ export const RelatorioOperacional = () => {
           <table className="table">
             <thead>
               <tr>
-                <th onClick={() => requestSort('referencia_mes_ano')} style={{ cursor: 'pointer' }}>
-                    Ciclo {sortConfig.key === 'referencia_mes_ano' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <th onClick={() => requestSort('periodo_ciclo')} style={{ cursor: 'pointer' }}>
+                    Ciclo {sortConfig.key === 'periodo_ciclo' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => requestSort('opm_sigla')} style={{ cursor: 'pointer' }}>
                     OPM {sortConfig.key === 'opm_sigla' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -137,7 +137,7 @@ export const RelatorioOperacional = () => {
             <tbody>
               {sortedAgregado.map((item, idx) => (
                 <tr key={idx}>
-                  <td>{item.referencia_mes_ano}</td>
+                  <td>{item.periodo_ciclo}</td>
                   <td>{item.opm_sigla}</td>
                   <td>
                     <div style={{ fontWeight: 500 }}>{item.nome_guerra}</div>

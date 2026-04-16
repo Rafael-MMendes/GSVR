@@ -247,7 +247,7 @@ export function VolunteerForm({ userData }) {
                 onChange={e => handleCicloChange(e.target.value)}
             >
                 {ciclos.map(c => (
-                    <option key={c.id_ciclo} value={c.id_ciclo}>{c.referencia_mes_ano} ({c.opm_sigla})</option>
+                    <option key={c.id_ciclo} value={c.id_ciclo}>{c.periodo_ciclo} ({c.opm_sigla})</option>
                 ))}
                 {ciclos.length === 0 && <option value="">Nenhum ciclo aberto</option>}
             </select>

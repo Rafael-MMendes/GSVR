@@ -68,16 +68,24 @@ export function RequerimentosAdmin() {
   const fetchMonths = async () => {
     try {
       const res = await axios.get(`${API_URL}/ciclos`);
-      const ciclos = res.data.map(c => ({
-        id_ciclo: c.id_ciclo,
-        month_key: c.month_key || c.referencia_mes_ano,
-        month_name: c.period_name || `${c.referencia_mes_ano} (${c.status})`,
-        status: c.status
-      }));
+      const ciclos = res.data.map(c => {
+        // Extrai YYYY-MM do data_inicio para uso no backend de fragmentação
+        const dataInicio = c.data_inicio ? String(c.data_inicio).split('T')[0] : '';
+        const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : ''; // "YYYY-MM"
+
+        return {
+          id_ciclo: c.id_ciclo,
+          month_key: c.periodo_ciclo,
+          month_name: c.period_name || `${c.periodo_ciclo} (${c.status})`,
+          mes_referencia_iso: mesReferenciaISO, // Ex: "2026-04" — formato para o backend
+          status: c.status
+        };
+      });
       setMonths(ciclos);
 
       const cicloAtivo = ciclos.find(c => c.status === 'Aberto');
       if (cicloAtivo) {
+        // FIX: usar cicloAtivo.month_key (não .periodo_ciclo que não existe no objeto mapeado)
         setSelectedMonth(cicloAtivo.month_key);
         setActiveCycle(cicloAtivo);
       } else {
@@ -130,8 +138,8 @@ export function RequerimentosAdmin() {
   };
 
   const handleImportFromFiles = async () => {
-    if (selectedFiles.length === 0 || !selectedMonth) {
-      alert('Selecione arquivos PDF e um mês.');
+    if (selectedFiles.length === 0 || !activeCycle) {
+      alert('Selecione arquivos PDF e aguarde o carregamento do ciclo ativo.');
       return;
     }
 
@@ -142,7 +150,10 @@ export function RequerimentosAdmin() {
       selectedFiles.forEach(file => {
         formData.append('files', file);
       });
-      formData.append('id_ciclo', activeCycle?.id_ciclo);
+
+      // Envia o id_ciclo como preferência e o mes_referencia em YYYY-MM para fragmentação
+      formData.append('id_ciclo', activeCycle.id_ciclo || '');
+      formData.append('mes_referencia', activeCycle.mes_referencia_iso || '');
 
       const res = await axios.post(`${API_URL}/import/volunteers/files`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -280,8 +291,18 @@ export function RequerimentosAdmin() {
   };
 
   const handleSave = async () => {
+    const duplicateFound = volunteers.find(v => 
+      v.numero_ordem?.trim() === formData.numero_ordem?.trim() && 
+      v.id !== editingVolunteer?.id
+    );
+
     if (!formData.numero_ordem.trim() || !formData.name.trim()) {
       alert('Preencha o Nº de Ordem e o Nome.');
+      return;
+    }
+
+    if (duplicateFound) {
+      alert(`Este militar (${formData.numero_ordem}) já possui um requerimento neste ciclo.`);
       return;
     }
 
@@ -523,10 +544,16 @@ export function RequerimentosAdmin() {
                 <label>Nº de Ordem</label>
                 <input
                   type="text"
-                  className="form-control"
+                  className={`form-control ${volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? 'is-invalid' : ''}`}
                   value={formData.numero_ordem}
                   onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })}
+                  style={volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
                 />
+                {volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) && (
+                  <small style={{ color: '#ef4444', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
+                    ⚠️ Militar já cadastrado neste ciclo.
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Posto/Graduação</label>
@@ -612,7 +639,11 @@ export function RequerimentosAdmin() {
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSave} 
+                disabled={loading || volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id)}
+              >
                 {loading ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
@@ -813,9 +844,16 @@ export function RequerimentosAdmin() {
                           ✓ Militar(es) Vinculado(s):
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                          {importResult.results.filter(r => r.success).map(r => (
-                            <span key={r.numero_ordem} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', padding: '0.1rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                              #{r.numero_ordem}
+                        {importResult.results.filter(r => r.success).map(r => (
+                            <span key={r.numero_ordem} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', flexDirection: 'column' }}>
+                              <span>#{r.numero_ordem} {r.name ? `— ${r.name}` : ''}</span>
+                              {r.ciclos_afetados?.length > 1 ? (
+                                <span style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                                  ⚡ Distribuído em {r.ciclos_afetados.length} ciclos
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>1 ciclo</span>
+                              )}
                             </span>
                           ))}
                         </div>

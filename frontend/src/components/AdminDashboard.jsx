@@ -768,7 +768,7 @@ export function AdminDashboard() {
             <div>
               <label style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Mês</label>
               <select className="form-control" style={{ margin: 0 }} value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>
-                {months.map(m => <option key={m.id_ciclo} value={m.id_ciclo}>{m.referencia_mes_ano}</option>)}
+                {months.map(m => <option key={m.id_ciclo} value={m.id_ciclo}>{m.periodo_ciclo}</option>)}
               </select>
             </div>
             <div>

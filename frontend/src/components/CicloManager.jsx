@@ -5,15 +5,50 @@ import { Calendar, Plus, Edit2, Trash2, X, Check, Building2, Users, ClipboardChe
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
 // Função para formatar data vinda do banco (Postgres) de forma segura
+// Funções para formatar datas e períodos
+const formatDateShort = (dateValue) => {
+  if (!dateValue) return '';
+  try {
+    const dateStr = String(dateValue).split('T')[0];
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}`;
+  } catch (e) { return ''; }
+};
+
 const formatDateDisplay = (dateValue) => {
   if (!dateValue) return '---';
   try {
     const dateStr = String(dateValue).split('T')[0]; 
     const [ano, mes, dia] = dateStr.split('-');
     return `${dia}/${mes}/${ano}`;
-  } catch (e) {
-    return '---';
+  } catch (e) { return '---'; }
+};
+
+const getMonthName = (dateStr) => {
+  if (!dateStr) return '';
+  // Usamos T12:00:00 para garantir que a data seja interpretada no dia correto independente do fuso
+  const date = new Date(dateStr.split('T')[0] + 'T12:00:00');
+  const name = date.toLocaleDateString('pt-BR', { month: 'long' });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+};
+
+const formatPeriodoHumanizado = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) return 'Período Indefinido';
+  
+  const mesInicio = getMonthName(dataInicio);
+  const mesFim = getMonthName(dataFim);
+  const anoInicio = dataInicio.split('-')[0];
+  const anoFim = dataFim.split('-')[0];
+
+  if (mesInicio === mesFim && anoInicio === anoFim) {
+    return `${mesInicio} ${anoInicio}`;
   }
+  
+  if (anoInicio === anoFim) {
+    return `${mesInicio} / ${mesFim} ${anoInicio}`;
+  }
+  
+  return `${mesInicio} ${anoInicio} / ${mesFim} ${anoFim}`;
 };
 
 export function CicloManager() {
@@ -138,7 +173,14 @@ export function CicloManager() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#1e3a5f' }}>{ciclo.referencia_mes_ano}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e3a5f', lineHeight: '1.2' }}>
+                              {formatPeriodoHumanizado(ciclo.data_inicio, ciclo.data_fim)}
+                            </span>
+                            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                              {formatDateShort(ciclo.data_inicio)} a {formatDateDisplay(ciclo.data_fim)}
+                            </span>
+                        </div>
                         <span style={{ 
                             padding: '2px 8px', 
                             borderRadius: '12px', 

@@ -1,3 +1,139 @@
+## v1.28.13 — 2026-04-16
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Identificação por Nome de Guerra**: Atualizada a função de construção de estatísticas no `AnalyticsDashboard.jsx` para priorizar a exibição do `nome_guerra` em vez do nome completo, alinhando-se ao padrão operacional.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Aba Geral no Analytics**: Adicionada a 3ª aba "Geral" ao `AnalyticsDashboard.jsx`, que consolida os totais de serviços de todas as fontes (Unidade + CPM).
+- **[Logic] Agregação por ID**: Refatorada a função `buildStats` para permitir a soma de serviços provenientes de múltiplas OPMs em um único registro quando visualizado na aba Geral.
+- **[UI] Navegação Tripartida**: Interface de abas agora permite alternar entre visão consolidada, visão local da unidade e visão específica do comando superior (CPM/I-Faz).
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Design Premium e Responsivo**: Reformulado o `AnalyticsDashboard.jsx` com suporte completo a dispositivos móveis e tablets usando Media Queries.
+- **[UI] Abas Destacadas**: Implementado estilo de abas com indicadores visuais modernos e transições suaves.
+- **[UX] Grid Adaptativo**: Os KPIs e controles de cabeçalho agora se auto-ajustam conforme o tamanho da tela, otimizando o espaço de trabalho em qualquer dispositivo.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Hotfix] Analytics White Screen**: Corrigido erro de referência `matchingCycle is not defined` no `AnalyticsDashboard.jsx`.
+- **[Refactor] Escopo de Componente**: Movida a lógica de identificação do ciclo ativo para o escopo global do componente, garantindo que as abas de navegação exibam corretamente a sigla da OPM.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Navegação por Abas no Analytics**: Implementado sistema de abas no `AnalyticsDashboard.jsx` para alternar entre "OPM Unidade" e "CPM/I-Faz".
+- **[Logic] Filtro de Abas**: A lógica de agregação agora reage à aba ativa, filtrando os serviços executados pela `opm_origem` específica de cada contexto (Ciclo OPM vs CPM/I-Faz).
+- **[UI] Workspace Otimizado**: O gestor agora pode visualizar separadamente a produtividade local e a do comando superior dentro do mesmo ciclo operacional.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Interface Simplificada**: Removidos os seletores manuais de data (DatePicker) do `AnalyticsDashboard.jsx`.
+- **[UX] Foco em Ciclos**: O dashboard agora depende inteiramente da seleção do Ciclo Operacional para definir o período de análise, reduzindo a complexidade visual para o gestor.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Analytics focado em Execução**: Ajustado o `AnalyticsDashboard.jsx` para exibir apenas militares com ao menos 1 serviço executado (`total > 0`).
+- **[UI] Limpeza de Dashboard**: Removida a exibição de voluntários sem serviços no dashboard analítico, otimizando a visualização para conferência de produtividade e financeira.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Precisão Analítica por OPM**: Ajustada a lógica de agregação do `AnalyticsDashboard.jsx` para filtrar serviços executados pela OPM de origem do ciclo selecionado.
+- **[UI] Coluna OPM**: Adicionada nova coluna na tabela do dashboard para facilitar a identificação da origem dos militares (home OPM vs OPM de serviço).
+- **[UX] Agregação de Ciclo**: Melhorada a consolidação de dados de militares externos, garantindo que o limite de serviços seja verificado corretamente dentro do contexto da unidade analizada.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Sincronismo de Datas no Analytics**: Adicionados filtros de data início/fim no `AnalyticsDashboard.jsx` que se sincronizam automaticamente com a seleção do ciclo operacional.
+- **[UX] Melhoria na Filtragem**: Usuários agora podem refinar manualmente o período de análise no dashboard analítico, preservando a facilidade de preenchimento automático via ciclos.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Frontend] Filtro de Ciclo em Serviços Executados**: Adicionado seletor de Ciclo Operacional no `ServicosExecutadosManager`.
+- **[UX] Sincronização de Datas**: Implementada lógica que preenche automaticamente os filtros de 'Data Início' e 'Data Fim' ao selecionar um ciclo, facilitando a visualização por período operacional.
+- **[Fix] Parâmetro de API**: Corrigido o nome do parâmetro enviado ao backend de `id_ciclo` para `ciclo_id` na rota `/api/servicos`.
+
+---
+
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Architecture] Fragmentação de Ciclos na Importação**: Implementada lógica de distribuição inteligente que fragmenta automaticamente a disponibilidade do requerimento nos ciclos operacionais corretos, resolvendo o conflito entre o mês civil (dias 1–31) e o ciclo operacional (dia 16 ao dia 15).
+- **[Backend] Helpers `distribuirDisponibilidadeEmCiclos` e `upsertRequerimentoFragmento`**: Para cada dia de disponibilidade do PDF, o sistema constrói a data real e consulta qual ciclo a cobre via `BETWEEN data_inicio AND data_fim`, criando um requerimento separado por ciclo com idempotência garantida.
+- **[Backend] Extração de Mês do PDF**: `parseRequerimentoPDF` agora detecta o mês de referência civil diretamente do texto do PDF, com fallback para o mês enviado pelo frontend.
+- **[Database] Constraint de Unicidade**: Adicionada `UNIQUE(id_requerimento, dia_mes, horario_turno)` em `DISPONIBILIDADE_REQUERIMENTO` para garantir integridade e permitir `ON CONFLICT DO NOTHING` nas reinserções.
+- **[Frontend] Envio de `mes_referencia`**: A importação de PDFs agora envia o mês de referência do ciclo ativo para auxiliar a fragmentação server-side.
+
+---
+
+## v1.28.2 — 2026-04-16
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Prevenção de Duplicidade em Tempo Real**: Implementada validação dinâmica no `RequerimentosAdmin` que detecta matrículas duplicadas no ciclo atual, exibindo alertas visuais e bloqueando o salvamento preventivamente.
+
+---
+
+## v1.28.1 — 2026-04-16
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[UI/UX] Humanização de Ciclos**: Implementada exibição de meses por extenso ("Abril / Maio") no gerenciador de ciclos para melhorar a legibilidade e reconhecimento do período operacional.
+
+---
+
+## v1.28.0 — 2026-04-15
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Analytics] Seletor de Ciclos Premium**: Implementado novo seletor de ciclos com design glassmorphism e integração dupla (Header e Título Contextual).
+- **[UI/UX] Micro-interações de Dados**: Adicionada animação de carregamento suave (fade/scale) nos KPIs ao trocar de ciclo, proporcionando feedback instantâneo de processamento.
+- **[Core] Sincronização de Estado**: Refatorada a lógica de filtragem para garantir reatividade imediata entre a seleção do ciclo e a reconstrução das estatísticas de produtividade.
+
+---
+
 ## v1.27.5 — 2026-04-13
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

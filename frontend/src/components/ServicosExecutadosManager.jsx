@@ -81,8 +81,13 @@ export function ServicosExecutadosManager() {
       const active = resCiclos.data.find(c => c.status === 'Aberto');
       if (active && !filterCiclo) {
         setFilterCiclo(active.id_ciclo);
+        setFilterDataInicio(active.data_inicio?.split('T')[0] || '');
+        setFilterDataFim(active.data_fim?.split('T')[0] || '');
       } else if (resCiclos.data.length > 0 && !filterCiclo) {
-        setFilterCiclo(resCiclos.data[0].id_ciclo);
+        const first = resCiclos.data[0];
+        setFilterCiclo(first.id_ciclo);
+        setFilterDataInicio(first.data_inicio?.split('T')[0] || '');
+        setFilterDataFim(first.data_fim?.split('T')[0] || '');
       }
     } catch (e) {
       console.error('Erro ao carregar dados:', e);
@@ -94,10 +99,11 @@ export function ServicosExecutadosManager() {
     setSelectedIds(new Set());
     try {
       const params = {};
-      if (filterCiclo) params.ciclo_id = filterCiclo;
+      if (filterCiclo) params.ciclo_id = filterCiclo; 
       if (filterMilitar) params.militar_id = filterMilitar;
       if (filterDataInicio) params.data_inicio = filterDataInicio;
       if (filterDataFim) params.data_fim = filterDataFim;
+      
       const res = await axios.get(`${API_URL}/servicos`, { params });
       setServicos(res.data);
     } catch (e) {
@@ -261,7 +267,7 @@ export function ServicosExecutadosManager() {
       console.warn('Erro ao formatar ciclo via Date:', e);
     }
 
-    return c.referencia_mes_ano || 'Ciclo ' + c.id_ciclo;
+    return c.periodo_ciclo || 'Ciclo ' + c.id_ciclo;
   })();
 
   return (
@@ -312,6 +318,33 @@ export function ServicosExecutadosManager() {
 
       {/* Filtros */}
       <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Ciclo Operacional</label>
+          <select 
+            className="form-control" 
+            style={{ margin: 0, fontWeight: 600, borderLeft: '4px solid var(--primary)' }} 
+            value={filterCiclo} 
+            onChange={e => {
+              const cid = e.target.value;
+              setFilterCiclo(cid);
+              if (cid) {
+                const selected = ciclos.find(c => String(c.id_ciclo) === String(cid));
+                if (selected) {
+                  // Sincroniza automaticamente as datas do filtro com as datas do ciclo
+                  setFilterDataInicio(selected.data_inicio?.split('T')[0] || '');
+                  setFilterDataFim(selected.data_fim?.split('T')[0] || '');
+                }
+              } else {
+                setFilterDataInicio('');
+                setFilterDataFim('');
+              }
+            }}
+          >
+            <option value="">Todos os Ciclos</option>
+            {ciclos.map(c => <option key={c.id_ciclo} value={c.id_ciclo}>{c.period_name || c.periodo_ciclo} — {c.opm_sigla}</option>)}
+          </select>
+        </div>
 
         <div style={{ flex: 1, minWidth: '200px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Militar</label>
@@ -463,7 +496,7 @@ export function ServicosExecutadosManager() {
                   <label className="form-label">Ciclo Operacional *</label>
                   <select className="form-control" value={formData.id_ciclo} onChange={e => setFormData({ ...formData, id_ciclo: e.target.value })} required>
                     <option value="">Selecione o ciclo...</option>
-                    {ciclos.map(c => <option key={c.id_ciclo} value={c.id_ciclo}>{c.referencia_mes_ano} — {c.opm_sigla}</option>)}
+                    {ciclos.map(c => <option key={c.id_ciclo} value={c.id_ciclo}>{c.periodo_ciclo} — {c.opm_sigla}</option>)}
                   </select>
                 </div>
                 <div className="form-group">

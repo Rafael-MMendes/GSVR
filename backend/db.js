@@ -150,7 +150,9 @@ async function setupDB() {
               marcado_servico_ordinario BOOLEAN DEFAULT FALSE,
               motorista BOOLEAN DEFAULT FALSE,
               ativo BOOLEAN DEFAULT TRUE,
-              observacoes TEXT
+              observacoes TEXT,
+              -- Garante idempotência na importação: um turno por dia por requerimento
+              UNIQUE(id_requerimento, dia_mes, horario_turno)
           );
 
           -- 5.1 Tabela TIPOS_SERVICO
@@ -232,6 +234,20 @@ async function setupDB() {
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='motorista') THEN
               ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN motorista BOOLEAN DEFAULT FALSE;
+            END IF;
+
+            -- Migration v1.28.3: Garantir constraint de unicidade para idempotência na importação
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint 
+              WHERE conname = 'disponibilidade_requerimento_id_requerimento_dia_mes_horar_key'
+                 OR conname = 'uq_disp_req_dia_turno'
+                 OR (contype = 'u' AND conrelid = 'disponibilidade_requerimento'::regclass
+                     AND array_length(conkey, 1) = 3)
+            ) THEN
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO
+                ADD CONSTRAINT uq_disp_req_dia_turno
+                UNIQUE (id_requerimento, dia_mes, horario_turno);
+              RAISE NOTICE '[MIGRATION] Constraint uq_disp_req_dia_turno adicionada com sucesso.';
             END IF;
 
             -- Migration: remover id_escala de SERVICOS_EXECUTADOS
@@ -504,7 +520,7 @@ async function setupDB() {
               c.id_opm,
               o.sigla as opm_sigla,
               o.descricao as opm_descricao,
-              TO_CHAR(c.data_inicio, 'MM/YYYY') as referencia_mes_ano,
+              TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
               c.data_inicio,
           c.data_fim,
           c.status,
@@ -520,7 +536,7 @@ async function setupDB() {
               ees.id_vinculo,
               ees.status AS vinculo_status,
               e.id_militar, e.matricula, e.nome_completo, e.nome_guerra, e.posto_graduacao,
-              TO_CHAR(c.data_inicio, 'MM/YYYY') as referencia_mes_ano,
+              TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
               ep.data_servico AS planejamento_data, ep.horario_servico AS planejamento_horario, ep.nome_recurso AS planejamento_recurso,
               ts_pl.descricao AS planejamento_tipo_servico_desc,
               se.data_execucao AS execucao_data, se.valor_remuneracao AS execucao_valor, se.carga_horaria AS execucao_carga,
@@ -537,7 +553,7 @@ async function setupDB() {
           DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
           CREATE VIEW vw_relatorio_operacional_agregado AS
           SELECT 
-              c.id_ciclo, TO_CHAR(c.data_inicio, 'MM/YYYY') as referencia_mes_ano, c.valor_total_previsto AS ciclo_valor_teto, o.sigla AS opm_sigla,
+              c.id_ciclo, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo, c.valor_total_previsto AS ciclo_valor_teto, o.sigla AS opm_sigla,
               e.id_militar, e.nome_guerra, e.posto_graduacao,
               COUNT(DISTINCT ep.id_escala) as qtd_escalas,
               COUNT(DISTINCT se.id_execucao) as qtd_servicos_executados,
@@ -548,7 +564,7 @@ async function setupDB() {
           JOIN EFETIVO e ON 1=1
           LEFT JOIN ESCALA_PLANEJAMENTO ep ON c.id_ciclo = ep.id_ciclo AND e.id_militar = ep.id_militar
           LEFT JOIN SERVICOS_EXECUTADOS se ON c.id_ciclo = se.id_ciclo AND e.id_militar = se.id_militar
-          GROUP BY c.id_ciclo, TO_CHAR(c.data_inicio, 'MM/YYYY'), c.valor_total_previsto, o.sigla, e.id_militar, e.nome_guerra, e.posto_graduacao
+          GROUP BY c.id_ciclo, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY'), c.valor_total_previsto, o.sigla, e.id_militar, e.nome_guerra, e.posto_graduacao
           HAVING COUNT(DISTINCT ep.id_escala) > 0 OR COUNT(DISTINCT se.id_execucao) > 0;
         `);
 
