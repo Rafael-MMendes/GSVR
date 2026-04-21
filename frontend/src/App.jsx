@@ -5,7 +5,7 @@ import { VolunteerForm } from './components/VolunteerForm';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminDashboardV2 } from './components/AdminDashboardV2';
-import { EscalasPlanejadas } from './components/EscalasPlanejadas';
+import { HistoricoMilitar } from './components/HistoricoMilitar';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { RequerimentosAdmin } from './components/RequerimentosAdmin';
 import { FinanceiroDashboard } from './components/FinanceiroDashboard';
@@ -167,7 +167,7 @@ function App() {
                   )}
                   {hasPermission('escalas:read') && (
                     <a href="#" className={`dropdown-item ${currentView === 'escalas-planejadas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('escalas-planejadas'); }}>
-                      <FileText size={16} /> Escalas Planejadas
+                      <FileText size={16} /> Histórico do Militar
                     </a>
                   )}
                   {hasPermission('escalas:read') && (
@@ -292,7 +292,7 @@ function App() {
         {/* Rotas administrativas — protegidas por permissão */}
         {currentView === 'admin' && (isAdmin || isGerente) && <AdminDashboard />}
         {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
-        {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <EscalasPlanejadas />}
+        {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
         {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}

@@ -1906,11 +1906,132 @@ app.get('/api/schedules', async (req, res) => {
   }
 });
 
+app.get('/api/reports/operacional-detalhado', async (req, res) => {
+  try {
+    const { ciclo_id } = req.query;
+    let whereCiclo = '';
+    let params = [];
+    
+    if (ciclo_id && ciclo_id !== 'all') {
+      whereCiclo = 'WHERE f.id_ciclo = $1';
+      params.push(ciclo_id);
+    }
+
+    const query = `
+      WITH Comp AS (
+        -- Cruzamento Planejamento x Execução via Tabela Ternária
+        SELECT 
+          COALESCE(ep.id_militar, se.id_militar) as id_militar,
+          COALESCE(ep.id_ciclo, se.id_ciclo) as id_ciclo,
+          COALESCE(ep.data_servico, se.data_execucao) as data_ref,
+          ep.id_escala,
+          se.id_execucao,
+          ep.nome_recurso as recurso_planejado,
+          se.guarnicao as recurso_executado,
+          ep.funcao as funcao_planejada,
+          CASE 
+            WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NOT NULL THEN 'Planejado e Executado'
+            WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NULL THEN 'Planejado e não Executado'
+            WHEN ep.id_escala IS NULL AND se.id_execucao IS NOT NULL THEN 'Executado e não Planejado'
+          END as status_op
+        FROM ESCALA_PLANEJAMENTO ep
+        FULL OUTER JOIN ESCALA_EFETIVO_SERVICO ees ON ep.id_escala = ees.id_escala
+        FULL OUTER JOIN SERVICOS_EXECUTADOS se ON ees.id_execucao = se.id_execucao
+      ),
+      Desistencias AS (
+        -- Militares que desistiram do requerimento (ativo=false)
+        SELECT 
+          r.id_militar,
+          r.id_ciclo,
+          c.data_inicio as data_ref,
+          NULL::integer as id_escala,
+          NULL::integer as id_execucao,
+          NULL as recurso_planejado,
+          NULL as recurso_executado,
+          NULL as funcao_planejada,
+          'Desistência de Requerimento' as status_op
+        FROM DISPONIBILIDADE_REQUERIMENTO dr
+        JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
+        JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
+        WHERE dr.ativo = false
+      ),
+      Final AS (
+        SELECT * FROM Comp
+        UNION ALL
+        SELECT * FROM Desistencias
+      )
+      SELECT 
+        f.*,
+        e.matricula,
+        e.nome_guerra,
+        e.posto_graduacao,
+        TO_CHAR(f.data_ref, 'DD/MM/YYYY') as data_formatada,
+        TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+        (
+          SELECT COUNT(DISTINCT dr2.dia_mes)
+          FROM DISPONIBILIDADE_REQUERIMENTO dr2
+          JOIN REQUERIMENTOS r2 ON dr2.id_requerimento = r2.id_requerimento
+          WHERE r2.id_militar = f.id_militar
+            AND r2.id_ciclo   = f.id_ciclo
+            AND dr2.marcado_disponivel = true
+        ) as dias_disponiveis
+      FROM Final f
+      JOIN EFETIVO e ON f.id_militar = e.id_militar
+      JOIN CICLOS c ON f.id_ciclo = c.id_ciclo
+      ${whereCiclo}
+      ORDER BY f.data_ref DESC, e.nome_guerra ASC
+    `;
+
+    const rows = await db.all(query, params);
+    res.json(rows);
+  } catch (e) {
+    console.error('[API] Erro no relatório operacional:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Grade de disponibilidade individual (por militar + ciclo)
+app.get('/api/reports/disponibilidade-grid', async (req, res) => {
+  try {
+    const { id_militar, ciclo_id } = req.query;
+    if (!id_militar || !ciclo_id) {
+      return res.status(400).json({ error: 'id_militar e ciclo_id são obrigatórios.' });
+    }
+
+    const rows = await db.all(`
+      SELECT
+        dr.dia_mes,
+        dr.horario_turno,
+        dr.marcado_disponivel,
+        dr.ativo,
+        dr.marcado_servico_ordinario,
+        EXISTS (
+          SELECT 1
+          FROM SERVICOS_EXECUTADOS se
+          WHERE se.id_militar = r.id_militar
+            AND se.id_ciclo   = r.id_ciclo
+            AND EXTRACT(DAY FROM se.data_execucao) = dr.dia_mes
+        ) AS teve_execucao
+      FROM DISPONIBILIDADE_REQUERIMENTO dr
+      JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
+      WHERE r.id_militar = $1
+        AND r.id_ciclo   = $2
+      ORDER BY dr.dia_mes ASC, dr.horario_turno ASC
+    `, [id_militar, ciclo_id]);
+
+    res.json(rows);
+  } catch (e) {
+    console.error('[API] Erro na grade de disponibilidade:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/reports/escalas-planejadas', async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT 
         ep.id_escala, 
+        ep.id_ciclo,
         TO_CHAR(ep.data_servico, 'DD/MM/YYYY') as data_formatada,
         ep.data_servico,
         ep.horario_servico, 

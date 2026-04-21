@@ -1,3 +1,31 @@
+## v1.28.15 — 2026-04-21
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Bugfix] Backend — CTE Desistencias**: Corrigida referência de coluna inexistente `dr.id_militar` → `r.id_militar` na CTE `Desistencias` do endpoint `/api/reports/operacional-detalhado`, eliminando crash do servidor.
+- **[Feature] Relatório Individual do Militar**: Criado componente `RelatorioIndividual.jsx` com KPIs consolidados (Dias Disponíveis, Executados, Planejados, Match, Faltas, Extras, Desistências), barra de progresso de eficiência, filtros por ciclo/status e botão de impressão.
+- **[Feature] Grade de Disponibilidade Visual**: Implementada grade interativa no relatório individual exibindo quadrados coloridos por turno/dia — 🟩 verde (serviço executado), 🟦 azul (disponível), 🟥 vermelho (indisponível) — com legenda e scroll horizontal.
+- **[Backend] Endpoint `disponibilidade-grid`**: Adicionado `GET /api/reports/disponibilidade-grid?id_militar&ciclo_id` que cruza `DISPONIBILIDADE_REQUERIMENTO` com `SERVICOS_EXECUTADOS` para alimentar a grade visual.
+- **[Feature] Coluna Dias Disponíveis no Grid**: Adicionada coluna "Dias Disponíveis" no `HistoricoMilitar.jsx` contando dias únicos (`COUNT(DISTINCT dia_mes)`) do requerimento, ignorando múltiplos turnos por dia.
+- **[UI] Ícone de Acesso ao Relatório Individual**: Adicionado botão `ExternalLink` em cada linha do grid de `HistoricoMilitar.jsx` que abre o relatório individual do militar mantendo o ciclo selecionado.
+- **[UI] Renomeação de Coluna**: Coluna "Militar" renomeada para "Nome" no grid do `HistoricoMilitar.jsx`; removido avatar circular com iniciais.
+- **[Backend] Contagem de Dias Únicos**: Subquery de `dias_disponiveis` alterada de `COUNT(*)` para `COUNT(DISTINCT dia_mes)` e corrigida para referenciar `f.id_militar` / `f.id_ciclo` (alias da CTE Final) em vez de aliases externos, resolvendo resultado zero nas colunas.
+
+---
+
+## v1.28.14 — 2026-04-21
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Report de Escalas com Ciclo**: Adicionado `id_ciclo` à query do endpoint `/api/reports/escalas-planejadas` para permitir filtragem precisa no frontend.
+- **[Frontend] Seletor de Ciclo Operacional**: Implementado dropdown no `EscalasPlanejadas.jsx` que permite filtrar a base de dados por ciclos específicos carregados dinamicamente.
+- **[UI/UX] Visualização em Grade (Grid)**: Adicionada nova modalidade de exibição em tabela flat com detalhes completos do militar, recurso e tipo de serviço, facilitando auditorias e conferências rápidas.
+- **[UI] Toggle de ViewMode**: Habilitada alternância entre visão de "Cards" (agrupados por VTR) e "Grade" (militares individuais), com persistência em estado de memória.
+
+---
+
 ## v1.28.13 — 2026-04-16
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
