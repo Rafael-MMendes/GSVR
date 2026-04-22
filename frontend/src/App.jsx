@@ -36,7 +36,7 @@ function restoreSession() {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       return userData;
     }
-  } catch (_) {}
+  } catch (_) { }
   return null;
 }
 
@@ -88,7 +88,7 @@ function App() {
           { refresh_token: refreshToken }
         );
       }
-    } catch (_) {}
+    } catch (_) { }
     localStorage.removeItem('ft_access_token');
     localStorage.removeItem('ft_refresh_token');
     localStorage.removeItem('ft_user');
@@ -208,6 +208,11 @@ function App() {
                     <Database size={18} /> Configurações {chevron('config')}
                   </span>
                   <div className={`dropdown-menu ${activeDropdown === 'config' ? 'open' : ''}`}>
+                    {hasPermission('opm:read') && (
+                      <a href="#" className={`dropdown-item ${currentView === 'opm' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('opm'); }}>
+                        <Building2 size={16} /> Configuração OPM
+                      </a>
+                    )}
                     {hasPermission('ciclos:read') && (
                       <a href="#" className={`dropdown-item ${currentView === 'ciclo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('ciclo'); }}>
                         <Calendar size={16} /> Gerenciamento de Ciclos
@@ -216,11 +221,6 @@ function App() {
                     {isAdmin && (
                       <a href="#" className={`dropdown-item ${currentView === 'tipos-servico' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tipos-servico'); }}>
                         <DollarSign size={16} /> Tipos de Serviço (Verba)
-                      </a>
-                    )}
-                    {hasPermission('opm:read') && (
-                      <a href="#" className={`dropdown-item ${currentView === 'opm' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('opm'); }}>
-                        <Building2 size={16} /> Configuração OPM
                       </a>
                     )}
                     {hasPermission('efetivo:read') && (
