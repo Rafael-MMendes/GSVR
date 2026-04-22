@@ -1,3 +1,13 @@
+## v1.28.17 — 2026-04-22
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Rebranding] Identidade Visual**: Atualizado o título da aba do navegador de "frontend" para **GSVR**.
+- **[UI/UX] Favicon Institucional**: Implementado novo favicon baseado no **Brasão do 9º BPM**, ajustado para formato quadrado e otimizado para visualização em navegadores.
+
+---
+
 ## v1.28.16 — 2026-04-21
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

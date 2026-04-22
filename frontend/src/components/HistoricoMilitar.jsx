@@ -163,9 +163,9 @@ export function HistoricoMilitar() {
                 <ColumnHeader label="Dias Disponíveis" icon={<CalendarCheck size={14} />} color="#0891b2" />
                 <ColumnHeader label="Executados" icon={<CheckCircle size={14} />} color="#059669" />
                 <ColumnHeader label="Planejados" icon={<Shield size={14} />} color="#2563eb" />
-                <ColumnHeader label="P + E (Match)" icon={<BarChart3 size={14} />} color="#0D3878" />
-                <ColumnHeader label="P e não E" icon={<XCircle size={14} />} color="#dc2626" />
-                <ColumnHeader label="E e não P" icon={<Info size={14} />} color="#7c3aed" />
+                <ColumnHeader label="Planejado e Executado" icon={<BarChart3 size={14} />} color="#0D3878" />
+                <ColumnHeader label="Faltas" icon={<XCircle size={14} />} color="#dc2626" />
+                <ColumnHeader label="Executado não Planejado" icon={<Info size={14} />} color="#7c3aed" />
                 <ColumnHeader label="Desistência" icon={<AlertTriangle size={14} />} color="#d97706" />
                 <th style={{ padding: '1rem', width: '56px' }} />
               </tr>
