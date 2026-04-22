@@ -21,8 +21,17 @@ export function HistoricoMilitar() {
         axios.get(`${API_URL}/reports/operacional-detalhado?ciclo_id=${selectedCiclo}`)
       ]);
 
-      setCiclos(ciclosRes.data);
+      const allCiclos = ciclosRes.data;
+      setCiclos(allCiclos);
       setData(reportsRes.data);
+
+      // Se for o primeiro carregamento (all), tenta setar o ciclo ativo
+      if (selectedCiclo === 'all') {
+        const active = allCiclos.find(c => c.status === 'Aberto');
+        if (active) {
+          setSelectedCiclo(active.id_ciclo);
+        }
+      }
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
     } finally {
@@ -108,9 +117,9 @@ export function HistoricoMilitar() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem', gap: '1rem', flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.8rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <BarChart3 size={28} color="#2563eb" /> Histórico do Militar
+            <BarChart3 size={28} color="#2563eb" /> Histórico de Execução de SVR por Ciclo.
           </h1>
-          <p style={{ margin: '0.5rem 0 0 0', color: '#64748b' }}>Consolidado analítico de produtividade e assiduidade por ciclo</p>
+          <p style={{ margin: '0.5rem 0 0 0', color: '#64748b' }}>Demonstrativo analítico de produtividade por ciclo</p>
         </div>
 
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -152,7 +161,7 @@ export function HistoricoMilitar() {
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                 <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textAlign: 'left' }}>Nome</th>
                 <ColumnHeader label="Dias Disponíveis" icon={<CalendarCheck size={14} />} color="#0891b2" />
-                <ColumnHeader label="Executados"       icon={<CheckCircle size={14} />}   color="#059669" />
+                <ColumnHeader label="Executados" icon={<CheckCircle size={14} />} color="#059669" />
                 <ColumnHeader label="Planejados" icon={<Shield size={14} />} color="#2563eb" />
                 <ColumnHeader label="P + E (Match)" icon={<BarChart3 size={14} />} color="#0D3878" />
                 <ColumnHeader label="P e não E" icon={<XCircle size={14} />} color="#dc2626" />
