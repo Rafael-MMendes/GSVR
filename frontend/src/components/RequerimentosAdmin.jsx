@@ -45,6 +45,7 @@ export function RequerimentosAdmin() {
   const [cancelingItem, setCancelingItem] = useState(null);
   const [cancelingLoading, setCancelingLoading] = useState(false);
   const [cancelingSelection, setCancelingSelection] = useState({});
+  const [cancelObservation, setCancelObservation] = useState('');
 
   const [formData, setFormData] = useState({
     numero_ordem: '',
@@ -214,7 +215,8 @@ export function RequerimentosAdmin() {
       rank: volunteer.rank,
       phone: volunteer.phone || '',
       motorista: volunteer.motorista || 'Não',
-      availability: volunteer.availability || {}
+      availability: volunteer.availability || {},
+      availability_completa: volunteer.availability_completa || {}
     });
     setShowModal(true);
   };
@@ -260,11 +262,13 @@ export function RequerimentosAdmin() {
     setCancelingLoading(true);
     try {
       await axios.put(`${API_URL}/volunteers/${cancelingItem.id}/cancel-availability`, {
-        availability: cancelingSelection
+        availability: cancelingSelection,
+        observacao: cancelObservation
       });
       setShowCancelModal(false);
       setCancelingItem(null);
       setCancelingSelection({});
+      setCancelObservation('');
       fetchVolunteers();
     } catch (error) {
       console.error('Error canceling availability:', error);
@@ -376,7 +380,18 @@ export function RequerimentosAdmin() {
       }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gestão de Requerimentos</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={openFolderModal} disabled={!activeCycle} style={{ width: 'auto' }}>
+          <button 
+            className="btn btn-primary" 
+            onClick={openFolderModal} 
+            disabled={!activeCycle} 
+            style={{ 
+              width: 'auto', 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+              color: 'white', 
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+            }}
+          >
             <FolderOpen size={18} style={{ marginRight: '0.5rem' }} />
             <span>Importar PDF</span>
           </button>
@@ -428,6 +443,7 @@ export function RequerimentosAdmin() {
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
                   Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Obs</th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
@@ -469,6 +485,24 @@ export function RequerimentosAdmin() {
                           : '0'}
                       </span>
                     </div>
+                  </td>
+                  <td style={{ padding: '0.75rem' }}>
+                    {v.observacao && (
+                      <div title={v.observacao} style={{ 
+                        maxWidth: '120px', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        cursor: 'help',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <Info size={14} color="var(--primary)" /> {v.observacao}
+                      </div>
+                    )}
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div className="action-btn-group">
@@ -615,7 +649,31 @@ export function RequerimentosAdmin() {
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {daysInMonth.map(day => {
-                        const isSelected = (formData.availability[String(day)] || []).includes(shift);
+                        const dayStr = String(day);
+                        const isSelected = (formData.availability[dayStr] || []).includes(shift);
+                        
+                        // Busca o objeto completo do turno para pegar observações
+                        const completeData = formData.availability_completa?.[dayStr] || [];
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                          (typeof item === 'object' ? item.turno === shift : item === shift)
+                        ) : null;
+
+                        const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
+
+                        let bgColor = 'transparent';
+                        let textColor = 'transparent';
+                        let label = '·';
+
+                        if (isSelected) {
+                          bgColor = 'var(--primary)';
+                          textColor = 'white';
+                          label = 'X';
+                        } else if (isCancelado) {
+                          bgColor = 'var(--danger)';
+                          textColor = 'white';
+                          label = 'X';
+                        }
+
                         return (
                           <td
                             key={day}
@@ -623,11 +681,14 @@ export function RequerimentosAdmin() {
                             style={{
                               textAlign: 'center',
                               cursor: 'pointer',
-                              backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
-                              color: isSelected ? 'white' : 'transparent'
+                              backgroundColor: bgColor,
+                              color: textColor,
+                              border: '1px solid #e2e8f0',
+                              fontWeight: 'bold'
                             }}
+                            title={isSelected ? 'Ativo' : (isCancelado ? `Cancelado - Clique para Reativar${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
-                            {isSelected ? 'X' : '·'}
+                            {label}
                           </td>
                         );
                       })}
@@ -702,17 +763,44 @@ export function RequerimentosAdmin() {
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {daysInMonth.map(day => {
-                        const isSelected = (viewingVolunteer.availability?.[String(day)] || []).includes(shift);
+                        const dayStr = String(day);
+                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).includes(shift);
+                        
+                        // Busca o objeto completo do turno para pegar observações
+                        const completeData = viewingVolunteer.availability_completa?.[dayStr] || [];
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                          (typeof item === 'object' ? item.turno === shift : item === shift)
+                        ) : null;
+
+                        const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
+
+                        let bgColor = 'transparent';
+                        let textColor = 'transparent';
+                        let label = '·';
+
+                        if (isSelected) {
+                          bgColor = 'var(--primary)';
+                          textColor = 'white';
+                          label = 'X';
+                        } else if (isCancelado) {
+                          bgColor = 'var(--danger)';
+                          textColor = 'white';
+                          label = 'X';
+                        }
+
                         return (
                           <td
                             key={day}
                             style={{
                               textAlign: 'center',
-                              backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
-                              color: isSelected ? 'white' : 'transparent'
+                              backgroundColor: bgColor,
+                              color: textColor,
+                              border: '1px solid #e2e8f0',
+                              fontWeight: 'bold'
                             }}
+                            title={shiftInfo?.observacoes ? 'Obs: ' + shiftInfo.observacoes : ''}
                           >
-                            {isSelected ? 'X' : '·'}
+                            {label}
                           </td>
                         );
                       })}
@@ -1048,14 +1136,16 @@ export function RequerimentosAdmin() {
                             style={{
                               textAlign: 'center',
                               cursor: isAtivo ? 'pointer' : 'default',
-                              backgroundColor: isCancelado ? '#f1f5f9' : (isSelectedToCancel ? 'var(--danger)' : (isAtivo ? '#e0f2fe' : 'transparent')),
-                              color: isSelectedToCancel ? 'white' : (isCancelado ? '#94a3b8' : (isAtivo ? '#0369a1' : 'transparent')),
+                              backgroundColor: (isCancelado || isSelectedToCancel) ? 'var(--danger)' : (isAtivo ? '#e0f2fe' : 'transparent'),
+                              color: (isCancelado || isSelectedToCancel) ? 'white' : (isAtivo ? '#0369a1' : 'transparent'),
                               border: '1px solid #e2e8f0',
                               fontWeight: 'bold',
-                              transition: 'all 0.1s ease'
+                              transition: 'all 0.1s ease',
+                              opacity: isCancelado ? 0.6 : 1 // Opacidade reduzida para os já cancelados
                             }}
+                            title={isCancelado ? 'Já Cancelado' : (isAtivo ? 'Clique para cancelar' : '')}
                           >
-                            {isSelectedToCancel ? 'X' : (isCancelado ? '·' : (isAtivo ? '✓' : ''))}
+                            {(isCancelado || isSelectedToCancel) ? 'X' : (isAtivo ? '✓' : '')}
                           </td>
                         );
                       })}
@@ -1065,11 +1155,33 @@ export function RequerimentosAdmin() {
               </table>
             </div>
 
+            {/* Campo de Observação */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                Motivo do Cancelamento (Observação):
+              </label>
+              <textarea
+                className="form-control"
+                value={cancelObservation}
+                onChange={e => setCancelObservation(e.target.value)}
+                placeholder="Ex: Solicitado pelo militar via telefone..."
+                style={{ 
+                  width: '100%', 
+                  minHeight: '80px', 
+                  resize: 'vertical',
+                  padding: '0.75rem',
+                  fontSize: '0.9rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px'
+                }}
+              />
+            </div>
+
             {/* Botões de Ação */}
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button
                 className="btn btn-outline"
-                onClick={() => { setShowCancelModal(false); setCancelingItem(null); }}
+                onClick={() => { setShowCancelModal(false); setCancelingItem(null); setCancelObservation(''); }}
                 disabled={cancelingLoading}
                 style={{
                   padding: '0.75rem 1.5rem',

@@ -1,3 +1,17 @@
+## v1.28.16 — 2026-04-21
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Feature] Relatório Individual — Layout A4 e Impressão**: Otimizado o layout para modo retrato e implementado suporte nativo à impressão A4, removendo dependências de geração programática de PDF em favor de `window.print()`.
+- **[UI/UX] Grade de Disponibilidade Mensal**: Ajustada para exibir sempre os 31 dias do mês e os 4 turnos fixos do GSVR, eliminando a necessidade de scroll horizontal e garantindo visualização integral na tela. Células sem dados agora são exibidas em branco.
+- **[Logic] Índice de Produtividade Operacional**: Corrigido o cálculo de produtividade para refletir a relação real entre serviços executados e planejados, com contagem dinâmica de dias disponíveis baseada na grade de requerimentos.
+- **[Cleanup] Refatoração Administrativa**: Removido o componente `AdminDashboard` legado e todas as suas referências no `App.jsx`, centralizando o planejamento de escalas exclusivamente no `AdminDashboardV2`.
+- **[UX] Seleção Automática de Ciclo Ativo**: Implementada lógica que pré-seleciona o ciclo com status 'Aberto' tanto no Histórico Militar quanto no Relatório Individual, otimizando o acesso aos dados vigentes.
+- **[UI] Simplificação e Polimento**: Removidos filtros redundantes de status e indicadores de eficiência duplicados no relatório individual para uma interface mais focada e profissional.
+
+---
+
 ## v1.28.15 — 2026-04-21
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

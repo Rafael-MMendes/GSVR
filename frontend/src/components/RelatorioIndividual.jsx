@@ -189,7 +189,7 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               width: 100% !important;
               font-size: 10pt !important;
             }
-            .no-print {
+            .navbar, .volunteers-list, .btn, .no-print {
               display: none !important;
             }
             .print-only {
@@ -378,32 +378,13 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Dias Disponíveis" value={kpis.dias_disponiveis} icon={<CalendarCheck size={24} />} color="#0891b2" bg="#ecfeff" subtitle="Requerimentos ativos" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Executados" value={kpis.executados} icon={<CheckCircle size={24} />} color="#059669" bg="#f0fdf4" subtitle="Serviços realizados" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados" value={kpis.planejados} icon={<Shield size={24} />} color="#2563eb" bg="#eff6ff" subtitle="Escalas previstas" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Match (P+E)" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Faltas" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="P e não E" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Extras" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="E e não P" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Match (P+E)" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total (Planejados + Executados)" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Faltas" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="P e não E (Planejade e não Executado) " /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Extras" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="E e não P (Executado e não Planejado)" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Desistências" value={kpis.desistencia} icon={<AlertTriangle size={24} />} color="#d97706" bg="#fffbeb" subtitle="Cancelamentos" /></div>
             </div>
 
-            {/* ── Barra de progresso ── */}
-            {kpis.planejados > 0 && (
-              <div className="print-card" style={{ background: '#fff', borderRadius: '18px', padding: '1.5rem 2rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1rem' }}>Índice de Produtividade Operacional</span>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>Volume de serviços executados em relação à carga planejada</p>
-                  </div>
-                  <span style={{ fontWeight: 900, fontSize: '1.25rem', color: eficiencia >= 100 ? '#059669' : eficiencia >= 70 ? '#2563eb' : eficiencia >= 50 ? '#d97706' : '#dc2626' }}>{eficiencia}%</span>
-                </div>
-                <div style={{ height: 12, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${Math.min(eficiencia, 100)}%`,
-                    background: `linear-gradient(90deg, ${eficiencia >= 100 ? '#10b981' : eficiencia >= 70 ? '#3b82f6' : eficiencia >= 50 ? '#f59e0b' : '#ef4444'} 0%, ${eficiencia >= 100 ? '#059669' : eficiencia >= 70 ? '#2563eb' : eficiencia >= 50 ? '#d97706' : '#dc2626'} 100%)`,
-                    borderRadius: 999, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }} />
-                </div>
-              </div>
-            )}
+
             {gridDisp.length > 0 && (() => {
               // Agrupa por dia_mes
               const byDay = {};
@@ -429,9 +410,9 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                 if (cell.teve_execucao)
                   return { bg: '#059669', border: '#047857', xColor: '#fff', title: 'Serviço executado' };
                 if (cell.ativo === true)
-                  return { bg: '#2563eb', border: '#1d4ed8', xColor: '#fff', title: 'Disponível (ativo)' };
+                  return { bg: '#2563eb', border: '#1d4ed8', xColor: '#fff', title: 'Disponível' };
                 if (cell.ativo === false)
-                  return { bg: '#dc2626', border: '#b91c1c', xColor: '#fff', title: 'Indisponível (inativo)' };
+                  return { bg: '#dc2626', border: '#b91c1c', xColor: '#fff', title: 'Desistência' };
                 return null;
               };
 
@@ -452,7 +433,7 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                         <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
                       </span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Indisponível
+                        <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
                       </span>
                     </div>
                   </div>
@@ -533,8 +514,9 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                       <tr style={{ background: '#f8fafc' }}>
                         <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data e Período</th>
                         <th style={{ padding: '1rem 1.5rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status Operacional</th>
-                        <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recurso Planejado</th>
-                        <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recurso Executado</th>
+                        <th className="no-print" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recurso Planejado</th>
+                        <th className="no-print" style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recurso Executado</th>
+                        <th style={{ padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Observações</th>
                         <th style={{ padding: '1rem 1.5rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ciclo</th>
                       </tr>
                     </thead>
@@ -561,11 +543,14 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                             <td style={{ padding: '1.1rem 1.5rem', textAlign: 'center' }}>
                               <StatusBadge status={item.status_op} />
                             </td>
-                            <td style={{ padding: '1.1rem 1.5rem', fontSize: '0.9rem', color: '#475569', fontWeight: 500 }}>
+                            <td className="no-print" style={{ padding: '1.1rem 1.5rem', fontSize: '0.9rem', color: '#475569', fontWeight: 500 }}>
                               {item.recurso_planejado || <span style={{ color: '#cbd5e1' }}>—</span>}
                             </td>
-                            <td style={{ padding: '1.1rem 1.5rem', fontSize: '0.9rem', color: '#475569', fontWeight: 500 }}>
+                            <td className="no-print" style={{ padding: '1.1rem 1.5rem', fontSize: '0.9rem', color: '#475569', fontWeight: 500 }}>
                               {item.recurso_executado || <span style={{ color: '#cbd5e1' }}>—</span>}
+                            </td>
+                            <td style={{ padding: '1.1rem 1.5rem', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
+                              {item.observacoes || <span style={{ color: '#cbd5e1' }}>—</span>}
                             </td>
                             <td style={{ padding: '1.1rem 1.5rem', textAlign: 'right', fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
                               {item.periodo_ciclo || '—'}

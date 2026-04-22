@@ -752,17 +752,27 @@ app.put('/api/volunteers/:id', async (req, res) => {
       await db.run('UPDATE EFETIVO SET telefone = $1 WHERE id_militar = $2', [phone, requerimento.id_militar]);
     }
     
-    // Deleta disponibilidades existentes
-    await db.run('DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1', [id]);
+    // Sincronização Inteligente (Soft Sync): 
+    // Em vez de deletar tudo (que quebra FKs em escala_planejamento), 
+    // desmarcamos a disponibilidade e reativamos via UPSERT.
+    
+    // 1. Desmarca disponibilidade de todos os turnos atuais deste requerimento
+    await db.run('UPDATE DISPONIBILIDADE_REQUERIMENTO SET marcado_disponivel = FALSE WHERE id_requerimento = $1', [id]);
     
     const isMot = (motorista === 'Sim');
     if (availability && typeof availability === 'object') {
       for (const [day, shifts] of Object.entries(availability)) {
         for (const shift of shifts) {
-          await db.run(
-            'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista) VALUES ($1, $2, $3, TRUE, TRUE, $4)',
-            [id, parseInt(day), shift, isMot]
-          );
+          // 2. Upsert: Se existe, ativa e marca como disponível. Se não, insere.
+          await db.run(`
+            INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
+            VALUES ($1, $2, $3, TRUE, TRUE, $4)
+            ON CONFLICT (id_requerimento, dia_mes, horario_turno) 
+            DO UPDATE SET 
+              marcado_disponivel = TRUE, 
+              ativo = TRUE,
+              motorista = EXCLUDED.motorista
+          `, [id, parseInt(day), shift, isMot]);
         }
       }
     }
@@ -778,7 +788,7 @@ app.put('/api/volunteers/:id', async (req, res) => {
 app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
   try {
     const { id } = req.params;
-    const { availability } = req.body;
+    const { availability, observacao } = req.body;
     
     // Verifica se o requerimento existe
     const requerimento = await db.get(
@@ -798,8 +808,8 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
         if (!Array.isArray(shifts)) continue;
         for (const shift of shifts) {
           const result = await db.run(
-            'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE WHERE id_requerimento = $1 AND dia_mes = $2 AND horario_turno = $3',
-            [id, parseInt(day), shift]
+            'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE, observacoes = $1 WHERE id_requerimento = $2 AND dia_mes = $3 AND horario_turno = $4',
+            [observacao || null, id, parseInt(day), shift]
           );
           canceledCount += result.changes;
         }
@@ -807,8 +817,8 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
     } else {
       // Fallback: se não houver seleção, cancela TUDO (legado)
       const result = await db.run(
-        'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE WHERE id_requerimento = $1',
-        [id]
+        'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE, observacoes = $1 WHERE id_requerimento = $2',
+        [observacao || null, id]
       );
       canceledCount = result.changes;
     }
@@ -1933,23 +1943,27 @@ app.get('/api/reports/operacional-detalhado', async (req, res) => {
             WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NOT NULL THEN 'Planejado e Executado'
             WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NULL THEN 'Planejado e não Executado'
             WHEN ep.id_escala IS NULL AND se.id_execucao IS NOT NULL THEN 'Executado e não Planejado'
-          END as status_op
+          END as status_op,
+          dr.observacoes
         FROM ESCALA_PLANEJAMENTO ep
         FULL OUTER JOIN ESCALA_EFETIVO_SERVICO ees ON ep.id_escala = ees.id_escala
         FULL OUTER JOIN SERVICOS_EXECUTADOS se ON ees.id_execucao = se.id_execucao
+        LEFT JOIN DISPONIBILIDADE_REQUERIMENTO dr ON ep.id_disponibilidade = dr.id_disponibilidade
       ),
       Desistencias AS (
         -- Militares que desistiram do requerimento (ativo=false)
         SELECT 
           r.id_militar,
           r.id_ciclo,
-          c.data_inicio as data_ref,
+          -- Para desistências, tentamos aproximar a data pelo dia_mes do requerimento se possível
+          (c.data_inicio + (dr.dia_mes - 1 || ' days')::interval)::date as data_ref,
           NULL::integer as id_escala,
           NULL::integer as id_execucao,
           NULL as recurso_planejado,
           NULL as recurso_executado,
           NULL as funcao_planejada,
-          'Desistência de Requerimento' as status_op
+          'Desistência de Requerimento' as status_op,
+          dr.observacoes
         FROM DISPONIBILIDADE_REQUERIMENTO dr
         JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
         JOIN CICLOS c ON r.id_ciclo = c.id_ciclo

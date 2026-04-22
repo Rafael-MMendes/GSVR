@@ -284,9 +284,15 @@ export function ServicosExecutadosManager() {
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button
-            className="btn btn-secondary"
+            className="btn btn-primary"
             onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'import-servicos' }))}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '8px', 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
+              color: 'white', 
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+            }}
           >
             <FileSpreadsheet size={18} /> Importar FT
           </button>
