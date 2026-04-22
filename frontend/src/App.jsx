@@ -3,7 +3,6 @@ import axios from 'axios';
 import './index.css';
 import { VolunteerForm } from './components/VolunteerForm';
 import { LoginScreen } from './components/LoginScreen';
-import { AdminDashboard } from './components/AdminDashboard';
 import { AdminDashboardV2 } from './components/AdminDashboardV2';
 import { HistoricoMilitar } from './components/HistoricoMilitar';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
@@ -50,7 +49,7 @@ function App() {
   // Determina a view inicial após login/restauração de sessão
   useEffect(() => {
     if (user && currentView === 'auto') {
-      setCurrentView(user.is_admin ? 'admin' : 'form');
+      setCurrentView(user.is_admin ? 'admin-v2' : 'form');
     }
 
     const handleNavigate = (e) => setCurrentView(e.detail);
@@ -77,7 +76,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    setCurrentView(userData.is_admin ? 'admin' : 'form');
+    setCurrentView(userData.is_admin ? 'admin-v2' : 'form');
   };
 
   const handleLogout = async () => {
@@ -156,13 +155,8 @@ function App() {
                 </span>
                 <div className={`dropdown-menu ${activeDropdown === 'operacional' ? 'open' : ''}`}>
                   {hasPermission('escalas:read') && (
-                    <a href="#" className={`dropdown-item ${currentView === 'admin' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('admin'); }}>
-                      <LayoutDashboard size={16} /> Planejamento de Escala
-                    </a>
-                  )}
-                  {hasPermission('escalas:read') && (
                     <a href="#" className={`dropdown-item ${currentView === 'admin-v2' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('admin-v2'); }}>
-                      <LayoutDashboard size={16} color="#0D3878" /> Planejamento (V2)
+                      <LayoutDashboard size={16} /> Planejamento de Escala
                     </a>
                   )}
                   {hasPermission('escalas:read') && (
@@ -290,7 +284,6 @@ function App() {
         {currentView === 'profile' && <ProfilePage user={user} />}
 
         {/* Rotas administrativas — protegidas por permissão */}
-        {currentView === 'admin' && (isAdmin || isGerente) && <AdminDashboard />}
         {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
         {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
         {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
