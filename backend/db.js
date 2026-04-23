@@ -127,7 +127,8 @@ async function setupDB() {
               data_inicio DATE NOT NULL,
               data_fim DATE NOT NULL,
               status VARCHAR(50) NOT NULL DEFAULT 'Aberto',
-              valor_total_previsto DECIMAL(12, 2) DEFAULT 0
+              valor_total_previsto DECIMAL(12, 2) DEFAULT 0,
+              ativo BOOLEAN DEFAULT TRUE
           );
 
           -- 4. Tabela REQUERIMENTOS (Substitui volunteers - metadados)
@@ -213,6 +214,10 @@ async function setupDB() {
           BEGIN 
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_total_previsto') THEN
               ALTER TABLE CICLOS ADD COLUMN valor_total_previsto DECIMAL(12, 2) DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='ativo') THEN
+              ALTER TABLE CICLOS ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+              UPDATE CICLOS SET ativo = (status = 'Aberto');
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
               ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
@@ -524,6 +529,7 @@ async function setupDB() {
               c.data_inicio,
           c.data_fim,
           c.status,
+          c.ativo,
           c.valor_total_previsto,
               (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
               (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados

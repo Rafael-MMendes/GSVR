@@ -4,9 +4,6 @@ import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet, Search } from 'luc
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 const MAX_SERVICES = 8;
-const VALOR_FT_6H = 192.03;
-const VALOR_FT_8H = 250.00;
-const ORCAMENTO_MENSAL = 85000;
 
 export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
@@ -21,6 +18,7 @@ export function AnalyticsDashboard() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [tiposServico, setTiposServico] = useState([]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -63,7 +61,7 @@ export function AnalyticsDashboard() {
     if (selectedCiclo && (volunteers.length >= 0 || servicos.length >= 0)) {
       filterByCiclo();
     }
-  }, [selectedCiclo, volunteers, servicos, efetivo, activeTab]);
+  }, [selectedCiclo, volunteers, servicos, efetivo, activeTab, tiposServico]);
 
   useEffect(() => {
     if (ciclos.length > 0 && !selectedCiclo) {
@@ -75,12 +73,14 @@ export function AnalyticsDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [efetivoRes, ciclosRes] = await Promise.all([
+      const [efetivoRes, ciclosRes, tiposRes] = await Promise.all([
         axios.get(`${API_URL}/efetivo`),
         axios.get(`${API_URL}/ciclos`),
+        axios.get(`${API_URL}/tipos-servico`),
       ]);
       setEfetivo(efetivoRes.data);
       setCiclos(ciclosRes.data);
+      setTiposServico(tiposRes.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -198,12 +198,17 @@ export function AnalyticsDashboard() {
     });
 
     const result = Object.values(map)
-      .map(item => ({
-        ...item,
-        total: item.count6h + item.count8h,
-        remaining: Math.max(0, MAX_SERVICES - (item.count6h + item.count8h)),
-        valorTotal: (item.count6h * VALOR_FT_6H) + (item.count8h * VALOR_FT_8H),
-      }))
+      .map(item => {
+        const valor6h = parseFloat(tiposServico.find(t => Number(t.carga_horaria) === 6)?.valor_remuneracao || 0);
+        const valor8h = parseFloat(tiposServico.find(t => Number(t.carga_horaria) === 8)?.valor_remuneracao || 0);
+
+        return {
+          ...item,
+          total: item.count6h + item.count8h,
+          remaining: Math.max(0, MAX_SERVICES - (item.count6h + item.count8h)),
+          valorTotal: (item.count6h * valor6h) + (item.count8h * valor8h),
+        };
+      })
       // Exibir apenas quem efetivamente possui serviços executados (total > 0)
       .filter(item => item && item.name && item.total > 0);
 
@@ -214,8 +219,14 @@ export function AnalyticsDashboard() {
   const totalServicos = stats.reduce((acc, s) => acc + s.total, 0);
   const totalHoras6 = stats.reduce((acc, s) => acc + s.count6h, 0);
   const totalHoras8 = stats.reduce((acc, s) => acc + s.count8h, 0);
+  const matchingCycle = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
+  
+  const orcamentoCiclo = selectedCiclo === 'all' 
+    ? ciclos.reduce((acc, c) => acc + parseFloat(c.valor_total_previsto || 0), 0)
+    : parseFloat(matchingCycle?.valor_total_previsto || 0);
+
   const recursoUtilizado = stats.reduce((acc, s) => acc + s.valorTotal, 0);
-  const recursoRestante = ORCAMENTO_MENSAL - recursoUtilizado;
+  const recursoRestante = orcamentoCiclo - recursoUtilizado;
 
   const formatarValor = (valor) => {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -237,8 +248,6 @@ export function AnalyticsDashboard() {
     return { text: 'Sem serviços', color: '#94a3b8' };
   };
 
-  // Identificar a OPM alvo do ciclo selecionado para uso no JSX
-  const matchingCycle = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
 
   return (
     <div className="container analytics-container" style={{ maxWidth: '1350px' }}>

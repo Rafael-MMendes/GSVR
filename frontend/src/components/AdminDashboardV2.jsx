@@ -43,6 +43,8 @@ export function AdminDashboardV2() {
   const [savingPatrolId, setSavingPatrolId] = useState(null);
   const [newPatrolDuration, setNewPatrolDuration] = useState('6h');
   const [newPatrolShift, setNewPatrolShift] = useState('Diurno (07:00 - 13:00)');
+  const [detailedMilitar, setDetailedMilitar] = useState(null);
+  const [militarSchedules, setMilitarSchedules] = useState([]);
 
   const [state, setState] = useState({
     pool: [],
@@ -300,6 +302,18 @@ export function AdminDashboardV2() {
         return p;
       })
     }));
+  };
+
+  const handleShowDetails = async (militar) => {
+    setDetailedMilitar(militar);
+    setMilitarSchedules([]);
+    try {
+      const res = await axios.get(`${API_URL}/reports/operacional-detalhado?ciclo_id=${selectedCycleId}`);
+      const filtered = res.data.filter(item => String(item.id_militar) === String(militar.id_militar || militar.id));
+      setMilitarSchedules(filtered);
+    } catch (err) {
+      console.error('Erro ao buscar escalas do militar:', err);
+    }
   };
 
   const handleDragStart = (e, personId, sourceId) => {
@@ -1348,6 +1362,32 @@ export function AdminDashboardV2() {
                       onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
+                      {/* Info Button Overlay */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleShowDetails(p); }}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '10px',
+                          background: 'rgba(30, 58, 120, 0.05)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.primary,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          zIndex: 10
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'rgba(30, 58, 120, 0.05)'; e.currentTarget.style.color = colors.primary; }}
+                        title="Ver escalas do militar"
+                      >
+                        <Search size={14} strokeWidth={3} />
+                      </button>
                       <div style={{
                         width: '48px',
                         height: '48px',
@@ -1410,21 +1450,53 @@ export function AdminDashboardV2() {
                         </div>
                       </div>
 
-                      {/* Service Counter Badge with Color Scale */}
-                      <div style={{
-                        background: p.service_count >= 8 ? '#fef2f2' :
-                          p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
-                        color: p.service_count >= 8 ? '#dc2626' :
-                          p.service_count >= 6 ? '#b45309' : '#15803d',
-                        padding: '6px 10px',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                        border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
-                          p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
-                          }`
-                      }}>
-                        {p.service_count}/8
+                      {/* Service Counter Badges */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                        {/* PLAN Badge */}
+                        <div style={{
+                          background: p.service_count >= 8 ? '#fef2f2' :
+                            p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
+                          color: p.service_count >= 8 ? '#dc2626' :
+                            p.service_count >= 6 ? '#b45309' : '#15803d',
+                          padding: '4px 10px',
+                          borderRadius: '10px',
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
+                            p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
+                            }`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: '60px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
+                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>PLAN</span>
+                          {p.service_count}/8
+                        </div>
+
+                        {/* EXEC Badge */}
+                        <div style={{
+                          background: p.executed_count >= 8 ? '#ecfdf5' :
+                            p.executed_count >= 6 ? '#f0fdf4' : '#eff6ff',
+                          color: p.executed_count >= 8 ? '#059669' :
+                            p.executed_count >= 6 ? '#16a34a' : '#1e40af',
+                          padding: '4px 10px',
+                          borderRadius: '10px',
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          border: `1px solid ${p.executed_count >= 8 ? '#a7f3d0' :
+                            p.executed_count >= 6 ? '#bbf7d0' : '#dbeafe'
+                            }`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: '60px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
+                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>EXEC</span>
+                          {p.executed_count}/8
+                        </div>
                       </div>
                     </div>
                   );
@@ -1486,6 +1558,100 @@ export function AdminDashboardV2() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALHES MILITAR */}
+      {detailedMilitar && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1100, animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            background: colors.white, borderRadius: '24px',
+            width: '90%', maxWidth: '500px', padding: '2rem',
+            boxShadow: shadowLg, position: 'relative'
+          }}>
+            <button onClick={() => setDetailedMilitar(null)} style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted }}>
+              <X size={24} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ background: colors.primaryGradient, width: '60px', height: '60px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <UserCircle size={36} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, color: colors.primary, fontWeight: 800 }}>{detailedMilitar.rank} {detailedMilitar.name}</h3>
+                <p style={{ margin: 0, color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>Matrícula: {detailedMilitar.numero_ordem || detailedMilitar.matricula}</p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={18} color={colors.primary} /> Histórico no Ciclo
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                {militarSchedules.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '16px', color: colors.textMuted }}>
+                    <Calendar size={32} style={{ opacity: 0.2, marginBottom: '0.5rem' }} />
+                    <p style={{ fontSize: '0.85rem' }}>Carregando escalas ou nenhuma encontrada...</p>
+                  </div>
+                ) : (
+                  militarSchedules.map((s, idx) => (
+                    <div key={idx} style={{ 
+                      background: '#ffffff', 
+                      padding: '1rem', 
+                      borderRadius: '16px', 
+                      border: `1px solid ${colors.border}`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      boxShadow: shadowSm
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: colors.text, fontSize: '0.9rem' }}>{s.data_formatada}</div>
+                        <div style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>{s.recurso_planejado || s.recurso_executado || 'SVR'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ 
+                          fontSize: '0.65rem', 
+                          fontWeight: 900, 
+                          textTransform: 'uppercase', 
+                          background: colors.primary + '10', 
+                          color: colors.primary, 
+                          padding: '4px 10px', 
+                          borderRadius: '8px' 
+                        }}>
+                          {s.funcao_planejada || 'Patrulheiro'}
+                        </span>
+                        <div style={{ 
+                          fontSize: '0.7rem', 
+                          color: s.id_execucao ? '#10b981' : '#f59e0b', 
+                          fontWeight: 700, 
+                          marginTop: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          justifyContent: 'flex-end'
+                        }}>
+                          {s.id_execucao ? <Check size={12} strokeWidth={3} /> : <Clock size={12} strokeWidth={3} />}
+                          {s.id_execucao ? 'EXECUTADO' : 'PLANEJADO'}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <button onClick={() => setDetailedMilitar(null)} style={{ width: '100%', padding: '1rem', background: colors.primary, color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+              Fechar
+            </button>
           </div>
         </div>
       )}

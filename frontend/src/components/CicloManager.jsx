@@ -118,6 +118,19 @@ export function CicloManager() {
     }
   };
 
+  const toggleStatus = async (ciclo) => {
+    const newStatus = ciclo.status === 'Aberto' ? 'Fechado' : 'Aberto';
+    try {
+      await axios.put(`${API_URL}/ciclos/${ciclo.id_ciclo}`, {
+        ...ciclo,
+        status: newStatus
+      });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao alterar status do Ciclo');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       id_opm: opms.length > 0 ? opms[0].id_opm : '',
@@ -170,34 +183,32 @@ export function CicloManager() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
           {ciclos.map(ciclo => (
             <div key={ciclo.id_ciclo} className="card" style={{ position: 'relative', borderTop: `4px solid ${getStatusColor(ciclo.status)}`, transition: 'all 0.3s ease' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e3a5f', lineHeight: '1.2' }}>
-                              {formatPeriodoHumanizado(ciclo.data_inicio, ciclo.data_fim)}
-                            </span>
-                            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                              {formatDateShort(ciclo.data_inicio)} a {formatDateDisplay(ciclo.data_fim)}
-                            </span>
-                        </div>
-                        <span style={{ 
-                            padding: '2px 8px', 
-                            borderRadius: '12px', 
-                            fontSize: '0.7rem', 
-                            background: getStatusColor(ciclo.status) + '20', 
-                            color: getStatusColor(ciclo.status),
-                            fontWeight: 'bold',
-                            border: `1px solid ${getStatusColor(ciclo.status)}40`
-                        }}>
-                            {ciclo.status.toUpperCase()}
-                        </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
-                        <Building2 size={14} />
-                        <span>{ciclo.opm_sigla} - {ciclo.opm_descricao}</span>
-                    </div>
+              {/* Linha Superior: Status e Ações */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.75rem', 
+                      background: getStatusColor(ciclo.status) + '15', 
+                      color: getStatusColor(ciclo.status),
+                      fontWeight: 'bold',
+                      border: `1px solid ${getStatusColor(ciclo.status)}30`,
+                      letterSpacing: '0.02em'
+                  }}>
+                      {ciclo.status.toUpperCase()}
+                  </span>
+                  
+                  <label className="switch" title={ciclo.status === 'Aberto' ? 'Desativar Ciclo' : 'Ativar Ciclo'}>
+                    <input 
+                      type="checkbox" 
+                      checked={ciclo.status === 'Aberto'} 
+                      onChange={() => toggleStatus(ciclo)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
                 </div>
+
                 <div className="action-btn-group">
                   <button className="action-btn action-btn-primary" onClick={() => openEdit(ciclo)} title="Editar">
                     <Edit2 size={16} />
@@ -205,6 +216,20 @@ export function CicloManager() {
                   <button className="action-btn action-btn-danger" onClick={() => handleDelete(ciclo.id_ciclo)} title="Excluir">
                     <Trash2 size={16} />
                   </button>
+                </div>
+              </div>
+
+              {/* Conteúdo Principal */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.4rem', fontWeight: 'bold', color: '#1e3a5f', lineHeight: '1.2' }}>
+                  {formatPeriodoHumanizado(ciclo.data_inicio, ciclo.data_fim)}
+                </h3>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, marginBottom: '10px' }}>
+                  {formatDateShort(ciclo.data_inicio)} a {formatDateDisplay(ciclo.data_fim)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
+                    <Building2 size={14} />
+                    <span>{ciclo.opm_sigla} - {ciclo.opm_descricao}</span>
                 </div>
               </div>
 

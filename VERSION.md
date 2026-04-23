@@ -1,3 +1,17 @@
+## v1.28.18 — 2026-04-23
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Feature] Gestão de Ciclos — Controle de Ativação**: Implementado interruptor (*toggle switch*) no `CicloManager.jsx` para ativação/desativação rápida de ciclos operacionais diretamente nos cards, com sincronização automática do status ('Aberto'/'Fechado') e do campo booleano `ativo`.
+- **[Logic] Orçamento Dinâmico no Analytics**: Substituída a constante estática `ORCAMENTO_MENSAL` por lógica de cálculo dinâmico baseada no campo `valor_total_previsto` da tabela de ciclos, garantindo precisão financeira em tempo real no `AnalyticsDashboard.jsx`.
+- **[Feature] Detalhes de Escalas no Planejamento**: Adicionado modal de informações militares no `AdminDashboardV2.jsx` que exibe o histórico completo de escalas planejadas e executadas para o militar selecionado no ciclo atual.
+- **[UI/UX] Unificação de Indicadores de Carga**: Padronizada a exibição de contadores de serviço no modal de voluntários utilizando o formato "X/8" tanto para escalas planejadas (PLAN) quanto executadas (EXEC), com estilização harmonizada e selos identificadores.
+- **[UI/UX] Redesign de Cards de Ciclo**: Reestruturado o layout dos cards no gerenciador de ciclos para agrupar status, controle de ativação e ações de edição no topo, melhorando a escaneabilidade e acessibilidade.
+- **[Backend] Evolução do Esquema de Dados**: Adicionado campo `ativo` (BOOLEAN) à tabela `CICLOS` e otimizado o endpoint `/api/volunteers` para retornar contagens segregadas de planejamentos e execuções por militar.
+
+---
+
 ## v1.28.17 — 2026-04-22
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

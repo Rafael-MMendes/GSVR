@@ -649,7 +649,8 @@ app.get('/api/volunteers', async (req, res) => {
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
               GROUP BY dia_mes
             ) d) as availability_completa_json,
-            (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as service_count,
+            (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_militar = e.id_militar AND ep.id_ciclo = c.id_ciclo) as service_count,
+            (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as executed_count,
             COALESCE((SELECT BOOL_OR(ativo) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento), TRUE) as ativo
      FROM REQUERIMENTOS r
      JOIN EFETIVO e ON r.id_militar = e.id_militar
@@ -1243,8 +1244,8 @@ app.post('/api/ciclos', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
-      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto) VALUES ($1, $2, $3, $4, $5)',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0]
+      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto, ativo) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto']
     );
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1265,8 +1266,8 @@ app.put('/api/ciclos/:id', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     await db.run(
-      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5 WHERE id_ciclo=$6',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, req.params.id]
+      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5, ativo=$6 WHERE id_ciclo=$7',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', req.params.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
