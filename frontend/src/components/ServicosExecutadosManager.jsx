@@ -17,8 +17,6 @@ const formatDateDisplay = (dateValue) => {
 };
 
 const STATUS_OPTIONS = ['Presente', 'Ausente', 'Justificado', 'Atestado'];
-const CARGA_OPTIONS = [{ value: 6, label: '6h — R$ 192,03' }, { value: 8, label: '8h — R$ 250,00' }];
-
 const statusColor = (s) => ({
   'Presente': '#10b981',
   'Ausente': '#ef4444',
@@ -39,6 +37,7 @@ export function ServicosExecutadosManager() {
   const [servicos, setServicos] = useState([]);
   const [ciclos, setCiclos] = useState([]);
   const [efetivo, setEfetivo] = useState([]);
+  const [tiposServico, setTiposServico] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingServico, setEditingServico] = useState(null);
@@ -71,12 +70,14 @@ export function ServicosExecutadosManager() {
 
   const fetchData = async () => {
     try {
-      const [resCiclos, resEfetivo] = await Promise.all([
+      const [resCiclos, resEfetivo, resTipos] = await Promise.all([
         axios.get(`${API_URL}/ciclos`),
-        axios.get(`${API_URL}/efetivo`)
+        axios.get(`${API_URL}/efetivo`),
+        axios.get(`${API_URL}/tipos-servico`)
       ]);
       setCiclos(resCiclos.data);
       setEfetivo(resEfetivo.data.filter(e => e.status_ativo));
+      setTiposServico(resTipos.data.filter(t => t.ativo !== false));
       // Priorizar ciclo aberto (status 'Aberto') para seleção inicial
       const active = resCiclos.data.find(c => c.status === 'Aberto');
       if (active && !filterCiclo) {
@@ -269,6 +270,11 @@ export function ServicosExecutadosManager() {
 
     return c.periodo_ciclo || 'Ciclo ' + c.id_ciclo;
   })();
+
+  const getValorPlaceholder = () => {
+    const tipo = tiposServico.find(t => t.carga_horaria === formData.carga_horaria);
+    return tipo ? parseFloat(tipo.valor_remuneracao).toFixed(2) : '0.00';
+  };
 
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
@@ -520,7 +526,11 @@ export function ServicosExecutadosManager() {
                   <div className="form-group">
                     <label className="form-label">Carga Horária *</label>
                     <select className="form-control" value={formData.carga_horaria} onChange={e => setFormData({ ...formData, carga_horaria: parseInt(e.target.value), valor_remuneracao: '' })}>
-                      {CARGA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {tiposServico.map(t => (
+                        <option key={t.id_tipo_servico || t.carga_horaria} value={t.carga_horaria}>
+                          {t.descricao || `${t.carga_horaria}h`} — R$ {parseFloat(t.valor_remuneracao).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -533,7 +543,7 @@ export function ServicosExecutadosManager() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Valor (R$) — Automático</label>
-                    <input type="number" step="0.01" className="form-control" placeholder={formData.carga_horaria === 8 ? '250.00' : '192.03'} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
+                    <input type="number" step="0.01" className="form-control" placeholder={getValorPlaceholder()} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

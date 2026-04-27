@@ -1,3 +1,13 @@
+## v1.28.20 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Serviços Executados] Dinamismo nas Cargas Horárias**: A constante hardcoded `CARGA_OPTIONS` foi substituída por dados dinâmicos buscados no endpoint `/api/tipos-servico`.
+- **[UI/UX] Atualização Dinâmica**: As opções do seletor e os _placeholders_ automáticos de valor de remuneração agora refletem instantaneamente as parametrizações da tabela `TIPOS_SERVICO` persistida no banco de dados.
+
+---
+
 ## v1.28.19 — 2026-04-27
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
