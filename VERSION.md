@@ -1,3 +1,12 @@
+## v1.28.19 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Importação] Tratamento de Exceção de Datas**: Implementada regra de negócio na rotina de fragmentação de disponibilidade (`distribuirDisponibilidadeEmCiclos`) que ignora automaticamente dias inválidos no mês de referência (ex: 31 de Abril, 30/31 de Fevereiro) detectados no PDF. Isso previne o erro "out of range" no banco de dados e assegura a importação do restante do requerimento normalmente.
+
+---
+
 ## v1.28.18 — 2026-04-23
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

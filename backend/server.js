@@ -2508,6 +2508,13 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       const dia = parseInt(diaStr, 10);
       if (!dia || dia < 1 || dia > 31) continue;
 
+      // Regra de Negócio: Ignorar dias inválidos para o mês (ex: 31 de Abril, 30/31 de Fev)
+      const dateCheck = new Date(ano, mes - 1, dia);
+      if (dateCheck.getFullYear() !== ano || dateCheck.getMonth() !== mes - 1 || dateCheck.getDate() !== dia) {
+        console.log(`[FRAG] Dia ${diaStr} inválido para o mês ${mesRef} — ignorado.`);
+        continue;
+      }
+
       const dataReal = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 
       const ciclo = await dbConn.get(
