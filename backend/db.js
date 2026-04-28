@@ -796,11 +796,16 @@ async function setupDB() {
                       INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, id_execucao, status)
                       VALUES (NEW.id_escala, NEW.id_militar, v_id_execucao, 'Planejado e executado');
                   END IF;
-              ELSE
-                  -- 5. Sem execução prévia: Comportamento padrão (Cria apenas planejamento)
-                  INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
-                  VALUES (NEW.id_escala, NEW.id_militar, 'Planejado e não executado');
-              END IF;
+                  ELSE
+                      -- 5. Sem execução prévia: Comportamento padrão (Cria apenas planejamento)
+                      INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
+                      VALUES (NEW.id_escala, NEW.id_militar, 
+                          CASE 
+                            WHEN NEW.data_servico > CURRENT_DATE THEN 'Planejado' 
+                            ELSE 'Planejado e não Executado' 
+                          END
+                      );
+                  END IF;
 
               RETURN NEW;
           END;

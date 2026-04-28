@@ -72,6 +72,8 @@ export function HistoricoMilitar() {
         m.executados++;
         m.planejados++;
         m.planejado_executado++;
+      } else if (item.status_op === 'Planejado') {
+        m.planejados++;
       } else if (item.status_op === 'Planejado e não Executado') {
         m.planejados++;
         m.planejado_nao_executado++;

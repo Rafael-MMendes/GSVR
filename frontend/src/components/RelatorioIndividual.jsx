@@ -13,6 +13,7 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/ap
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   'Planejado e Executado': { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', icon: <CheckCircle size={14} />, label: 'Planejado e Executado' },
+  'Planejado': { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: <Calendar size={14} />, label: 'Planejado' },
   'Planejado e não Executado': { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: <XCircle size={14} />, label: 'Falta (P e não E)' },
   'Executado e não Planejado': { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: <Info size={14} />, label: 'Extra (E e não P)' },
   'Desistência de Requerimento': { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: <AlertTriangle size={14} />, label: 'Desistência' },
@@ -134,6 +135,7 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
     const result = { executados: 0, planejados: 0, match: 0, falta: 0, extra: 0, desistencia: 0, dias_disponiveis: 0 };
     data.forEach(item => {
       if (item.status_op === 'Planejado e Executado') { result.executados++; result.planejados++; result.match++; }
+      else if (item.status_op === 'Planejado') { result.planejados++; }
       else if (item.status_op === 'Planejado e não Executado') { result.planejados++; result.falta++; }
       else if (item.status_op === 'Executado e não Planejado') { result.executados++; result.extra++; }
       else if (item.status_op === 'Desistência de Requerimento') { result.desistencia++; }

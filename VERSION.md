@@ -1,3 +1,14 @@
+## v1.28.25 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Correção de Falsos Positivos**: Refatorado o trigger `trg_planejamento_ternaria` no banco de dados para distinguir entre escalas futuras e passadas. Serviços planejados para datas posteriores a hoje são agora categorizados com o novo status `'Planejado'`, evitando que sejam contabilizados incorretamente como "Faltas" (Planejado e não Executado).
+- **[Backend] API de Relatórios**: Atualizado o endpoint `/api/reports/operacional-detalhado` para aplicar a mesma lógica condicional de data na classificação do `status_op`, garantindo consistência entre o banco e a API.
+- **[Frontend] Relatório Individual e Histórico**: Implementado suporte ao status `'Planejado'` nos componentes de visualização. O status é exibido com cor azul e ícone de calendário, indicando um agendamento futuro legítimo, sem impactar negativamente os indicadores de eficiência ou produtividade do militar.
+
+---
+
 ## v1.28.24 — 2026-04-28
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

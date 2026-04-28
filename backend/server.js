@@ -1957,7 +1957,8 @@ app.get('/api/reports/operacional-detalhado', async (req, res) => {
           ep.funcao as funcao_planejada,
           CASE 
             WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NOT NULL THEN 'Planejado e Executado'
-            WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NULL THEN 'Planejado e não Executado'
+            WHEN ep.id_escala IS NOT NULL AND se.id_execucao IS NULL THEN 
+              CASE WHEN ep.data_servico > CURRENT_DATE THEN 'Planejado' ELSE 'Planejado e não Executado' END
             WHEN ep.id_escala IS NULL AND se.id_execucao IS NOT NULL THEN 'Executado e não Planejado'
           END as status_op,
           dr.observacoes
