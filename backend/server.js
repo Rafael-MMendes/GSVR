@@ -2687,8 +2687,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     }
     const lines = text.split('\n');
     for (let i = 0; i < lines.length; i++) {
-      const l = lines[i].trim();
-      const nl = (i + 1 < lines.length) ? lines[i + 1].trim() : '';
+      const l = lines[i].trim().toUpperCase();
+      const nl = (i + 1 < lines.length) ? lines[i + 1].trim().toUpperCase() : '';
       if (l === '07:00 ÀS' && nl === '13:00') { console.log('Turno manha detectado'); processMarksLine(lines[i + 2] || '', '07:00 ÀS 13:00', data); }
       if (l === '13:00 ÀS' && nl === '19:00') { console.log('Turno tarde detectado'); processMarksLine(lines[i + 2] || '', '13:00 ÀS 19:00', data); }
       if (l === '19:00 ÀS' && nl === '01:00') { console.log('Turno noite detectada'); processMarksLine(lines[i + 2] || '', '19:00 ÀS 01:00', data); }
@@ -2697,7 +2697,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     if (Object.keys(data.availability).length === 0) {
       console.log('Nenhum turno detectado no primeiro método, tentando método alternativo');
       for (let i = 0; i < lines.length; i++) {
-        const l = lines[i].trim();
+        const l = lines[i].trim().toUpperCase();
         if (l.includes('07:00') && l.includes('13:00') && l.length < 20) {
           const nextLine = lines[i + 1] || '';
           if (nextLine.trim().length > 10) processMarksLine(nextLine, '07:00 ÀS 13:00', data);

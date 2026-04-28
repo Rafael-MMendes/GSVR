@@ -1,3 +1,12 @@
+## v1.28.21 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Correção na Importação de PDFs**: Corrigida a lógica de parsing da biblioteca `pdf-parse` em `server.js` (`parseRequerimentoPDF`). O algoritmo agora aplica `.toUpperCase()` nas linhas e turnos extraídos, resolvendo a falha onde horários com minúsculas (ex: "07:00 às") não eram reconhecidos, o que resultava no registro do ciclo mas deixava a grade com "0" turnos selecionados para o militar. O sistema agora lê com sucesso todos os turnos marcados.
+
+---
+
 ## v1.28.20 — 2026-04-27
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
