@@ -5,7 +5,12 @@
 ### Mudanças:
 - **[Database] Campo de Observação**: Adicionada a coluna `observacao` à tabela `REQUERIMENTOS` para permitir anotações gerais sobre a solicitação do militar.
 - **[Backend] API de Voluntários**: Atualizada a rota `PUT /api/volunteers/:id` para persistir as observações e o `GET /api/volunteers` para retorná-las ao frontend.
-- **[UI/UX] Edição de Requerimento**: Implementado campo de texto (textarea) no modal de edição de requerimentos, permitindo que administradores registrem e visualizem observações importantes (ex: restrições ou preferências).
+- **[UI/UX] Edição de Requerimento**: Implementado campo de texto (textarea) no modal de edição de requerimentos, permitindo que administradores registrem e visualizem observações importantes.
+- **[Database] Observações por Turno**: Suporte a observações individuais para cada turno selecionado na grade de disponibilidade (tabela `DISPONIBILIDADE_REQUERIMENTO`).
+- **[UI/UX] Notas na Grade**: Adicionada funcionalidade de "Botão Direito" na grade de disponibilidade para inserir notas em turnos específicos. Um marcador visual (ponto amarelo) indica turnos com observações.
+- **[Estabilidade] Sincronização de Dados**: Refatoração da estrutura de disponibilidade para suportar objetos complexos sem quebrar o preenchimento de novos requerimentos.
+- **[Bug Fix] Estabilidade da Interface**: Corrigido erro de "tela branca" e falha na lógica de ordenação.
+- **[Security/Estabilidade] Sessão do Usuário**: Adicionado `try-catch` na restauração de sessão do `App.jsx`.
 
 ---
 

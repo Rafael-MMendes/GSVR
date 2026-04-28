@@ -638,7 +638,7 @@ app.get('/api/volunteers', async (req, res) => {
             e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
             (SELECT json_object_agg(dia_mes, turnos) FROM (
-              SELECT dia_mes, json_agg(horario_turno) as turnos
+              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'observacoes', observacoes)) as turnos
               FROM DISPONIBILIDADE_REQUERIMENTO
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
               GROUP BY dia_mes
@@ -766,17 +766,21 @@ app.put('/api/volunteers/:id', async (req, res) => {
     const isMot = (motorista === 'Sim');
     if (availability && typeof availability === 'object') {
       for (const [day, shifts] of Object.entries(availability)) {
-        for (const shift of shifts) {
+        for (const shiftData of shifts) {
+          const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
+          const obs = typeof shiftData === 'object' ? shiftData.observacoes : null;
+
           // 2. Upsert: Se existe, ativa e marca como disponível. Se não, insere.
           await db.run(`
-            INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
-            VALUES ($1, $2, $3, TRUE, TRUE, $4)
+            INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista, observacoes)
+            VALUES ($1, $2, $3, TRUE, TRUE, $4, $5)
             ON CONFLICT (id_requerimento, dia_mes, horario_turno) 
             DO UPDATE SET 
               marcado_disponivel = TRUE, 
               ativo = TRUE,
-              motorista = EXCLUDED.motorista
-          `, [id, parseInt(day), shift, isMot]);
+              motorista = EXCLUDED.motorista,
+              observacoes = EXCLUDED.observacoes
+          `, [id, parseInt(day), shift, isMot, obs]);
         }
       }
     }

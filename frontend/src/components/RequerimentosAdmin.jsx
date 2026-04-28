@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2 } from 'lucide-react';
+import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2, Info } from 'lucide-react';
 import { maskPhone, formatPhone } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -46,6 +46,8 @@ export function RequerimentosAdmin() {
   const [cancelingLoading, setCancelingLoading] = useState(false);
   const [cancelingSelection, setCancelingSelection] = useState({});
   const [cancelObservation, setCancelObservation] = useState('');
+  const [showShiftObsModal, setShowShiftObsModal] = useState(false);
+  const [obsShiftData, setObsShiftData] = useState(null);
 
   const [formData, setFormData] = useState({
     numero_ordem: '',
@@ -285,8 +287,15 @@ export function RequerimentosAdmin() {
     setFormData(prev => {
       const dayStr = String(day);
       const dayShifts = prev.availability[dayStr] || [];
-      const isSelected = dayShifts.includes(shift);
-      const newShifts = isSelected ? dayShifts.filter(s => s !== shift) : [...dayShifts, shift];
+      const isSelected = dayShifts.some(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+      
+      let newShifts;
+      if (isSelected) {
+        newShifts = dayShifts.filter(s => (typeof s === 'object' ? s.turno !== shift : s !== shift));
+      } else {
+        newShifts = [...dayShifts, { turno: shift, observacoes: '' }];
+      }
+
       const newAvailability = { ...prev.availability };
       if (newShifts.length > 0) {
         newAvailability[dayStr] = newShifts;
@@ -295,6 +304,48 @@ export function RequerimentosAdmin() {
       }
       return { ...prev, availability: newAvailability };
     });
+  };
+
+  const openShiftObsModal = (e, day, shift) => {
+    e.preventDefault(); // Evita menu do navegador
+    const dayStr = String(day);
+    const dayShifts = formData.availability[dayStr] || [];
+    const shiftData = dayShifts.find(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+    
+    if (!shiftData) return; // Só comenta se estiver selecionado
+
+    setObsShiftData({ 
+      day, 
+      shift, 
+      value: typeof shiftData === 'object' ? (shiftData.observacoes || '') : '' 
+    });
+    setShowShiftObsModal(true);
+  };
+
+  const saveShiftObservation = () => {
+    const { day, shift, value } = obsShiftData;
+    setFormData(prev => {
+      const dayStr = String(day);
+      const dayShifts = [...(prev.availability[dayStr] || [])];
+      const idx = dayShifts.findIndex(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+      
+      if (idx !== -1) {
+        const current = dayShifts[idx];
+        dayShifts[idx] = { 
+          turno: typeof current === 'object' ? current.turno : current, 
+          observacoes: value 
+        };
+      }
+
+      return {
+        ...prev,
+        availability: {
+          ...prev.availability,
+          [dayStr]: dayShifts
+        }
+      };
+    });
+    setShowShiftObsModal(false);
   };
 
   const handleSave = async () => {
@@ -345,8 +396,8 @@ export function RequerimentosAdmin() {
 
     // Tratamento especial para números
     if (sortConfig.key === 'numero_ordem') {
-      aVal = parseInt(aVal?.toString().replace(/\D/g, '')) || 0;
-      bVal = parseInt(bVal?.toString().replace(/\D/g, '')) || 0;
+      aVal = parseInt((aVal?.toString() || '').replace(/\D/g, '')) || 0;
+      bVal = parseInt((bVal?.toString() || '').replace(/\D/g, '')) || 0;
     }
 
     if (sortConfig.key === 'turnos') {
@@ -498,12 +549,9 @@ export function RequerimentosAdmin() {
                         whiteSpace: 'nowrap',
                         fontSize: '0.75rem',
                         color: 'var(--text-muted)',
-                        cursor: 'help',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
+                        cursor: 'help'
                       }}>
-                        <Info size={14} color="var(--primary)" /> {v.observacao}
+                        {v.observacao}
                       </div>
                     )}
                   </td>
@@ -665,7 +713,14 @@ export function RequerimentosAdmin() {
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {daysInMonth.map(day => {
                         const dayStr = String(day);
-                        const isSelected = (formData.availability[dayStr] || []).includes(shift);
+                        const isSelected = (formData.availability[dayStr] || []).some(s => 
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        
+                        const currentShiftData = (formData.availability[dayStr] || []).find(s => 
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
                         
                         // Busca o objeto completo do turno para pegar observações
                         const completeData = formData.availability_completa?.[dayStr] || [];
@@ -693,17 +748,31 @@ export function RequerimentosAdmin() {
                           <td
                             key={day}
                             onClick={() => toggleShift(day, shift)}
+                            onContextMenu={(e) => openShiftObsModal(e, day, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: 'pointer',
                               backgroundColor: bgColor,
                               color: textColor,
                               border: '1px solid #e2e8f0',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              position: 'relative'
                             }}
-                            title={isSelected ? 'Ativo' : (isCancelado ? `Cancelado - Clique para Reativar${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
+                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para editar observação)` : (isCancelado ? `Cancelado - Clique para Reativar${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
                             {label}
+                            {isSelected && hasObs && (
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '6px',
+                                height: '6px',
+                                background: '#fbbf24', // Amber/Yellow marker for obs
+                                borderRadius: '50%',
+                                margin: '2px'
+                              }} />
+                            )}
                           </td>
                         );
                       })}
@@ -779,7 +848,14 @@ export function RequerimentosAdmin() {
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {daysInMonth.map(day => {
                         const dayStr = String(day);
-                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).includes(shift);
+                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).some(s => 
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        
+                        const currentShiftData = (viewingVolunteer.availability?.[dayStr] || []).find(s => 
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
                         
                         // Busca o objeto completo do turno para pegar observações
                         const completeData = viewingVolunteer.availability_completa?.[dayStr] || [];
@@ -811,11 +887,24 @@ export function RequerimentosAdmin() {
                               backgroundColor: bgColor,
                               color: textColor,
                               border: '1px solid #e2e8f0',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              position: 'relative'
                             }}
-                            title={shiftInfo?.observacoes ? 'Obs: ' + shiftInfo.observacoes : ''}
+                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''}` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
                             {label}
+                            {isSelected && hasObs && (
+                              <div style={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '6px',
+                                height: '6px',
+                                background: '#fbbf24',
+                                borderRadius: '50%',
+                                margin: '2px'
+                              }} />
+                            )}
                           </td>
                         );
                       })}
@@ -1236,6 +1325,39 @@ export function RequerimentosAdmin() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Observação de Turno */}
+      {showShiftObsModal && obsShiftData && (
+        <div className="modal-overlay">
+          <div className="glass-panel" style={{ width: '400px', maxWidth: '90%', animation: 'slideUp 0.3s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Observação do Turno</h3>
+              <button onClick={() => setShowShiftObsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Dia {String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
+            </p>
+
+            <textarea
+              className="form-control"
+              value={obsShiftData.value}
+              onChange={e => setObsShiftData({ ...obsShiftData, value: e.target.value })}
+              placeholder="Digite observações específicas para este turno..."
+              rows="4"
+              autoFocus
+              style={{ marginBottom: '1.5rem' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline" onClick={() => setShowShiftObsModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveShiftObservation}>Salvar</button>
             </div>
           </div>
         </div>

@@ -31,12 +31,17 @@ import {
 function restoreSession() {
   try {
     const token = localStorage.getItem('ft_access_token');
-    const userData = JSON.parse(localStorage.getItem('ft_user'));
-    if (token && userData) {
+    const userRaw = localStorage.getItem('ft_user');
+    if (token && userRaw && userRaw !== 'undefined') {
+      const userData = JSON.parse(userRaw);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       return userData;
     }
-  } catch (_) { }
+  } catch (e) {
+    console.error("Session restoration failed:", e);
+    localStorage.removeItem('ft_access_token');
+    localStorage.removeItem('ft_user');
+  }
   return null;
 }
 
