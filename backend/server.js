@@ -1066,8 +1066,12 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
             rgpm = val;
 
           // OPM / Lotação
-          else if (k === 'OPM' || k === 'LOTACAO' || k === 'UNIDADE' || k === 'SUBUNIDADE')
-            opm = val;
+          else if (k === 'OPM' || k === 'LOTACAO' || k === 'UNIDADE' || k === 'ORGANIZACAO' || k === 'ORGAO') {
+             // Dá prioridade para a coluna OPM real se existir. Se opm já foi populado, não sobrescreve a menos que a chave atual seja 'OPM'
+             if (!opm || k === 'OPM') {
+               opm = val;
+             }
+          }
 
           // Telefone
           else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE')
@@ -1122,8 +1126,12 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
         );
 
         if (existing) {
+          // Atualiza o campo OPM mesmo para militares já existentes, conforme solicitado
+          if (opm) {
+            await db.run('UPDATE EFETIVO SET opm = $1 WHERE id_militar = $2', [opm, existing.id_militar]);
+          }
           stats.existing++;
-          continue; // Pula militares já cadastrados conforme solicitado
+          continue; // Pula o insert completo mas mantém a atualização do OPM
         }
 
         // Inserção completa com todos os campos da tabela EFETIVO

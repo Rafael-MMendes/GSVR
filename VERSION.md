@@ -1,3 +1,13 @@
+## v1.28.24 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Importação de Efetivo (Excel)**: Corrigido bug no mapeamento de colunas que permitia que colunas com nomes como "Sub Unidade" sobrescrevessem o valor da coluna "OPM". A prioridade agora é garantida para a coluna "OPM" nativa, evitando vinculações incorretas de lotação.
+- **[Backend] Atualização de OPM em Lote**: Adicionada a capacidade de atualizar o campo OPM de militares já existentes no banco de dados durante novas importações de planilhas.
+
+---
+
 ## v1.28.23 — 2026-04-27
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
