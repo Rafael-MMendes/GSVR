@@ -53,6 +53,7 @@ export function RequerimentosAdmin() {
     rank: 'Soldado PM',
     phone: '',
     motorista: 'Não',
+    observacao: '',
     availability: {}
   });
 
@@ -177,6 +178,7 @@ export function RequerimentosAdmin() {
       rank: 'Soldado PM',
       phone: '',
       motorista: 'Não',
+      observacao: '',
       availability: {}
     });
     setShowModal(true);
@@ -215,6 +217,7 @@ export function RequerimentosAdmin() {
       rank: volunteer.rank,
       phone: volunteer.phone || '',
       motorista: volunteer.motorista || 'Não',
+      observacao: volunteer.observacao || '',
       availability: volunteer.availability || {},
       availability_completa: volunteer.availability_completa || {}
     });
@@ -629,6 +632,18 @@ export function RequerimentosAdmin() {
                   <option value="Sim">Sim</option>
                 </select>
               </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label>Observações do Requerimento</label>
+              <textarea
+                className="form-control"
+                placeholder="Ex: Restrições médicas, preferência de guarnição, etc."
+                value={formData.observacao}
+                onChange={e => setFormData({ ...formData, observacao: e.target.value })}
+                rows="2"
+                style={{ resize: 'vertical' }}
+              />
             </div>
 
             <h4 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Disponibilidade (Grade)</h4>

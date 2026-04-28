@@ -1,3 +1,24 @@
+## v1.28.23 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Campo de Observação**: Adicionada a coluna `observacao` à tabela `REQUERIMENTOS` para permitir anotações gerais sobre a solicitação do militar.
+- **[Backend] API de Voluntários**: Atualizada a rota `PUT /api/volunteers/:id` para persistir as observações e o `GET /api/volunteers` para retorná-las ao frontend.
+- **[UI/UX] Edição de Requerimento**: Implementado campo de texto (textarea) no modal de edição de requerimentos, permitindo que administradores registrem e visualizem observações importantes (ex: restrições ou preferências).
+
+---
+
+## v1.28.22 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Importação de PDFs**: Implementada a extração automática do "Número do Requerimento" (ex: 17566/2026) diretamente do texto do PDF.
+- **[Backend] Persistência de Requerimento**: Atualizadas as funções de banco de dados (`upsertRequerimentoFragmento` e `distribuirDisponibilidadeEmCiclos`) para salvar o número do requerimento na tabela `REQUERIMENTOS`, garantindo que o campo não fique nulo após a importação.
+
+---
+
 ## v1.28.21 — 2026-04-27
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

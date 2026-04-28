@@ -635,7 +635,7 @@ app.get('/api/volunteers', async (req, res) => {
 
   const q = `
      SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
-            e.posto_graduacao as rank, e.telefone as phone, e.motorista, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+            e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
             (SELECT json_object_agg(dia_mes, turnos) FROM (
               SELECT dia_mes, json_agg(horario_turno) as turnos
@@ -644,7 +644,7 @@ app.get('/api/volunteers', async (req, res) => {
               GROUP BY dia_mes
             ) d) as availability_json,
             (SELECT json_object_agg(dia_mes, turnos_completos) FROM (
-              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo, 'motorista', motorista)) as turnos_completos
+              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo, 'motorista', motorista, 'observacoes', observacoes)) as turnos_completos
               FROM DISPONIBILIDADE_REQUERIMENTO
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
               GROUP BY dia_mes
@@ -731,7 +731,7 @@ app.delete('/api/volunteers/:id', async (req, res) => {
 app.put('/api/volunteers/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { numero_ordem, name, rank, phone, motorista, availability } = req.body;
+    const { numero_ordem, name, rank, phone, motorista, availability, observacao } = req.body;
     
     // Verifica se o requerimento existe
     const requerimento = await db.get(
@@ -742,6 +742,9 @@ app.put('/api/volunteers/:id', async (req, res) => {
     if (!requerimento) {
       return res.status(404).json({ error: 'Requerimento não encontrado' });
     }
+
+    // Atualizar observação no Requerimento
+    await db.run('UPDATE REQUERIMENTOS SET observacao = $1 WHERE id_requerimento = $2', [observacao, id]);
     
     // Atualizar informação de motorista no Efetivo
     if (motorista) {
@@ -2496,7 +2499,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
    * @param {string} mesRef    - "YYYY-MM" (mês civil de referência)
    * @returns {Array} Lista de { id_ciclo, id_requerimento, dias_inseridos }
    */
-  async function distribuirDisponibilidadeEmCiclos(dbConn, idMilitar, availability, mesRef) {
+  async function distribuirDisponibilidadeEmCiclos(dbConn, idMilitar, availability, mesRef, numeroReq = null) {
     const [anoStr, mesStr] = mesRef.split('-');
     const ano = parseInt(anoStr, 10);
     const mes = parseInt(mesStr, 10);
@@ -2537,7 +2540,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
 
     const results = [];
     for (const [idCiclo, diasDoCiclo] of cicloMap.entries()) {
-      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo);
+      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo, numeroReq);
       results.push({ id_ciclo: idCiclo, ...r });
     }
     return results;
@@ -2547,7 +2550,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
    * Cria ou atualiza um REQUERIMENTO para um (militar, ciclo) específico
    * e insere os turnos do fragmento. Opera com idempotência via ON CONFLICT.
    */
-  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap) {
+  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap, numeroReq = null) {
     const existing = await dbConn.get(
       'SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2',
       [idMilitar, idCiclo]
@@ -2556,6 +2559,15 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     let idReq;
     if (existing) {
       idReq = existing.id_requerimento;
+      
+      // Atualiza o número do requerimento se fornecido
+      if (numeroReq) {
+        await dbConn.run(
+          'UPDATE REQUERIMENTOS SET numero_requerimento = $1 WHERE id_requerimento = $2',
+          [numeroReq, idReq]
+        );
+      }
+
       // Remove apenas os dias que serão re-inseridos (cirúrgico, não apaga tudo)
       const diasNumericos = Object.keys(diasMap).map(d => parseInt(d, 10));
       if (diasNumericos.length > 0) {
@@ -2568,8 +2580,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       console.log(`[FRAG] Requerimento existente atualizado: req=${idReq}, ciclo=${idCiclo}`);
     } else {
       const r = await dbConn.run(
-        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)',
-        [idMilitar, idCiclo]
+        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento) VALUES ($1, $2, $3)',
+        [idMilitar, idCiclo, numeroReq]
       );
       idReq = r.lastID;
       console.log(`[FRAG] Novo requerimento criado: req=${idReq}, ciclo=${idCiclo}`);
@@ -2593,7 +2605,13 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   }
 
   async function parseRequerimentoPDF(text, db) {
-    const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '' };
+    const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '', numero_requerimento: '' };
+
+    // Extrair Número do Requerimento (ex: "Requerido nº 17566/2026")
+    const reqNumMatch = text.match(/(?:Requerido nº|REQUERIMENTO)\s*[:\.]?\s*(\d{1,10}\/\d{4}[^\n]*)/i);
+    if (reqNumMatch) {
+      data.numero_requerimento = reqNumMatch[1].trim();
+    }
 
     // Extrair mês de referência do PDF (ex: "Abril/2026", "04/2026", "ABRIL DE 2026")
     const MONTH_PT = { janeiro:1, fevereiro:2, marco:3, março:3, abril:4, maio:5, junho:6,
@@ -2828,7 +2846,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           if (mesRef && Object.keys(item.availability).length > 0) {
             // CAMINHO PRINCIPAL: Fragmentação automática por ciclo operacional
             const fragmentResults = await distribuirDisponibilidadeEmCiclos(
-              db, m.id_militar, item.availability, mesRef
+              db, m.id_militar, item.availability, mesRef, item.numero_requerimento
             );
             ciclosAfetados = fragmentResults.map(r => r.id_ciclo);
             console.log(`[IMPORT] Militar ${item.numero_ordem}: ${fragmentResults.length} ciclo(s) afetado(s).`);
@@ -2836,7 +2854,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
             // FALLBACK SEGURO: sem mês de referência, usa o ciclo preferencial fixo (comportamento antigo)
             console.warn(`[IMPORT] Militar ${item.numero_ordem}: sem mes_referencia, usando ciclo fixo ${cycle?.id_ciclo}.`);
             if (cycle) {
-              await upsertRequerimentoFragmento(db, m.id_militar, cycle.id_ciclo, item.availability);
+              await upsertRequerimentoFragmento(db, m.id_militar, cycle.id_ciclo, item.availability, item.numero_requerimento);
               ciclosAfetados = [cycle.id_ciclo];
             }
           }
