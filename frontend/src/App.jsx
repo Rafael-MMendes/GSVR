@@ -51,6 +51,21 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
+  // Configura interceptor para logout automático em caso de 401
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response?.status === 401) {
+          console.warn("Session expired or unauthorized. Logging out...");
+          handleLogout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   // Determina a view inicial após login/restauração de sessão
   useEffect(() => {
     if (user && currentView === 'auto') {
@@ -291,7 +306,7 @@ function App() {
         {/* Rotas administrativas — protegidas por permissão */}
         {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
         {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
-        {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
+        {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin user={user} />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}

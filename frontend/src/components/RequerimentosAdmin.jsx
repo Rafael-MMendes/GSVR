@@ -19,7 +19,7 @@ const SHIFTS = [
 
 const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
-export function RequerimentosAdmin() {
+export function RequerimentosAdmin({ user }) {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
@@ -262,8 +262,6 @@ export function RequerimentosAdmin() {
       return;
     }
 
-    if (!confirm('Deseja realmente cancelar os turnos selecionados?')) return;
-
     setCancelingLoading(true);
     try {
       await axios.put(`${API_URL}/volunteers/${cancelingItem.id}/cancel-availability`, {
@@ -369,7 +367,7 @@ export function RequerimentosAdmin() {
       if (editingVolunteer) {
         await axios.put(`${API_URL}/volunteers/${editingVolunteer.id}`, formData);
       } else {
-        await axios.post(`${API_URL}/volunteers`, formData);
+        await axios.post(`${API_URL}/volunteers`, { ...formData, id_ciclo: activeCycle?.id_ciclo });
       }
       setShowModal(false);
       fetchVolunteers();

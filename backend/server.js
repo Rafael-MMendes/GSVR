@@ -161,6 +161,11 @@ function isFeriado(dateObj) {
 
 app.use(cors());
 app.use(express.json());
+// Logger de requisições simples
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 // Servir avatares estáticos
 app.use('/avatars', express.static(AVATARS_DIR));
 
@@ -251,12 +256,16 @@ async function getUserRoles(userId) {
 async function authenticate(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token não fornecido.' } });
+  if (!token) {
+    console.warn(`[Auth] Token não fornecido em: ${req.method} ${req.url}`);
+    return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token não fornecido.' } });
+  }
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (e) {
+    console.warn(`[Auth] Token inválido ou expirado em: ${req.method} ${req.url}`);
     return res.status(401).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Token inválido ou expirado.' } });
   }
 }
@@ -701,25 +710,61 @@ app.get('/api/months', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/volunteers', async (req, res) => {
-  const { numero_ordem, name, motorista, availability } = req.body;
+app.post('/api/volunteers', authenticate, async (req, res) => {
+  const { numero_ordem, name, motorista, availability, id_ciclo, observacao } = req.body;
   if (!numero_ordem || !availability) return res.status(400).json({ error: "Required fields missing" });
 
-  // Atualizar informação de motorista no Efetivo
-  await db.run('UPDATE EFETIVO SET motorista = $1 WHERE matricula = $2', [motorista || 'Não', numero_ordem]);
+  try {
+    console.log(`[API] POST /api/volunteers - Body:`, JSON.stringify(req.body));
+    
+    // Atualizar informação de motorista no Efetivo (busca por matricula ou numero_ordem)
+    await db.run('UPDATE EFETIVO SET motorista = $1 WHERE matricula = $2 OR numero_ordem = $2', [motorista || 'Não', numero_ordem]);
 
-  const military = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
-  const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
-  if (!military || !cycle) return res.status(400).json({ error: "Militar or Ciclo not found" });
-  const reqResult = await db.run('INSERT INTO REQUERIMENTOS (id_militar, id_ciclo) VALUES ($1, $2)', [military.id_militar, cycle.id_ciclo]);
-  const isMot = (motorista === 'Sim');
-  for (const [day, shifts] of Object.entries(availability)) {
-    for (const shift of shifts) {
-      await db.run('INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista) VALUES ($1, $2, $3, TRUE, $4)', 
-        [reqResult.lastID, parseInt(day), shift, isMot]);
+    const military = await db.get('SELECT id_militar FROM EFETIVO WHERE matricula = $1 OR numero_ordem = $1', [numero_ordem]);
+    
+    // Prioriza id_ciclo do corpo, fallback para o ciclo ativo hoje
+    let targetCycleId = id_ciclo;
+    if (!targetCycleId) {
+      const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
+      targetCycleId = cycle?.id_ciclo;
     }
+
+    if (!military) {
+      console.warn(`[API] Militar não encontrado para o número de ordem: ${numero_ordem}`);
+      return res.status(400).json({ error: "Militar não encontrado no banco de dados." });
+    }
+    if (!targetCycleId) {
+      console.warn(`[API] Ciclo não identificado para a data atual.`);
+      return res.status(400).json({ error: "Ciclo não encontrado. Verifique se existe um ciclo aberto para a data atual." });
+    }
+
+    const creatorId = req.user?.id || null;
+    console.log(`[API] Criando requerimento: Militar=${military.id_militar}, Ciclo=${targetCycleId}, Criador=${creatorId}`);
+
+    // Insere o requerimento vinculando o usuário da sessão (req.user.id)
+    const reqResult = await db.run(
+      'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, id_usuario_criacao, observacao) VALUES ($1, $2, $3, $4)', 
+      [military.id_militar, targetCycleId, creatorId, observacao || null]
+    );
+
+    const isMot = (motorista === 'Sim');
+    for (const [day, shifts] of Object.entries(availability)) {
+      for (const shiftData of shifts) {
+        // Suporta tanto formato legado (string) quanto novo (objeto com observações)
+        const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
+        const obs = typeof shiftData === 'object' ? shiftData.observacoes : null;
+
+        await db.run(
+          'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista, observacoes) VALUES ($1, $2, $3, TRUE, $4, $5)', 
+          [reqResult.lastID, parseInt(day), shift, isMot, obs]
+        );
+      }
+    }
+    res.status(201).json({ id: reqResult.lastID });
+  } catch (error) {
+    console.error('Error in POST /api/volunteers:', error);
+    res.status(500).json({ error: error.message });
   }
-  res.status(201).json({ id: reqResult.lastID });
 });
 
 app.delete('/api/volunteers/:id', async (req, res) => {
@@ -728,7 +773,7 @@ app.delete('/api/volunteers/:id', async (req, res) => {
 });
 
 // Editar requerimento
-app.put('/api/volunteers/:id', async (req, res) => {
+app.put('/api/volunteers/:id', authenticate, async (req, res) => {
   try {
     const { id } = req.params;
     const { numero_ordem, name, rank, phone, motorista, availability, observacao } = req.body;
@@ -890,7 +935,7 @@ app.get('/api/efetivo/lookup/:matricula', async (req, res) => {
     // Se não encontrar pela exata, tenta buscar ignorando formatação no banco
     if (!militar) {
       militar = await db.get(
-        'SELECT nome_completo, nome_guerra, posto_graduacao, telefone FROM EFETIVO WHERE REPLACE(REPLACE(matricula, ".", ""), "-", "") = $1',
+        "SELECT nome_completo, nome_guerra, posto_graduacao, telefone FROM EFETIVO WHERE REPLACE(REPLACE(matricula, '.', ''), '-', '') = $1",
         [cleanMatricula]
       );
     }

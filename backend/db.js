@@ -136,8 +136,10 @@ async function setupDB() {
               id_requerimento SERIAL PRIMARY KEY,
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
+              id_usuario_criacao INTEGER REFERENCES users(id),
               numero_requerimento VARCHAR(50),
               data_solicitacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              observacao TEXT,
               UNIQUE(id_militar, id_ciclo)
           );
 
@@ -239,6 +241,14 @@ async function setupDB() {
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='motorista') THEN
               ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN motorista BOOLEAN DEFAULT FALSE;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='id_usuario_criacao') THEN
+              ALTER TABLE REQUERIMENTOS ADD COLUMN id_usuario_criacao INTEGER REFERENCES users(id);
+            END IF;
+            
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='observacao') THEN
+              ALTER TABLE REQUERIMENTOS ADD COLUMN observacao TEXT;
             END IF;
 
             -- Migration v1.28.3: Garantir constraint de unicidade para idempotência na importação

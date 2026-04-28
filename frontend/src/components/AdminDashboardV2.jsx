@@ -270,7 +270,7 @@ export function AdminDashboardV2() {
         if (patrolId === 'NEW') {
           newPatrols.push({
             id: `p${Date.now()}`,
-            name: 'GSVR',
+            name: 'Força Tarefa',
             duration: newPatrolDuration,
             timeSpan: newPatrolShift,
             members: newMembers
@@ -1363,7 +1363,7 @@ export function AdminDashboardV2() {
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
                       {/* Info Button Overlay */}
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleShowDetails(p); }}
                         style={{
                           position: 'absolute',
@@ -1594,7 +1594,7 @@ export function AdminDashboardV2() {
               <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar size={18} color={colors.primary} /> Histórico no Ciclo
               </h4>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
                 {militarSchedules.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '16px', color: colors.textMuted }}>
@@ -1603,10 +1603,10 @@ export function AdminDashboardV2() {
                   </div>
                 ) : (
                   militarSchedules.map((s, idx) => (
-                    <div key={idx} style={{ 
-                      background: '#ffffff', 
-                      padding: '1rem', 
-                      borderRadius: '16px', 
+                    <div key={idx} style={{
+                      background: '#ffffff',
+                      padding: '1rem',
+                      borderRadius: '16px',
                       border: `1px solid ${colors.border}`,
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -1618,21 +1618,21 @@ export function AdminDashboardV2() {
                         <div style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>{s.recurso_planejado || s.recurso_executado || 'SVR'}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ 
-                          fontSize: '0.65rem', 
-                          fontWeight: 900, 
-                          textTransform: 'uppercase', 
-                          background: colors.primary + '10', 
-                          color: colors.primary, 
-                          padding: '4px 10px', 
-                          borderRadius: '8px' 
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          textTransform: 'uppercase',
+                          background: colors.primary + '10',
+                          color: colors.primary,
+                          padding: '4px 10px',
+                          borderRadius: '8px'
                         }}>
                           {s.funcao_planejada || 'Patrulheiro'}
                         </span>
-                        <div style={{ 
-                          fontSize: '0.7rem', 
-                          color: s.id_execucao ? '#10b981' : '#f59e0b', 
-                          fontWeight: 700, 
+                        <div style={{
+                          fontSize: '0.7rem',
+                          color: s.id_execucao ? '#10b981' : '#f59e0b',
+                          fontWeight: 700,
                           marginTop: '6px',
                           display: 'flex',
                           alignItems: 'center',

@@ -1,3 +1,37 @@
+## v1.28.28 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Frontend**: Removido `window.confirm` do fluxo de cancelamento em `RequerimentosAdmin.jsx` para evitar bloqueios de navegadores e garantir que o botão "Sim, Cancelar" funcione instantaneamente conforme o esperado pelo usuário.
+
+---
+
+## v1.28.27 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Backend**: Corrigido erro de sintaxe Postgres no lookup de efetivo (aspas duplas trocadas por simples), eliminando o erro "zero-length delimited identifier".
+- **Backend**: Melhorada a busca de militar no POST /api/volunteers para aceitar tanto matrícula quanto número de ordem, resolvendo falhas na criação manual de requerimentos.
+- **Backend**: Adicionado log detalhado de requisições e erros de autenticação para depuração.
+- **Frontend**: Adicionado interceptor global de 401 para deslogar usuários com sessão expirada, prevenindo falhas silenciosas de autorização.
+- **Frontend**: Garantido que o ciclo ativo e o ID do usuário da sessão sejam vinculados corretamente ao criar requerimentos.
+
+---
+
+## v1.28.26 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Vínculo de Auditoria em Requerimentos**: Atualizada a tabela `REQUERIMENTOS` para incluir a coluna `id_usuario_criacao`. A rota `POST /api/volunteers` agora utiliza o middleware de autenticação e registra automaticamente o ID do usuário logado que realizou a inserção manual.
+- **[Backend] Estabilidade no Salvamento**: Refatorada a lógica de criação de voluntários para aceitar `id_ciclo` explícito via corpo da requisição, prevenindo erros de "Ciclo não encontrado" quando a data atual do servidor não coincide com a janela de um ciclo aberto.
+- **[Frontend] Requerimentos Admin**: Atualizado o componente `RequerimentosAdmin` para receber dados da sessão do usuário e enviar o ID do ciclo ativo durante o salvamento de novos registros, corrigindo a causa raiz da falha no botão "Novo".
+- **[Database] Migração**: Adicionadas colunas `id_usuario_criacao` e `observacao` à tabela `REQUERIMENTOS` via script de migração automática no `db.js`.
+
+---
+
 ## v1.28.25 — 2026-04-28
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
