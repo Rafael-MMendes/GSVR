@@ -1,3 +1,12 @@
+## v1.28.32 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **UI/UX**: Atualizada a cor do cabeçalho do grid no componente `HistoricoMilitar.jsx` para `#0D3878` (Azul Institucional GSVR) com texto em branco, garantindo consistência visual com os demais módulos do sistema.
+
+---
+
 ## v1.28.31 — 2026-04-29
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -389,7 +398,7 @@
 **Email:** alan.kleber@example.com
 
 ### Mudanças:
-- **[UI/UX] Padronização de Cabeçalhos de Grid**: Implementado o fundo azul institucional (`var(--primary)`) e texto branco em todos os cabeçalhos (`th`) das tabelas de gestão (`UserManager`, `ServicosExecutadosManager`, `RequerimentosAdmin`, `TiposServicoManager`).
+- **UI/UX**: Atualizada a cor do cabeçalho do grid no componente `HistoricoMilitar.jsx` para `#0D3878` (Azul GSVR) com texto em branco, padronizando a identidade visual com o restante do sistema.
 - **[UI/UX] Consistência Estrita**: Reforçada a especificidade dos estilos inline nos cabeçalhos para garantir a identidade visual "Premium" e evitar conflitos com o CSS global, removendo bordas redundantes e padronizando o padding.
 - **[UI/UX] Refinamento dos Modais de Requerimentos**: Grade de disponibilidade nos modais de edição e visualização agora seguem o padrão visual do cabeçalho principal.
 
