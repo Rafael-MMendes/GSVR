@@ -645,6 +645,7 @@ app.get('/api/volunteers', async (req, res) => {
   const q = `
      SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
             e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+            c.data_inicio, c.data_fim,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
             (SELECT json_object_agg(dia_mes, turnos) FROM (
               SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'observacoes', observacoes)) as turnos
@@ -2598,7 +2599,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
 
     const results = [];
     for (const [idCiclo, diasDoCiclo] of cicloMap.entries()) {
-      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo, numeroReq);
+      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo, numeroReq, mesRef);
       results.push({ id_ciclo: idCiclo, ...r });
     }
     return results;
@@ -2608,7 +2609,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
    * Cria ou atualiza um REQUERIMENTO para um (militar, ciclo) específico
    * e insere os turnos do fragmento. Opera com idempotência via ON CONFLICT.
    */
-  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap, numeroReq = null) {
+  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap, numeroReq = null, mesRef = null) {
     const existing = await dbConn.get(
       'SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2',
       [idMilitar, idCiclo]
@@ -2617,12 +2618,17 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     let idReq;
     if (existing) {
       idReq = existing.id_requerimento;
-      
-      // Atualiza o número do requerimento se fornecido
-      if (numeroReq) {
+
+      // Atualiza o número do requerimento e mes_referencia se fornecidos
+      const updateFields = [];
+      const updateParams = [];
+      if (numeroReq) { updateFields.push(`numero_requerimento = $${updateParams.length + 1}`); updateParams.push(numeroReq); }
+      if (mesRef)    { updateFields.push(`mes_referencia = $${updateParams.length + 1}`);      updateParams.push(mesRef); }
+      if (updateFields.length > 0) {
+        updateParams.push(idReq);
         await dbConn.run(
-          'UPDATE REQUERIMENTOS SET numero_requerimento = $1 WHERE id_requerimento = $2',
-          [numeroReq, idReq]
+          `UPDATE REQUERIMENTOS SET ${updateFields.join(', ')} WHERE id_requerimento = $${updateParams.length}`,
+          updateParams
         );
       }
 
@@ -2635,14 +2641,14 @@ app.get('/api/financeiro/resumo', async (req, res) => {
           [idReq, diasNumericos]
         );
       }
-      console.log(`[FRAG] Requerimento existente atualizado: req=${idReq}, ciclo=${idCiclo}`);
+      console.log(`[FRAG] Requerimento existente atualizado: req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
     } else {
       const r = await dbConn.run(
-        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento) VALUES ($1, $2, $3)',
-        [idMilitar, idCiclo, numeroReq]
+        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento, mes_referencia) VALUES ($1, $2, $3, $4)',
+        [idMilitar, idCiclo, numeroReq, mesRef]
       );
       idReq = r.lastID;
-      console.log(`[FRAG] Novo requerimento criado: req=${idReq}, ciclo=${idCiclo}`);
+      console.log(`[FRAG] Novo requerimento criado: req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
     }
 
     let diasInseridos = 0;

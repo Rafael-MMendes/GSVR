@@ -251,6 +251,11 @@ async function setupDB() {
               ALTER TABLE REQUERIMENTOS ADD COLUMN observacao TEXT;
             END IF;
 
+            -- Migration v1.29: Armazenar mês civil de referência do requerimento (YYYY-MM)
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='mes_referencia') THEN
+              ALTER TABLE REQUERIMENTOS ADD COLUMN mes_referencia VARCHAR(7);
+            END IF;
+
             -- Migration v1.28.3: Garantir constraint de unicidade para idempotência na importação
             IF NOT EXISTS (
               SELECT 1 FROM pg_constraint 

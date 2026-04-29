@@ -17,7 +17,26 @@ const SHIFTS = [
   "01:00 ÀS 07:00"
 ];
 
-const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+// Gera array de dias a partir do intervalo data_inicio..data_fim do ciclo
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end   = new Date(String(dataFim).split('T')[0]   + 'T12:00:00');
+  const days  = [];
+  const cur   = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day:        cur.getDate(),
+      month:      cur.getMonth() + 1,
+      year:       cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
 
 export function RequerimentosAdmin({ user }) {
   const [volunteers, setVolunteers] = useState([]);
@@ -73,16 +92,17 @@ export function RequerimentosAdmin({ user }) {
     try {
       const res = await axios.get(`${API_URL}/ciclos`);
       const ciclos = res.data.map(c => {
-        // Extrai YYYY-MM do data_inicio para uso no backend de fragmentação
         const dataInicio = c.data_inicio ? String(c.data_inicio).split('T')[0] : '';
-        const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : ''; // "YYYY-MM"
+        const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : '';
 
         return {
-          id_ciclo: c.id_ciclo,
-          month_key: c.periodo_ciclo,
-          month_name: c.period_name || `${c.periodo_ciclo} (${c.status})`,
-          mes_referencia_iso: mesReferenciaISO, // Ex: "2026-04" — formato para o backend
-          status: c.status
+          id_ciclo:          c.id_ciclo,
+          month_key:         c.periodo_ciclo,
+          month_name:        c.period_name || `${c.periodo_ciclo} (${c.status})`,
+          mes_referencia_iso: mesReferenciaISO,
+          status:            c.status,
+          data_inicio:       c.data_inicio || '',
+          data_fim:          c.data_fim    || ''
         };
       });
       setMonths(ciclos);
@@ -416,6 +436,9 @@ export function RequerimentosAdmin({ user }) {
     setSortConfig({ key, direction });
   };
 
+  // Dias reais do ciclo ativo (pode cruzar dois meses, ex: 16/Abr → 15/Mai)
+  const cycleDays = getCycleDays(activeCycle?.data_inicio, activeCycle?.data_fim);
+
   return (
     <div className="container" style={{ maxWidth: '1400px' }}>
       <div className="admin-controls-header" style={{
@@ -698,31 +721,34 @@ export function RequerimentosAdmin({ user }) {
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
                     <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
-                        const isSelected = (formData.availability[dayStr] || []).some(s => 
+                      {cycleDays.map(dayObj => {
+                        const dayStr = String(dayObj.day);
+                        const isSelected = (formData.availability[dayStr] || []).some(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
-                        
-                        const currentShiftData = (formData.availability[dayStr] || []).find(s => 
+
+                        const currentShiftData = (formData.availability[dayStr] || []).find(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
                         const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
-                        
-                        // Busca o objeto completo do turno para pegar observações
+
                         const completeData = formData.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
 
@@ -744,9 +770,9 @@ export function RequerimentosAdmin({ user }) {
 
                         return (
                           <td
-                            key={day}
-                            onClick={() => toggleShift(day, shift)}
-                            onContextMenu={(e) => openShiftObsModal(e, day, shift)}
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            onClick={() => toggleShift(dayObj.day, shift)}
+                            onContextMenu={(e) => openShiftObsModal(e, dayObj.day, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: 'pointer',
@@ -756,19 +782,14 @@ export function RequerimentosAdmin({ user }) {
                               fontWeight: 'bold',
                               position: 'relative'
                             }}
-                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para editar observação)` : (isCancelado ? `Cancelado - Clique para Reativar${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
+                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para editar observação)` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
                             {label}
                             {isSelected && hasObs && (
                               <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                width: '6px',
-                                height: '6px',
-                                background: '#fbbf24', // Amber/Yellow marker for obs
-                                borderRadius: '50%',
-                                margin: '2px'
+                                position: 'absolute', top: 0, right: 0,
+                                width: '6px', height: '6px',
+                                background: '#fbbf24', borderRadius: '50%', margin: '2px'
                               }} />
                             )}
                           </td>
@@ -833,75 +854,51 @@ export function RequerimentosAdmin({ user }) {
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
                     <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
-                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).some(s => 
+                      {cycleDays.map(dayObj => {
+                        const dayStr = String(dayObj.day);
+                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).some(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
-                        
-                        const currentShiftData = (viewingVolunteer.availability?.[dayStr] || []).find(s => 
+                        const currentShiftData = (viewingVolunteer.availability?.[dayStr] || []).find(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
                         const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
-                        
-                        // Busca o objeto completo do turno para pegar observações
                         const completeData = viewingVolunteer.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
-
                         const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
 
                         let bgColor = 'transparent';
                         let textColor = 'transparent';
                         let label = '·';
-
-                        if (isSelected) {
-                          bgColor = 'var(--primary)';
-                          textColor = 'white';
-                          label = 'X';
-                        } else if (isCancelado) {
-                          bgColor = 'var(--danger)';
-                          textColor = 'white';
-                          label = 'X';
-                        }
+                        if (isSelected) { bgColor = 'var(--primary)'; textColor = 'white'; label = 'X'; }
+                        else if (isCancelado) { bgColor = 'var(--danger)'; textColor = 'white'; label = 'X'; }
 
                         return (
                           <td
-                            key={day}
-                            style={{
-                              textAlign: 'center',
-                              backgroundColor: bgColor,
-                              color: textColor,
-                              border: '1px solid #e2e8f0',
-                              fontWeight: 'bold',
-                              position: 'relative'
-                            }}
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            style={{ textAlign: 'center', backgroundColor: bgColor, color: textColor, border: '1px solid #e2e8f0', fontWeight: 'bold', position: 'relative' }}
                             title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''}` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
                             {label}
                             {isSelected && hasObs && (
-                              <div style={{
-                                position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                width: '6px',
-                                height: '6px',
-                                background: '#fbbf24',
-                                borderRadius: '50%',
-                                margin: '2px'
-                              }} />
+                              <div style={{ position: 'absolute', top: 0, right: 0, width: '6px', height: '6px', background: '#fbbf24', borderRadius: '50%', margin: '2px' }} />
                             )}
                           </td>
                         );
@@ -1198,19 +1195,23 @@ export function RequerimentosAdmin({ user }) {
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white' }}>
                     <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75 }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.7rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
+                      {cycleDays.map(dayObj => {
+                        const dayStr = String(dayObj.day);
                         const availabilityData = cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dayStr] || [];
 
                         const isAtivo = Array.isArray(availabilityData)
@@ -1233,8 +1234,8 @@ export function RequerimentosAdmin({ user }) {
 
                         return (
                           <td
-                            key={day}
-                            onClick={() => isAtivo && toggleCancelShiftSelection(day, shift)}
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            onClick={() => isAtivo && toggleCancelShiftSelection(dayObj.day, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: isAtivo ? 'pointer' : 'default',
@@ -1243,7 +1244,7 @@ export function RequerimentosAdmin({ user }) {
                               border: '1px solid #e2e8f0',
                               fontWeight: 'bold',
                               transition: 'all 0.1s ease',
-                              opacity: isCancelado ? 0.6 : 1 // Opacidade reduzida para os já cancelados
+                              opacity: isCancelado ? 0.6 : 1
                             }}
                             title={isCancelado ? 'Já Cancelado' : (isAtivo ? 'Clique para cancelar' : '')}
                           >
