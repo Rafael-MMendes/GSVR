@@ -8,8 +8,8 @@ services:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_NAME:-escala_ft}
-    ports:
-      - "5432:5432"
+    # Removido o expose da porta 5432 para evitar conflito com Postgres local do servidor.
+    # O backend e pgadmin ainda acessam internamente.
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -29,6 +29,7 @@ services:
       - postgres
     networks:
       - ft-network
+      - nginx-npm_default
 
   # Container Admin
   portainer:
@@ -71,6 +72,7 @@ services:
       - backend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
+      - nginx-npm_default
 
   # Web Frontend
   frontend:
@@ -81,7 +83,8 @@ services:
     restart: unless-stopped
     command: npm run dev -- --host 0.0.0.0
     environment:
-      VITE_API_URL: http://localhost:3001
+      # URL pública do backend para que o navegador consiga fazer requisições:
+      VITE_API_URL: http://api.192.168.1.144.nip.io
     ports:
       - "5173:5173"
     depends_on:
@@ -91,10 +94,14 @@ services:
       - frontend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
+      - nginx-npm_default
 
 networks:
   ft-network:
     driver: bridge
+  #rede do proxy reverse
+  nginx-npm_default:
+    external: true
 
 volumes:
   pgdata:
