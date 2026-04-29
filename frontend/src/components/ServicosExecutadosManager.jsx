@@ -426,8 +426,8 @@ export function ServicosExecutadosManager() {
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
                   Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
-                  Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('opm_origem')}>
+                  OPM {sortConfig.key === 'opm_origem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
                   Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
@@ -468,8 +468,18 @@ export function ServicosExecutadosManager() {
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: statusColor(s.status_presenca) + '20', color: statusColor(s.status_presenca), padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
-                        {statusIcon(s.status_presenca)} {s.status_presenca}
+                      <span style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        background: 'rgba(13, 56, 120, 0.1)', 
+                        color: 'var(--primary)', 
+                        padding: '3px 8px', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 600 
+                      }} title={`Presença: ${s.status_presenca}`}>
+                        {s.opm_origem || '---'}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: s.status_presenca === 'Presente' ? '#10b981' : '#94a3b8' }}>

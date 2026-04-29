@@ -1,3 +1,13 @@
+## v1.28.31 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Frontend**: No componente `ServicosExecutadosManager.jsx`, a coluna **Status** (Presença) foi substituída pela coluna **OPM**, exibindo o dado `opm_origem` da tabela de serviços executados. O status de presença permanece acessível via tooltip (title) ao passar o mouse sobre a sigla da OPM.
+- **UX**: Adicionada funcionalidade de ordenação por OPM no grid de serviços executados.
+
+---
+
 ## v1.28.30 — 2026-04-29
 **Autor:** pmal-daten
 **Email:** unknown
