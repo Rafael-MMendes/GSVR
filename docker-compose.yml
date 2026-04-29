@@ -82,9 +82,11 @@ services:
     container_name: ft-frontend
     restart: unless-stopped
     command: npm run dev -- --host 0.0.0.0
+    env_file:
+      - ./frontend/.env
     environment:
-      # URL pública do backend para que o navegador consiga fazer requisições:
-      VITE_API_URL: http://api.192.168.1.144.nip.io
+      # As variáveis VITE_ são carregadas automaticamente do arquivo ./frontend/.env via env_file
+      NODE_ENV: development
     ports:
       - "5173:5173"
     depends_on:

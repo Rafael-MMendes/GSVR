@@ -1,3 +1,24 @@
+## v1.28.30 — 2026-04-29
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Configuração**: Integrado o arquivo `frontend/.env` com o `docker-compose.yml` utilizando a diretiva `env_file`. 
+- **Melhoria**: Removido o IP hardcoded do `docker-compose.yml`, permitindo que o arquivo `.env` seja a única fonte de verdade para a variável `VITE_API_URL`. Isso evita que as configurações do Docker sobrescrevam as configurações locais e facilita futuras mudanças de IP.
+
+---
+
+## v1.28.29 — 2026-04-29
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Infraestrutura**: Atualizado o IP do servidor de `192.168.1.134`/`144` para `192.168.1.123` (novo IP detectado após desligamento do servidor).
+- **Configuração**: Atualizada a variável `VITE_API_URL` em `docker-compose.yml` e `.env` para apontar corretamente para o novo IP, restabelecendo a comunicação entre o frontend e a API backend.
+- **Docker**: Ajustadas as configurações de ambiente para garantir que os contêineres utilizem o novo endereço de rede.
+
+---
+
 ## v1.28.28 — 2026-04-28
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
