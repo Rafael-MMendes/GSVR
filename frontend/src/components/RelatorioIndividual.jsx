@@ -10,6 +10,27 @@ import {
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
+// Gera array de dias a partir do intervalo data_inicio..data_fim do ciclo
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end   = new Date(String(dataFim).split('T')[0]   + 'T12:00:00');
+  const days  = [];
+  const cur   = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day:        cur.getDate(),
+      month:      cur.getMonth() + 1,
+      year:       cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   'Planejado e Executado': { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', icon: <CheckCircle size={14} />, label: 'Planejado e Executado' },
@@ -403,8 +424,10 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               });
 
               const turnos = SHIFTS;
-              // Sempre exibe os 31 dias para manter a estrutura do mês completa
-              const dias = Array.from({ length: 31 }, (_, i) => i + 1);
+
+              // Dias dinâmicos baseados no intervalo do ciclo selecionado
+              const cicloDadosAtual = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
+              const cycleDays = getCycleDays(cicloDadosAtual?.data_inicio, cicloDadosAtual?.data_fim);
 
               // Configuração visual dos quadrados
               const getCfg = (cell) => {
@@ -445,9 +468,17 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                       <thead>
                         <tr>
                           <th style={{ width: '80px', padding: '0.25rem 0.5rem 0.25rem 0', fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Turno</th>
-                          {dias.map(d => (
-                            <th key={d} style={{ padding: '0.25rem 0', fontSize: '0.7rem', color: '#475569', fontWeight: 800, textAlign: 'center' }}>{d}</th>
-                          ))}
+                          {cycleDays.map((dayObj, idx) => {
+                            const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                            return (
+                              <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.15rem 0', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
+                                {showMonth && (
+                                  <div style={{ fontSize: '0.55rem', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.03em' }}>{dayObj.monthShort}</div>
+                                )}
+                                <div>{dayObj.day}</div>
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>
@@ -456,11 +487,11 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                             <td style={{ padding: '0.25rem 0.5rem 0.25rem 0', fontSize: '0.75rem', color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {turno}
                             </td>
-                            {dias.map(d => {
-                              const cell = byDay[d]?.[turno];
+                            {cycleDays.map(dayObj => {
+                              const cell = byDay[dayObj.day]?.[turno];
                               const cfg = getCfg(cell);
                               return (
-                                <td key={d} style={{ padding: 0, textAlign: 'center' }}>
+                                <td key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: 0, textAlign: 'center' }}>
                                   {cfg ? (
                                     <div
                                       title={cfg.title}
