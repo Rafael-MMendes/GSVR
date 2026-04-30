@@ -163,14 +163,11 @@ export function AnalyticsDashboard() {
       const idKey = String(sId);
       const opmExec = s.opm_origem || 'OPM Indefinida';
 
-      // Filtro de OPM por Aba
-      if (activeTab === 'unidade' && opmExec !== targetOpm) return;
-      if (activeTab === 'cpm' && opmExec !== 'CPM/I-Faz') return;
-      // Na aba Geral, pegamos tanto a unidade quanto o CPM
-      if (activeTab === 'geral' && (opmExec !== targetOpm && opmExec !== 'CPM/I-Faz')) return;
+      // Filtro de OPM por Aba Dinâmica
+      if (activeTab !== 'geral' && opmExec !== activeTab) return;
 
-      const displayOPM = activeTab === 'geral' ? 'Geral' : opmExec;
-      const uniqueKey = activeTab === 'geral' ? idKey : `${idKey}_${displayOPM}`;
+      const displayOPM = activeTab === 'geral' ? 'Consolidado' : opmExec;
+      const uniqueKey = activeTab === 'geral' ? idKey : `${idKey}_${opmExec}`;
 
       if (!map[uniqueKey]) {
         const mil = fullEfetivo.find(e => String(e.id_militar) === idKey || String(e.id) === idKey);
@@ -227,6 +224,9 @@ export function AnalyticsDashboard() {
 
   const recursoUtilizado = stats.reduce((acc, s) => acc + s.valorTotal, 0);
   const recursoRestante = orcamentoCiclo - recursoUtilizado;
+
+  // Lista dinâmica de OPMs para as abas
+  const availableOpms = Array.from(new Set(servicos.map(s => s.opm_origem).filter(Boolean))).sort();
 
   const formatarValor = (valor) => {
     return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -474,18 +474,16 @@ export function AnalyticsDashboard() {
         >
           Geral (Total)
         </button>
-        <button
-          onClick={() => setActiveTab('unidade')}
-          className={`tab-button ${activeTab === 'unidade' ? 'active' : ''}`}
-        >
-          Unidade: {matchingCycle?.opm_sigla || '...'}
-        </button>
-        <button
-          onClick={() => setActiveTab('cpm')}
-          className={`tab-button ${activeTab === 'cpm' ? 'active' : ''}`}
-        >
-          CPM/I-Faz
-        </button>
+
+        {availableOpms.map(opm => (
+          <button
+            key={opm}
+            onClick={() => setActiveTab(opm)}
+            className={`tab-button ${activeTab === opm ? 'active' : ''}`}
+          >
+            {opm}
+          </button>
+        ))}
       </div>
 
       {/* KPIs */}

@@ -1,3 +1,14 @@
+## v1.28.35 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Analytics Dashboard**: Implementadas abas de navegação dinâmicas que se adaptam automaticamente às OPMs de origem encontradas nos dados de serviços executados.
+- **Filtragem Inteligente**: O grid de estatísticas agora pode ser filtrado clicando na aba respectiva de cada OPM (ex: 9º BPM, CPM/I-Faz, etc.), enquanto a aba "Geral" mantém a visão consolidada por militar para controle do limite de serviços.
+- **UX**: Melhorada a navegabilidade do painel analítico com suporte a múltiplas unidades operacionais de forma automática, eliminando botões estáticos e hardcoded.
+
+---
+
 ## v1.28.34 — 2026-04-29
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
