@@ -100,11 +100,11 @@ export function ServicosExecutadosManager() {
     setSelectedIds(new Set());
     try {
       const params = {};
-      if (filterCiclo) params.ciclo_id = filterCiclo; 
+      if (filterCiclo) params.ciclo_id = filterCiclo;
       if (filterMilitar) params.militar_id = filterMilitar;
       if (filterDataInicio) params.data_inicio = filterDataInicio;
       if (filterDataFim) params.data_fim = filterDataFim;
-      
+
       const res = await axios.get(`${API_URL}/servicos`, { params });
       setServicos(res.data);
     } catch (e) {
@@ -241,7 +241,7 @@ export function ServicosExecutadosManager() {
   const selectedCicloText = (() => {
     const c = ciclos.find(item => String(item.id_ciclo) === String(filterCiclo));
     if (!c) return 'Selecione um Ciclo';
-    
+
     // Se o backend já enviou o period_name formatado (ex: "Maio / Junho - 2026")
     if (c.period_name) {
       return c.period_name.replace(' / ', '/').replace(' - ', ' ');
@@ -256,12 +256,12 @@ export function ServicosExecutadosManager() {
       // Tenta formatar a partir das datas brutas de início e fim
       const d1 = c.data_inicio ? new Date(String(c.data_inicio).split('T')[0] + 'T12:00:00') : null;
       const d2 = c.data_fim ? new Date(String(c.data_fim).split('T')[0] + 'T12:00:00') : null;
-      
+
       if (d1 && !isNaN(d1.getTime())) {
         const m1 = monthNames[d1.getMonth()];
         const m2 = d2 && !isNaN(d2.getTime()) ? monthNames[d2.getMonth()] : m1;
         const ano = d1.getFullYear();
-        
+
         return m1 === m2 ? `${m1} ${ano}` : `${m1}/${m2} ${ano}`;
       }
     } catch (e) {
@@ -292,10 +292,10 @@ export function ServicosExecutadosManager() {
           <button
             className="btn btn-primary"
             onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'import-servicos' }))}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-              color: 'white', 
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
               border: 'none',
               boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
             }}
@@ -330,20 +330,18 @@ export function ServicosExecutadosManager() {
 
       {/* Filtros */}
       <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-
         <div style={{ flex: 1, minWidth: '200px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Ciclo Operacional</label>
-          <select 
-            className="form-control" 
-            style={{ margin: 0, fontWeight: 600, borderLeft: '4px solid var(--primary)' }} 
-            value={filterCiclo} 
+          <select
+            className="form-control"
+            style={{ margin: 0, fontWeight: 600, borderLeft: '4px solid var(--primary)' }}
+            value={filterCiclo}
             onChange={e => {
               const cid = e.target.value;
               setFilterCiclo(cid);
               if (cid) {
                 const selected = ciclos.find(c => String(c.id_ciclo) === String(cid));
                 if (selected) {
-                  // Sincroniza automaticamente as datas do filtro com as datas do ciclo
                   setFilterDataInicio(selected.data_inicio?.split('T')[0] || '');
                   setFilterDataFim(selected.data_fim?.split('T')[0] || '');
                 }
@@ -365,38 +363,40 @@ export function ServicosExecutadosManager() {
             {efetivo.map(e => <option key={e.id_militar} value={e.id_militar}>{e.posto_graduacao} {e.nome_guerra || e.nome_completo}</option>)}
           </select>
         </div>
-        <div style={{ flex: 1, minWidth: '200px' }}>
+        <div style={{ flex: 1, minWidth: '220px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Busca</label>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input className="form-control" style={{ margin: 0, paddingLeft: '34px' }} placeholder="Nome ou matrícula..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Nome ou matrícula..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <Search size={18} className="search-icon" />
           </div>
-        </div>
-        <div style={{ flex: 1, minWidth: '140px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Início</label>
-          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataInicio} onChange={e => setFilterDataInicio(e.target.value)} />
-        </div>
-        <div style={{ flex: 1, minWidth: '140px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Fim</label>
-          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataFim} onChange={e => setFilterDataFim(e.target.value)} />
         </div>
       </div>
 
-      {/* Botões de ação em massa */}
-      {selectedIds.size > 0 && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-          <button
-            className="btn btn-primary"
-            onClick={handleDeleteSelected}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
-          >
-            <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
-          </button>
-          <button className="btn btn-secondary" onClick={() => setSelectedIds(new Set())} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <X size={16} /> Limpar seleção
-          </button>
+      {/* Botões de ação em massa e Busca */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {selectedIds.size > 0 && (
+            <>
+              <button
+                className="btn btn-primary"
+                onClick={handleDeleteSelected}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
+              >
+                <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
+              </button>
+              <button className="btn btn-secondary" onClick={() => setSelectedIds(new Set())} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <X size={16} /> Limpar seleção
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Tabela */}
       {loading ? (
@@ -468,16 +468,16 @@ export function ServicosExecutadosManager() {
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ 
-                        display: 'inline-flex', 
-                        alignItems: 'center', 
-                        gap: '4px', 
-                        background: 'rgba(13, 56, 120, 0.1)', 
-                        color: 'var(--primary)', 
-                        padding: '3px 8px', 
-                        borderRadius: '12px', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 600 
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'rgba(13, 56, 120, 0.1)',
+                        color: 'var(--primary)',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600
                       }} title={`Presença: ${s.status_presenca}`}>
                         {s.opm_origem || '---'}
                       </span>

@@ -156,18 +156,6 @@ export function EfetivoManager() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Nome, matrícula ou ordem..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '40px', width: '280px', height: '44px', borderRadius: '12px' }}
-            />
-          </div>
-
           <button
             className="btn btn-outline"
             onClick={() => setIsImportModalOpen(true)}
@@ -203,7 +191,20 @@ export function EfetivoManager() {
         </div>
       </header>
 
-      {loading ? (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container search-container-fixed">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Nome, matrícula ou ordem..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
+        </div>
+      </div>
+
+      {loading && filteredEfetivo.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem' }}>Carregando...</div>
       ) : (
         <div className="responsive-table-container" style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>

@@ -1153,27 +1153,15 @@ export function AdminDashboardV2() {
               padding: '0.5rem 2rem'
             }}>
               {/* Line 1: Search */}
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Search size={18} color={colors.textMuted} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+              <div className="search-container" style={{ width: '100%' }}>
                 <input
                   type="text"
+                  className="search-input"
                   placeholder="Buscar por nome, matricula ou Nº ordem..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem 1rem 0.85rem 3rem',
-                    borderRadius: '12px',
-                    border: `1px solid ${colors.border}`,
-                    outline: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 500,
-                    boxShadow: shadowSm,
-                    transition: transitions
-                  }}
-                  onFocus={e => { e.target.style.borderColor = colors.primary; e.target.style.boxShadow = '0 0 0 3px rgba(13, 56, 120, 0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = colors.border; e.target.style.boxShadow = shadowSm; }}
                 />
+                <Search size={18} className="search-icon" />
               </div>
 
               {/* Line 2: All Filters Grouped */}

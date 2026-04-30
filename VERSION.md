@@ -1,3 +1,24 @@
+## v1.28.34 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **UX/UI**: Refinamento da barra de filtros no `ServicosExecutadosManager`. Removidos os seletores manuais de "Data Início" e "Data Fim" para simplificar a interface, mantendo a filtragem automática baseada no Ciclo Operacional selecionado.
+- **Ajuste de Layout**: O campo de busca no módulo de serviços executados foi movido de volta para a barra de filtros principal (após o ciclo/militar) para melhor ergonomia de uso local.
+- **Estabilidade**: Correção de erro de sintaxe JSX no componente de serviços executados, restaurando a funcionalidade do módulo.
+
+---
+
+## v1.28.33 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Design System Global**: Implementação de um padrão visual premium para todos os inputs de busca do sistema, utilizando bordas institucionais (#0D3878) de 1.5px, efeito glassmorphism (backdrop-filter) e sombras de foco aprimoradas.
+- **Padronização de Localização**: Reposicionamento estratégico dos campos de busca para ficarem imediatamente acima dos grids de dados em todos os módulos administrativos (`UserManager`, `EfetivoManager`, `RequerimentosAdmin`, `HistoricoMilitar` e `AnalyticsDashboard`), garantindo consistência e foco contextual.
+
+---
+
 ## v1.28.32 — 2026-04-29
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com

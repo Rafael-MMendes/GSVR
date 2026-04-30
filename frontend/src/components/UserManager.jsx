@@ -188,17 +188,6 @@ export function UserManager() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar usuário..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '34px', width: '220px', fontSize: '0.85rem' }}
-            />
-          </div>
           <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} /> Novo Usuário
           </button>
@@ -212,10 +201,23 @@ export function UserManager() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <StatCard label="Total de Contas" value={usuarios.length} color="#1e3a5f" />
         <StatCard label="Administradores" value={usuarios.filter(u => u.is_admin).length} color="#ef4444" />
         <StatCard label="Militares (Acesso)" value={usuarios.filter(u => !u.is_admin).length} color="#10b981" />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container" style={{ width: '300px' }}>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar usuário..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
+        </div>
       </div>
 
       {loading && usuarios.length === 0 ? (

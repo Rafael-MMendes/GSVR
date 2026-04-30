@@ -138,16 +138,19 @@ export function HistoricoMilitar() {
             <ChevronDown size={16} color="#64748b" style={{ position: 'absolute', top: '12px', right: '12px', pointerEvents: 'none' }} />
           </div>
 
-          <div style={{ position: 'relative', width: '280px' }}>
-            <Search size={18} color="#94a3b8" style={{ position: 'absolute', top: '12px', left: '12px' }} />
-            <input
-              type="text"
-              placeholder="Buscar por nome ou matrícula..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              style={{ width: '100%', padding: '0.65rem 1rem 0.65rem 2.5rem', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
-            />
-          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container search-container-fixed">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar por nome ou matrícula..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
         </div>
       </div>
 

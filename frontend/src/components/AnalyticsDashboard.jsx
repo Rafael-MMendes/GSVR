@@ -349,18 +349,6 @@ export function AnalyticsDashboard() {
           </p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative' }} className="search-box">
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Buscar militar..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="form-control"
-              style={{ paddingLeft: '2.5rem', width: '280px', borderRadius: '8px' }}
-            />
-          </div>
-
           {/* Dropdown de Ciclos Glassmorphism */}
           <div style={{ position: 'relative' }} className="cycle-selector">
             <button
@@ -536,6 +524,19 @@ export function AnalyticsDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem' }}>
+        <div className="search-container search-box" style={{ width: '300px' }}>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar por nome ou matrícula..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
+        </div>
       </div>
 
       {/* Tabela de Dados */}

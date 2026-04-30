@@ -484,19 +484,21 @@ export function RequerimentosAdmin({ user }) {
               Ciclo Ativo: {activeCycle ? activeCycle.month_name : 'Nenhum ciclo aberto'}
             </strong>
           </div>
-          <div style={{ position: 'relative', flex: '1 1 300px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '40px' }}
-            />
-          </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             Total: <strong>{filteredVolunteers.length}</strong>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem' }}>
+          <div className="search-container" style={{ width: '350px' }}>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar por nome, matrícula ou ordem..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <Search size={18} className="search-icon" />
           </div>
         </div>
 
