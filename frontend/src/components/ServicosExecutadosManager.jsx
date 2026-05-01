@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check } from 'lucide-react';
+import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar } from 'lucide-react';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -362,6 +362,34 @@ export function ServicosExecutadosManager() {
             <option value="">Todos</option>
             {efetivo.map(e => <option key={e.id_militar} value={e.id_militar}>{e.posto_graduacao} {e.nome_guerra || e.nome_completo}</option>)}
           </select>
+        </div>
+
+        <div style={{ flex: 1, minWidth: '150px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Início</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="date"
+              className="form-control"
+              style={{ margin: 0, paddingRight: '35px' }}
+              value={filterDataInicio}
+              onChange={e => setFilterDataInicio(e.target.value)}
+            />
+            <Calendar size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: '150px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Fim</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="date"
+              className="form-control"
+              style={{ margin: 0, paddingRight: '35px' }}
+              value={filterDataFim}
+              onChange={e => setFilterDataFim(e.target.value)}
+            />
+            <Calendar size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          </div>
         </div>
         <div style={{ flex: 1, minWidth: '220px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Busca</label>

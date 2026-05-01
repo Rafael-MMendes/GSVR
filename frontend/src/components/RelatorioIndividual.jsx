@@ -401,9 +401,9 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Dias Disponíveis" value={kpis.dias_disponiveis} icon={<CalendarCheck size={24} />} color="#0891b2" bg="#ecfeff" subtitle="Requerimentos ativos" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Executados" value={kpis.executados} icon={<CheckCircle size={24} />} color="#059669" bg="#f0fdf4" subtitle="Serviços realizados" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados" value={kpis.planejados} icon={<Shield size={24} />} color="#2563eb" bg="#eff6ff" subtitle="Escalas previstas" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Match (P+E)" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total (Planejados + Executados)" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Faltas" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="P e não E (Planejade e não Executado) " /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Extras" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="E e não P (Executado e não Planejado)" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados e Executados" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total Planejados(escalado) e Executados" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados e não Executados" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="foi escalado porem outro militar executou o serviço" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Executados e não Planejados" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="Executou o serviço que não Planejado(escalado)" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Desistências" value={kpis.desistencia} icon={<AlertTriangle size={24} />} color="#d97706" bg="#fffbeb" subtitle="Cancelamentos" /></div>
             </div>
 

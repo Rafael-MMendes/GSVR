@@ -1753,7 +1753,7 @@ app.get('/api/usuarios', async (req, res) => {
   try {
     const { rows } = await db.query(`
       SELECT u.id, u.numero_ordem, u.is_admin, u.created_at,
-             e.nome_guerra, e.posto_graduacao, e.nome_completo, e.cpf
+             e.nome_guerra, e.posto_graduacao, e.nome_completo, e.cpf, e.opm
       FROM users u
       LEFT JOIN EFETIVO e ON u.numero_ordem = e.matricula
       ORDER BY u.is_admin DESC, e.nome_completo ASC

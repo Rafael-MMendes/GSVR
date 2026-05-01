@@ -1,3 +1,23 @@
+## v1.28.37 — 2026-05-01
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Backend**: Atualizada a rota `/api/usuarios` para retornar o campo `opm` do efetivo, permitindo a visualização da unidade vinculada no painel de Gestão de Usuários.
+- **Frontend**: O grid de usuários agora exibe corretamente a OPM do militar (administradores e usuários padrão).
+
+---
+
+## v1.28.36 — 2026-05-01
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Adicionados filtros manuais de "Data Início" e "Data Fim" no componente `ServicosExecutadosManager`, permitindo maior flexibilidade na consulta de serviços além do intervalo automático do ciclo.
+- **Iconografia**: Implementados ícones de calendário nos novos campos de data para manter a consistência visual premium do sistema.
+
+---
+
 ## v1.28.35 — 2026-04-29
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
