@@ -16,14 +16,14 @@ const getCycleDays = (dataInicio, dataFim) => {
     return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
   }
   const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
-  const end   = new Date(String(dataFim).split('T')[0]   + 'T12:00:00');
-  const days  = [];
-  const cur   = new Date(start);
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
   while (cur <= end) {
     days.push({
-      day:        cur.getDate(),
-      month:      cur.getMonth() + 1,
-      year:       cur.getFullYear(),
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
       monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
     });
     cur.setDate(cur.getDate() + 1);
@@ -35,9 +35,9 @@ const getCycleDays = (dataInicio, dataFim) => {
 const STATUS_CONFIG = {
   'Planejado e Executado': { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', icon: <CheckCircle size={14} />, label: 'Planejado e Executado' },
   'Planejado': { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: <Calendar size={14} />, label: 'Planejado' },
-  'Planejado e não Executado': { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: <XCircle size={14} />, label: 'Falta (P e não E)' },
-  'Executado e não Planejado': { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: <Info size={14} />, label: 'Extra (E e não P)' },
-  'Desistência de Requerimento': { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: <AlertTriangle size={14} />, label: 'Desistência' },
+  'Planejado e não Executado': { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: <XCircle size={14} />, label: 'Planejado e Não Executado' },
+  'Executado e não Planejado': { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: <Info size={14} />, label: 'Executado e Não Planejado' },
+  'Desistência de Requerimento': { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: <AlertTriangle size={14} />, label: 'Desistência de Requerimento' },
 };
 
 function StatusBadge({ status }) {
