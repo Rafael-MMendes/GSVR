@@ -154,13 +154,19 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
   // KPIs agregados
   const kpis = useMemo(() => {
     const result = { executados: 0, planejados: 0, match: 0, falta: 0, extra: 0, desistencia: 0, dias_disponiveis: 0 };
+    const desistenciaDays = new Set();
+    
     data.forEach(item => {
       if (item.status_op === 'Planejado e Executado') { result.executados++; result.planejados++; result.match++; }
       else if (item.status_op === 'Planejado') { result.planejados++; }
       else if (item.status_op === 'Planejado e não Executado') { result.planejados++; result.falta++; }
       else if (item.status_op === 'Executado e não Planejado') { result.executados++; result.extra++; }
-      else if (item.status_op === 'Desistência de Requerimento') { result.desistencia++; }
+      else if (item.status_op === 'Desistência de Requerimento') { 
+        desistenciaDays.add(item.data_ref); 
+      }
     });
+
+    result.desistencia = desistenciaDays.size;
 
     // Conta dias únicos na grade de disponibilidade onde o militar se colocou disponível
     const uniqueDays = new Set(
@@ -175,7 +181,15 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
 
   // Timeline filtrada e ordenada por data
   const timeline = useMemo(() => {
+    const seenDesistencias = new Set();
     return data
+      .filter(item => {
+        if (item.status_op === 'Desistência de Requerimento') {
+          if (seenDesistencias.has(item.data_ref)) return false;
+          seenDesistencias.add(item.data_ref);
+        }
+        return true;
+      })
       .sort((a, b) => {
         const da = a.data_ref ? new Date(a.data_ref) : 0;
         const db = b.data_ref ? new Date(b.data_ref) : 0;

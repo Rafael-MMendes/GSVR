@@ -1,3 +1,16 @@
+## v1.28.39 — 2026-05-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Criado o componente `EscalaPublicacaoOficial` para visualização e impressão de escalas em layout institucional (A4), com agrupamento inteligente por turnos.
+- **Frontend**: Adicionado botão de acesso rápido à "Publicação Oficial" no cabeçalho do `AdminDashboardV2`.
+- **UI/UX**: Aumentado o tamanho da fonte e melhorada a legibilidade das tags de horário e duração nos cartões de serviço do painel administrativo.
+- **Fix**: Corrigido erro de referência e crash de "tela branca" ao abrir o banco de voluntários no AdminDashboardV2.
+- **Fix**: Normalizada a busca de ciclos operacionais para garantir compatibilidade entre tipos de dados (String/Number).
+
+---
+
 ## v1.28.38 — 2026-05-05
 **Autor:** pmal-daten
 **Email:** unknown
@@ -6,6 +19,7 @@
 - **Backend**: Refatorada a rota de cancelamento de disponibilidade (`/api/volunteers/:id/cancel-availability`) para suportar operações cirúrgicas por turno e dia, eliminando o bug de persistência que causava modificações indesejadas em registros vizinhos.
 - **Backend**: Adicionado suporte ao campo `availability_completa` no endpoint de voluntários, garantindo a integridade dos dados históricos de turnos ativos e inativos.
 - **Frontend**: Corrigida a lógica de envio de parâmetros no componente `RequerimentosAdmin`, assegurando que o `dia_mes` e `horario_turno` sejam propagados corretamente para a API de cancelamento.
+- **Frontend**: Ajustada a lógica de contagem de desistências nos componentes `HistoricoMilitar` e `RelatorioIndividual` para considerar dias únicos em vez de somar turnos individuais (ex: múltiplos turnos cancelados no mesmo dia agora contam como apenas 1 dia de desistência).
 - **UI/UX**: Implementada sinalização visual distinta para turnos cancelados na grade de disponibilidade (fundo vermelho e ícone de exclusão), melhorando o feedback para o gestor de escalas.
 
 ---

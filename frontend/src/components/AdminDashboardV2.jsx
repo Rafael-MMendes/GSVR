@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -48,6 +49,7 @@ export function AdminDashboardV2() {
   const [newPatrolShift, setNewPatrolShift] = useState('Diurno (07:00 - 13:00)');
   const [detailedMilitar, setDetailedMilitar] = useState(null);
   const [militarSchedules, setMilitarSchedules] = useState([]);
+  const [showPublicacao, setShowPublicacao] = useState(false);
 
   const [state, setState] = useState({
     pool: [],
@@ -517,6 +519,18 @@ export function AdminDashboardV2() {
   const shadowMd = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
   const shadowLg = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
 
+  if (showPublicacao) {
+    const currentCycle = months.find(c => String(c.id_ciclo) === String(selectedCycleId));
+    return (
+      <EscalaPublicacaoOficial 
+        patrols={state.patrols} 
+        date={selectedDate} 
+        cycle={currentCycle} 
+        onBack={() => setShowPublicacao(false)} 
+      />
+    );
+  }
+
   return (
     <div className="v2-dashboard-container" style={{
       fontFamily: "'Outfit', 'Inter', sans-serif",
@@ -633,7 +647,7 @@ export function AdminDashboardV2() {
               >
                 {/* Options logic stays the same */}
                 {(() => {
-                  const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                  const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                   if (!currentCycle) return null;
                   const startBy = new Date(currentCycle.data_inicio);
                   const endBy = new Date(currentCycle.data_fim);
@@ -777,7 +791,18 @@ export function AdminDashboardV2() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            {/* Additional stats or info could go here */}
+            <button
+              onClick={() => setShowPublicacao(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.6rem',
+                padding: '0.65rem 1.25rem', borderRadius: '12px',
+                border: `1px solid ${colors.primary}`, background: colors.primary,
+                color: colors.white, fontWeight: 700, cursor: 'pointer',
+                transition: transitions, boxShadow: shadowMd
+              }}
+            >
+              <FileText size={18} /> Publicação Oficial
+            </button>
           </div>
         </div>
 
@@ -875,7 +900,7 @@ export function AdminDashboardV2() {
                   {/* Status Pills inside header */}
                   <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
                     <div style={{
-                      fontSize: '0.6rem',
+                      fontSize: '0.8rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       background: 'rgba(255,255,255,0.15)',
@@ -887,7 +912,7 @@ export function AdminDashboardV2() {
                     </div>
                     {patrol.timeSpan && (
                       <div style={{
-                        fontSize: '0.6rem',
+                        fontSize: '0.8rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         background: 'rgba(255,255,255,0.15)',
@@ -1204,7 +1229,7 @@ export function AdminDashboardV2() {
                     onChange={e => setSelectedDate(e.target.value)}
                   >
                     {(() => {
-                      const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                      const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                       if (!currentCycle) return null;
 
                       const startDate = new Date(currentCycle.data_inicio);
@@ -1251,7 +1276,7 @@ export function AdminDashboardV2() {
                     onChange={e => setSelectedShift(e.target.value)}
                   >
                     <option value="Todos">Turno: Todos</option>
-                    {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+                    {SHIFTS?.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
                   </select>
                 </div>
 
@@ -1272,7 +1297,7 @@ export function AdminDashboardV2() {
                           color: colors.primary,
                           boxShadow: shadowSm
                         }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration}
                         onChange={e => {
                           if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
                           else handleDurationChange(selectionMode.patrolId, e.target.value);
@@ -1296,14 +1321,14 @@ export function AdminDashboardV2() {
                           color: colors.primary,
                           boxShadow: shadowSm
                         }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(p => p.id === selectionMode.patrolId)?.timeSpan}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols?.find(p => p.id === selectionMode.patrolId)?.timeSpan}
                         onChange={e => {
                           if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
                           else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
                         }}
                       >
                         <option value="">Selecione Horário...</option>
-                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration).map(opt => (
+                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration)?.map(opt => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>

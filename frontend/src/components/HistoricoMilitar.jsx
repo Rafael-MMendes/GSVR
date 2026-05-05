@@ -61,6 +61,7 @@ export function HistoricoMilitar() {
           planejado_nao_executado: 0,
           executado_nao_planejado: 0,
           desistencia: 0,
+          desistenciaDays: new Set(),
           dias_disponiveis: parseInt(item.dias_disponiveis) || 0
         });
       }
@@ -81,7 +82,8 @@ export function HistoricoMilitar() {
         m.executados++;
         m.executado_nao_planejado++;
       } else if (item.status_op === 'Desistência de Requerimento') {
-        m.desistencia++;
+        m.desistenciaDays.add(item.data_ref);
+        m.desistencia = m.desistenciaDays.size;
       }
     });
 
