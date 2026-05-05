@@ -1890,8 +1890,11 @@ app.get('/api/schedules', async (req, res) => {
     const ciclo = await db.get('SELECT id_ciclo, data_inicio FROM CICLOS WHERE id_ciclo = $1', [id_ciclo]);
     if (!ciclo) return res.json([]);
 
-    const baseDate = new Date(ciclo.data_inicio);
-    const dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    let dataServico = date;
+    if (!String(date).includes('-')) {
+      const baseDate = new Date(ciclo.data_inicio);
+      dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    }
 
     // Busca todas os registros ESCALA_PLANEJAMENTO do dia com dados do militar
     const { rows } = await db.query(`
@@ -2019,7 +2022,12 @@ app.get('/api/reports/operacional-detalhado', async (req, res) => {
           r.id_militar,
           r.id_ciclo,
           -- Para desistências, tentamos aproximar a data pelo dia_mes do requerimento se possível
-          (c.data_inicio + (dr.dia_mes - 1 || ' days')::interval)::date as data_ref,
+          CASE 
+            WHEN dr.dia_mes >= EXTRACT(DAY FROM c.data_inicio) THEN 
+              make_date(EXTRACT(YEAR FROM c.data_inicio)::int, EXTRACT(MONTH FROM c.data_inicio)::int, dr.dia_mes)
+            ELSE 
+              make_date(EXTRACT(YEAR FROM c.data_fim)::int, EXTRACT(MONTH FROM c.data_fim)::int, dr.dia_mes)
+          END as data_ref,
           NULL::integer as id_escala,
           NULL::integer as id_execucao,
           NULL as recurso_planejado,
@@ -2150,8 +2158,12 @@ app.post('/api/schedules', async (req, res) => {
     if (!ciclo) return res.status(400).json({ error: `Ciclo ${targetCicloId} não encontrado.` });
 
     // Constrói data ISO YYYY-MM-DD baseada no dia informado e no mês/ano do data_inicio do ciclo
-    const baseDate = new Date(ciclo.data_inicio);
-    const dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    let dataServico = date;
+    const diaMes = (typeof date === 'string' && date.includes('-')) ? parseInt(date.split('-')[2], 10) : parseInt(date, 10);
+    if (!String(date).includes('-')) {
+      const baseDate = new Date(ciclo.data_inicio);
+      dataServico = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    }
 
     // Inicia transação para garantir atomicidade (importante para triggers de relacionamento)
     await db.query('BEGIN');
@@ -2207,7 +2219,7 @@ app.post('/api/schedules', async (req, res) => {
                AND dr.marcado_disponivel = TRUE 
                AND dr.ativo = TRUE 
              LIMIT 1`,
-            [member.id_militar, ciclo.id_ciclo, parseInt(date, 10), horarioServico]
+            [member.id_militar, ciclo.id_ciclo, diaMes, horarioServico]
           );
 
           // Fallback: se o turno não bater perfeitamente devido à nomenclatura, pega a primeira disponibilidade do militar para aquele dia
@@ -2222,7 +2234,7 @@ app.post('/api/schedules', async (req, res) => {
                  AND dr.marcado_disponivel = TRUE 
                  AND dr.ativo = TRUE 
                LIMIT 1`,
-              [member.id_militar, ciclo.id_ciclo, parseInt(date, 10)]
+              [member.id_militar, ciclo.id_ciclo, diaMes]
             );
           }
 
@@ -2281,8 +2293,11 @@ app.delete('/api/schedules/patrol', async (req, res) => {
     }
 
     // 2. Calcular data ISO correspondente (seguindo mesma lógica de salvamento)
-    const baseDate = new Date(ciclo.data_inicio);
-    const dataServicoISO = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    let dataServicoISO = date;
+    if (!String(date).includes('-')) {
+      const baseDate = new Date(ciclo.data_inicio);
+      dataServicoISO = `${baseDate.getFullYear()}-${String(baseDate.getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+    }
     console.log(`[API] Data calculada para exclusão: ${dataServicoISO}`);
 
     // 3. Verificar vínculos impeditivos (Serviços já vinculados a execuções na ternária)

@@ -32,7 +32,10 @@ export function AdminDashboardV2() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState('');
-  const [selectedDate, setSelectedDate] = useState(String(new Date().getDate()));
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [selectedShift, setSelectedShift] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSlot, setActiveSlot] = useState(null);
@@ -74,7 +77,10 @@ export function AdminDashboardV2() {
 
   const loadScheduleData = (volunteersData, schedulesData, monthKey, dateVal) => {
     if (!volunteersData) return;
-    const selectedDateNum = parseInt(dateVal);
+    // dateVal can be 'YYYY-MM-DD' or a plain day number — extract the day correctly
+    const selectedDateNum = (typeof dateVal === 'string' && dateVal.includes('-'))
+      ? parseInt(dateVal.split('-')[2], 10)
+      : parseInt(dateVal);
     const dayKey1 = String(selectedDateNum);
     const dayKey2 = String(selectedDateNum).padStart(2, '0');
 
@@ -177,21 +183,25 @@ export function AdminDashboardV2() {
       // Regra: Exibir apenas militares com até 7 serviços (limite de 8 atingido oculta do pool)
       if (p.service_count >= 8) return false;
 
-      const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.numero_ordem && String(p.numero_ordem).includes(searchTerm));
-      if (searchTerm.length > 1) return matchesSearch;
-      if (selectedShift === 'Todos') return matchesSearch;
-      if (!p.isAvailableToday) return false;
-      return matchesSearch && p.todayShifts.some(s => {
-        if (!s) return false;
-        const dbShift = String(s).toUpperCase();
-        const selShift = selectedShift.toUpperCase();
-        return dbShift.includes(selShift.split(' ')[0]) ||
-          (selShift.includes('07') && dbShift.includes('07:00')) ||
-          (selShift.includes('13') && dbShift.includes('13:00')) ||
-          (selShift.includes('19') && dbShift.includes('19:00')) ||
-          (selShift.includes('01') && dbShift.includes('01:00'));
-      });
+      const isSearchActive = searchTerm.length > 1;
+      const matchesSearch = isSearchActive 
+        ? ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.numero_ordem && String(p.numero_ordem).includes(searchTerm)))
+        : true;
+
+      if (!matchesSearch) return false;
+
+      if (selectedShift !== 'Todos') {
+        if (!p.isAvailableToday) return false;
+        return p.todayShifts.some(s => {
+          if (!s) return false;
+          const shiftStr = typeof s === 'object' ? s.turno : s;
+          return String(shiftStr).toUpperCase().trim() === selectedShift.toUpperCase().trim();
+        });
+      }
+
+      if (!isSearchActive && !p.isAvailableToday) return false;
+
+      return true;
     });
   }, [state.pool, searchTerm, selectedShift, selectedDate]);
 
@@ -455,7 +465,11 @@ export function AdminDashboardV2() {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5);
     pdf.text('9º Batalhão de Polícia Militar — Batalhão de Divisas', pageW / 2, 15, { align: 'center' });
     pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8.5); pdf.setTextColor(200, 220, 255);
-    pdf.text(`Escala Operacional do GSVR (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
+    const [yyyy, mm, dd] = selectedDate.split('-');
+    const dateForPdf = dd && mm && yyyy
+      ? new Date(`${yyyy}-${mm}-${dd}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+      : selectedDate;
+    pdf.text(`Escala Operacional do GSVR (${dateForPdf})`, pageW / 2, 21, { align: 'center' });
 
     const source = printRef.current;
     const clone = source.cloneNode(true);
@@ -631,11 +645,15 @@ export function AdminDashboardV2() {
                   }
                   return daysBy.map(date => {
                     const d = date.getDate();
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d).padStart(2, '0');
+                    const isoDate = `${yyyy}-${mm}-${dd}`;
                     const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
                     const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
                     const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
                     const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                    return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                    return <option key={date.getTime()} value={isoDate}>Dia {dd}/{monthCap}{wdayCap}</option>;
                   });
                 })()}
               </select>
@@ -1200,11 +1218,15 @@ export function AdminDashboardV2() {
 
                       return days.map(date => {
                         const d = date.getDate();
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d).padStart(2, '0');
+                        const isoDate = `${yyyy}-${mm}-${dd}`;
                         const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
                         const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
                         const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
                         const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                        return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                        return <option key={date.getTime()} value={isoDate}>Dia {dd}/{monthCap}{wdayCap}</option>;
                       });
                     })()}
                   </select>
