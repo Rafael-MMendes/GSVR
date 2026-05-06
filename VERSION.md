@@ -1,3 +1,116 @@
+## v1.28.50 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Reorganização das ações principais na tela de gerenciamento de guarnições (`AdminDashboardV2.jsx`). O botão "Imprimir Escala", que usava a função nativa do navegador, foi removido da barra lateral de ações.
+- **UI/UX**: O botão que leva à view oficial da escala foi transferido do cabeçalho principal para o final da lista de "Ações de Escala" na barra lateral e renomeado de "Publicação Oficial" para "Publicar Escala". O botão foi estilizado com o tom escuro institucional, agilizando o fluxo de trabalho do administrador (Nova Guarnição -> Salvar -> Publicar).
+
+---
+
+## v1.28.49 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Funcionalidade**: Ajuste no padrão de nomenclatura do arquivo PDF exportado. A data no nome do arquivo foi alterada do formato ISO (`AAAA-MM-DD`) para o padrão brasileiro (`DD-MM-AAAA`), facilitando a organização e identificação dos arquivos pelos usuários.
+
+---
+
+## v1.28.48 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: O botão e a função de impressão padrão ("Imprimir Escala") foram removidos da tela `EscalaPublicacaoOficial.jsx`. A exportação direta em PDF passa a ser o fluxo primário e exclusivo para salvar e imprimir o documento oficial, garantindo que o padrão visual não sofra interferência dos navegadores.
+
+---
+
+## v1.28.47 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Funcionalidade**: Adicionada a funcionalidade de "Exportar PDF" diretamente na tela de Publicação Oficial da Escala.
+- **Frontend**: Instalação das bibliotecas `html2canvas` e `jspdf` no projeto React para permitir a renderização perfeita da DOM em formato PDF.
+- **UI/UX**: O botão de exportação foi posicionado estrategicamente ao lado do botão de impressão tradicional. O novo gerador de PDF clona todo o bloco oficial da escala, oculta os seletores de cores (`.no-print`) e força a resolução e dimensões adequadas ao papel A4, preservando fielmente todas as fontes, cores e tabelas centralizadas.
+
+---
+
+## v1.28.46 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Alinhamento de todos os dados e cabeçalhos da tabela de guarnições ao centro (`textAlign: 'center'`) na visualização de `EscalaPublicacaoOficial.jsx`, proporcionando um visual mais simétrico e padronizado para a impressão.
+
+---
+
+## v1.28.45 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Inclusão do local e horário de embarque na tela de publicação oficial (`EscalaPublicacaoOficial.jsx`). A informação agora é renderizada logo à frente do turno de cada guarnição, consumindo o dado do banco (`horario_embarque`) ou exibindo o texto padrão, garantindo que o local de encontro esteja claramente visível no momento da impressão da escala.
+
+---
+
+## v1.28.44 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Inserção do campo de texto `horario_embarque` diretamente no card da guarnição dentro do componente `AdminDashboardV2`. 
+- **Funcionalidade**: O campo já vem pré-preenchido com o texto padrão de embarque ("local de embarque; 30 minutios de antecedencia na sede do 9º BPM") caso esteja vazio. Os dados inseridos ou editados neste campo são vinculados ao estado da guarnição e preparados para serem persistidos na tabela `escala_planejamento` durante o salvamento da escala.
+
+---
+
+## v1.28.43 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Ajustes no layout de impressão e visualização da tela `EscalaPublicacaoOficial`.
+- **UI/UX**: O cabeçalho de "TURNO" deixou de ser um agrupador genérico e passou a ser exibido isoladamente **acima de cada tabela** de guarnição, facilitando a identificação rápida e o recorte da escala, caso necessário.
+- **UI/UX**: Substituição da coluna "Matrícula" pela coluna "Telefone" nas tabelas de serviço, permitindo o acionamento direto e facilitado do efetivo escalado através da visualização impressa ou digital.
+
+---
+
+## v1.28.42 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Aprimoramento da tabela de guarnições no componente `EscalaPublicacaoOficial` para incluir novas informações vitais para a operação.
+- **Frontend**: Adicionada a coluna "Função", que identifica automaticamente o papel do militar na guarnição (Comandante, Motorista ou Patrulheiro) com base em seu índice de alocação.
+- **UI/UX**: Incluído o "Número de Ordem" de cada voluntário. Este dado é agora renderizado abaixo do Nome de Guerra com uma tipografia atenuada, evitando a criação de novas colunas e mantendo a legibilidade da escala para o formato A4.
+- **UI/UX**: Rebalanceamento automático das larguras percentuais do cabeçalho da tabela para comportar perfeitamente a nova coluna de Função.
+
+---
+
+## v1.28.41 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Refatoração estrutural da tela `EscalaPublicacaoOficial`. As guarnições deixaram de ser agrupadas em uma única tabela por turno e passaram a ser renderizadas em tabelas individuais e isoladas para cada equipe.
+- **Frontend**: O seletor de cores da tabela foi transferido do nível de "Turno" para o nível de "Guarnição", permitindo que cada equipe tenha uma cor de fundo estritamente independente.
+- **UI/UX**: Remoção da coluna lateral "Guarnição" (`rowSpan`) da tabela, substituindo-a por um cabeçalho exclusivo para cada tabela contendo o nome da equipe, duração e as ferramentas de cor.
+- **UI/UX**: Implementada propriedade de layout (`page-break-inside: avoid`) para garantir que as novas tabelas individuais não sejam cortadas em páginas diferentes durante a impressão.
+
+---
+
+## v1.28.40 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Refatorada a customização de cores no componente `EscalaPublicacaoOficial` para permitir cores independentes por turno (tabela).
+- **Frontend**: Implementados seletores de cores individuais nos cabeçalhos de cada bloco de turno.
+- **UI/UX**: Migrada a aplicação de cores para estilos inline, garantindo suporte a múltiplas cores na mesma página de visualização e impressão.
+
+---
+
 ## v1.28.39 — 2026-05-05
 **Autor:** pmal-daten
 **Email:** unknown

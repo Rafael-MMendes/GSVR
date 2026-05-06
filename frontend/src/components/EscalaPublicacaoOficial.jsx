@@ -1,5 +1,8 @@
-import React, { useMemo } from 'react';
-import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft } from 'lucide-react';
+import React, { useMemo, useState, useRef } from 'react';
+import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft, Download } from 'lucide-react';
+import { formatPhone } from '../utils/formatters';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 /**
  * EscalaPublicacaoOficial
@@ -12,7 +15,16 @@ import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft } from 'l
  * - onBack: Função para retornar ao editor
  */
 export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
-  
+  const ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
+  const [patrolColors, setPatrolColors] = useState({});
+  const printRef = useRef(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const getPatrolColor = (patrolId) => patrolColors[patrolId] || '#ffffff';
+  const handleColorChange = (patrolId, color) => {
+    setPatrolColors(prev => ({ ...prev, [patrolId]: color }));
+  };
+
   // Agrupa guarnições por turno para melhor organização visual
   const groupedPatrols = useMemo(() => {
     const groups = {};
@@ -30,8 +42,61 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
     return `${day}/${month}/${year}`;
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPDF = async () => {
+    if (!printRef.current) return;
+    try {
+      setIsExporting(true);
+
+      const element = printRef.current;
+
+      // Ocultar temporariamente elementos com classe 'no-print'
+      const noPrintElements = element.querySelectorAll('.no-print');
+      const originalDisplays = Array.from(noPrintElements).map(el => el.style.display);
+      noPrintElements.forEach(el => el.style.display = 'none');
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 900 // Force fixed width to match A4 rendering exactly
+      });
+
+      // Restaurar visibilidade
+      noPrintElements.forEach((el, index) => el.style.display = originalDisplays[index]);
+
+      const imgData = canvas.toDataURL('image/png');
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+
+      let heightLeft = pdfHeight - pdf.internal.pageSize.getHeight();
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
+      const formattedFileNameDate = formatDate(date).replace(/\//g, '-');
+      pdf.save(`Escala_do_dia_${formattedFileNameDate}.pdf`);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Houve um erro ao gerar o PDF.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -93,7 +158,12 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
             color: #334155;
           }
           .official-table tr:nth-child(even) {
-            background: #f8fafc;
+            background: transparent;
+          }
+          .official-table td {
+            background: transparent;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         `}
       </style>
@@ -125,29 +195,33 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           <ChevronLeft size={18} /> Voltar ao Editor
         </button>
 
-        <button
-          onClick={handlePrint}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            padding: '0.6rem 1.5rem',
-            borderRadius: '10px',
-            border: 'none',
-            background: '#0f172a',
-            color: 'white',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
-            transition: 'all 0.2s'
-          }}
-        >
-          <Printer size={18} /> Imprimir Escala Oficial
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.6rem 1.5rem',
+              borderRadius: '10px',
+              border: '1px solid #0f172a',
+              background: 'white',
+              color: '#0f172a',
+              fontWeight: 700,
+              cursor: isExporting ? 'wait' : 'pointer',
+              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)',
+              transition: 'all 0.2s',
+              opacity: isExporting ? 0.7 : 1
+            }}
+          >
+            <Download size={18} /> {isExporting ? 'Gerando...' : 'Exportar PDF'}
+          </button>
+        </div>
       </div>
 
       {/* Main Publication Container */}
-      <div className="print-container" style={{
+      <div ref={printRef} className="print-container" style={{
         maxWidth: '900px',
         margin: '0 auto',
         background: 'white',
@@ -159,7 +233,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
         display: 'flex',
         flexDirection: 'column'
       }}>
-        
+
         {/* Header Institucional */}
         <div style={{
           textAlign: 'center',
@@ -181,14 +255,14 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           }}>
             <Shield size={40} color="#0f172a" />
           </div>
-          
+
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
             Escala de Serviço Voluntário Remunerado (SVR)
           </h2>
           <h3 style={{ margin: '0.25rem 0 0 0', fontSize: '1.1rem', fontWeight: 700, color: '#475569' }}>
             {cycle?.opm_sigla || 'POLÍCIA MILITAR DE ALAGOAS'} - {cycle?.period_name || '9º BATALHÃO'}
           </h3>
-          
+
           <div style={{
             marginTop: '1.5rem',
             display: 'flex',
@@ -202,7 +276,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               <Calendar size={16} color="#0f172a" /> DATA: {formatDate(date)}
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={16} color="#0f172a" /> REF: {cycle?.periodo_ciclo || 'Ciclo Operacional'}
+              <FileText size={16} color="#0f172a" /> CICLO: {cycle?.periodo_ciclo || 'Ciclo Operacional'}
             </span>
           </div>
         </div>
@@ -210,59 +284,99 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
         {/* Body - Grouped by Shifts */}
         <div style={{ flex: 1 }}>
           {Object.entries(groupedPatrols).map(([shift, shiftPatrols], idx) => (
-            <div key={shift} className="shift-block" style={{ marginBottom: '2.5rem' }}>
-              <div style={{
-                background: '#f1f5f9',
-                padding: '6px 15px',
-                borderLeft: '5px solid #0f172a',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                marginBottom: '0.5rem'
-              }}>
-                <Clock size={18} color="#0f172a" />
-                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', textTransform: 'uppercase' }}>
-                  TURNO: {shift}
-                </span>
-              </div>
+            <div key={shift} className="shift-block" style={{ marginBottom: '1rem' }}>
+              {shiftPatrols.map(patrol => (
+                <div key={patrol.id} style={{ marginBottom: '2.5rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
 
-              <table className="official-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '25%' }}>Guarnição</th>
-                    <th style={{ width: '15%' }}>Posto/Grad</th>
-                    <th style={{ width: '35%' }}>Nome de Guerra</th>
-                    <th style={{ width: '25%' }}>Matrícula</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shiftPatrols.map(patrol => (
-                    <React.Fragment key={patrol.id}>
-                      {patrol.members.map((member, mIdx) => (
-                        <tr key={`${patrol.id}-${mIdx}`}>
-                          {mIdx === 0 && (
-                            <td rowSpan={patrol.members.length} style={{ 
-                              fontWeight: 800, 
-                              color: '#0f172a', 
-                              verticalAlign: 'middle',
-                              background: 'white',
-                              fontSize: '0.9rem'
-                            }}>
-                              {patrol.name}
-                              <div style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
-                                DURAÇÃO: {patrol.duration}
-                              </div>
-                            </td>
-                          )}
-                          <td style={{ fontWeight: 600 }}>{member?.rank || '—'}</td>
-                          <td style={{ fontWeight: 700, color: '#0f172a' }}>{member?.name || <span style={{ color: '#cbd5e1', fontWeight: 400 }}>VAGO</span>}</td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{member?.matricula || '—'}</td>
+                  {/* Cabeçalho do Turno acima da tabela */}
+                  <div style={{
+                    background: '#f1f5f9',
+                    padding: '6px 15px',
+                    borderLeft: '5px solid #0f172a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    marginBottom: '0.5rem'
+                  }}>
+                    <Clock size={18} color="#0f172a" />
+                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a', textTransform: 'uppercase', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span>TURNO: {shift}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.8rem', color: '#475569', textTransform: 'none', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                        {patrol.horario_embarque || 'local de embarque; 30 minutos de antecedência na sede do 9º BPM'}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{
+                      background: '#e2e8f0',
+                      padding: '8px 15px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottom: '1px solid #cbd5e1'
+                    }}>
+                      <div>
+                        <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>{patrol.name}</span>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '10px', fontWeight: 600 }}>DURAÇÃO: {patrol.duration}</span>
+                      </div>
+
+                      <div className="no-print" style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        background: 'white',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid #cbd5e1'
+                      }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#64748b' }}>COR:</span>
+                        <input
+                          type="color"
+                          value={getPatrolColor(patrol.id)}
+                          onChange={(e) => handleColorChange(patrol.id, e.target.value)}
+                          style={{
+                            border: 'none',
+                            width: '20px',
+                            height: '20px',
+                            cursor: 'pointer',
+                            background: 'transparent',
+                            padding: 0
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <table className="official-table" style={{ marginTop: 0 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '20%', textAlign: 'center' }}>Função</th>
+                          <th style={{ width: '15%', textAlign: 'center' }}>Posto/Grad</th>
+                          <th style={{ width: '45%', textAlign: 'center' }}>Efetivo</th>
+                          <th style={{ width: '20%', textAlign: 'center' }}>Telefone</th>
                         </tr>
-                      ))}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
+                      </thead>
+                      <tbody>
+                        {patrol.members.map((member, mIdx) => (
+                          <tr key={`${patrol.id}-${mIdx}`} style={{ backgroundColor: getPatrolColor(patrol.id) }}>
+                            <td style={{ fontWeight: 700, background: getPatrolColor(patrol.id), color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', textAlign: 'center' }}>{ROLES[mIdx] || 'Patrulheiro'}</td>
+                            <td style={{ fontWeight: 600, background: getPatrolColor(patrol.id), textAlign: 'center' }}>{member?.rank || '—'}</td>
+                            <td style={{ fontWeight: 700, color: '#0f172a', background: getPatrolColor(patrol.id), textAlign: 'center' }}>
+                              {member?.name || <span style={{ color: '#cbd5e1', fontWeight: 400 }}>VAGO</span>}
+                              {member?.numero_ordem && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, marginTop: '2px' }}>
+                                  Nº Ordem: {member.numero_ordem}
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ fontFamily: 'monospace', fontSize: '0.9rem', background: getPatrolColor(patrol.id), textAlign: 'center' }}>{member ? formatPhone(member.phone || member.telefone) || '—' : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
 
@@ -285,14 +399,14 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>COMANDANTE DA GUARNIÇÃO</div>
               <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Responsável Operacional</div>
             </div>
-            
+
             <div style={{ textAlign: 'center', width: '250px' }}>
               <div style={{ borderBottom: '1px solid #334155', marginBottom: '8px' }}></div>
               <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>COMANDANTE DO 9º BPM</div>
               <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Autoridade Homologadora</div>
             </div>
           </div>
-          
+
           <div style={{
             marginTop: '4rem',
             textAlign: 'center',

@@ -186,7 +186,7 @@ export function AdminDashboardV2() {
       if (p.service_count >= 8) return false;
 
       const isSearchActive = searchTerm.length > 1;
-      const matchesSearch = isSearchActive 
+      const matchesSearch = isSearchActive
         ? ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.numero_ordem && String(p.numero_ordem).includes(searchTerm)))
         : true;
 
@@ -522,11 +522,11 @@ export function AdminDashboardV2() {
   if (showPublicacao) {
     const currentCycle = months.find(c => String(c.id_ciclo) === String(selectedCycleId));
     return (
-      <EscalaPublicacaoOficial 
-        patrols={state.patrols} 
-        date={selectedDate} 
-        cycle={currentCycle} 
-        onBack={() => setShowPublicacao(false)} 
+      <EscalaPublicacaoOficial
+        patrols={state.patrols}
+        date={selectedDate}
+        cycle={currentCycle}
+        onBack={() => setShowPublicacao(false)}
       />
     );
   }
@@ -751,13 +751,13 @@ export function AdminDashboardV2() {
               </button>
 
               <button
-                onClick={generatePDF}
+                onClick={() => setShowPublicacao(true)}
                 style={{
                   width: '100%',
                   padding: '0.85rem',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  border: '1px solid #e2e8f0',
+                  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
                   transition: transitions,
@@ -765,13 +765,15 @@ export function AdminDashboardV2() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.75rem',
-                  marginTop: '0.5rem'
+                  marginTop: '0.5rem',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 6px rgba(15, 23, 42, 0.2)'
                 }}
-                onMouseOver={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
-                onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                <Printer size={18} />
-                <span>Imprimir Escala</span>
+                <FileText size={18} />
+                <span>Publicar Escala</span>
               </button>
             </div>
           </div>
@@ -789,20 +791,6 @@ export function AdminDashboardV2() {
             <p style={{ margin: 0, color: colors.textMuted, fontSize: '0.9rem' }}>
               Gerencie as guarnições para o dia selecionado
             </p>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button
-              onClick={() => setShowPublicacao(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.6rem',
-                padding: '0.65rem 1.25rem', borderRadius: '12px',
-                border: `1px solid ${colors.primary}`, background: colors.primary,
-                color: colors.white, fontWeight: 700, cursor: 'pointer',
-                transition: transitions, boxShadow: shadowMd
-              }}
-            >
-              <FileText size={18} /> Publicação Oficial
-            </button>
           </div>
         </div>
 
@@ -923,6 +911,29 @@ export function AdminDashboardV2() {
                         {patrol.timeSpan}
                       </div>
                     )}
+                  </div>
+
+                  {/* Input Local de Embarque */}
+                  <div style={{ marginTop: '0.8rem' }}>
+                    <input
+                      type="text"
+                      value={patrol.horario_embarque === undefined ? 'local de embarque; 30 minutos de antecedência na sede do 9º BPM' : patrol.horario_embarque}
+                      onChange={e => handlePatrolSettingChange(patrol.id, 'horario_embarque', e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        color: 'white',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        outline: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                      onFocus={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                      onBlur={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                      placeholder="Local de embarque"
+                    />
                   </div>
                 </div>
 
