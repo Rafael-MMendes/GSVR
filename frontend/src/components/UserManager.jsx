@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2, Key, Save } from 'lucide-react';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -15,7 +16,7 @@ export function UserManager() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
   const [newUserData, setNewUserData] = useState({ matricula: '', is_admin: false });
-  const [sortConfig, setSortConfig] = useState({ key: 'nome_guerra', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'posto_graduacao', direction: 'asc' });
 
   useEffect(() => {
     fetchUsuarios();
@@ -150,11 +151,16 @@ export function UserManager() {
     u.numero_ordem?.includes(searchTerm)
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
-    // Tratamento especial para números
     if (sortConfig.key === 'numero_ordem') {
         aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
         bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;

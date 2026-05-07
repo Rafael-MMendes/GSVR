@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Edit2, Trash2, Search, User, CreditCard, Shield, MapPin, Phone, CheckCircle, XCircle, FileSpreadsheet, X, MoreVertical } from 'lucide-react';
-import { maskPhone, formatPhone } from '../utils/formatters';
+import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 import { EfetivoImport } from './EfetivoImport';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -13,7 +13,7 @@ export function EfetivoManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingMilitar, setEditingMilitar] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'nome_completo', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'posto_graduacao', direction: 'asc' });
   const [formData, setFormData] = useState({
     nome_completo: '',
     nome_guerra: '',
@@ -108,6 +108,12 @@ export function EfetivoManager() {
     m.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
+
+    // Ordenação especial por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
 
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];

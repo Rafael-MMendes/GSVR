@@ -393,20 +393,6 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           borderTop: '1px solid #e2e8f0',
           paddingTop: '2rem'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '2rem' }}>
-            <div style={{ textAlign: 'center', width: '250px' }}>
-              <div style={{ borderBottom: '1px solid #334155', marginBottom: '8px' }}></div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>COMANDANTE DA GUARNIÇÃO</div>
-              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Responsável Operacional</div>
-            </div>
-
-            <div style={{ textAlign: 'center', width: '250px' }}>
-              <div style={{ borderBottom: '1px solid #334155', marginBottom: '8px' }}></div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>COMANDANTE DO 9º BPM</div>
-              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Autoridade Homologadora</div>
-            </div>
-          </div>
-
           <div style={{
             marginTop: '4rem',
             textAlign: 'center',

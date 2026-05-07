@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet, Search } from 'lucide-react';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 const MAX_SERVICES = 8;
@@ -209,7 +210,14 @@ export function AnalyticsDashboard() {
       // Exibir apenas quem efetivamente possui serviços executados (total > 0)
       .filter(item => item && item.name && item.total > 0);
 
-    result.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+    result.sort((a, b) =>
+      // Primário: quem tem mais serviços
+      b.total - a.total ||
+      // Secundário: maior hierarquia primeiro
+      compareByRank(a.rank, b.rank) ||
+      // Terciário: alfabético
+      a.name.localeCompare(b.name)
+    );
     setStats(result);
   };
 

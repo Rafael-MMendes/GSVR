@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2, Info } from 'lucide-react';
-import { maskPhone, formatPhone } from '../utils/formatters';
+import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
-const ranks = [
-  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM",
-  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
-];
+const ranks = MILITARY_RANK_ORDER;
 
 const SHIFTS = [
   "07:00 ÀS 13:00",
@@ -23,14 +20,17 @@ const getCycleDays = (dataInicio, dataFim) => {
     return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
   }
   const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
-  const end   = new Date(String(dataFim).split('T')[0]   + 'T12:00:00');
-  const days  = [];
-  const cur   = new Date(start);
+  start.setDate(16);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  end.setDate(15);
+  const days = [];
+  const cur = new Date(start);
   while (cur <= end) {
     days.push({
-      day:        cur.getDate(),
-      month:      cur.getMonth() + 1,
-      year:       cur.getFullYear(),
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
       monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
     });
     cur.setDate(cur.getDate() + 1);
@@ -40,6 +40,7 @@ const getCycleDays = (dataInicio, dataFim) => {
 
 export function RequerimentosAdmin({ user }) {
   const [volunteers, setVolunteers] = useState([]);
+  const [efetivo, setEfetivo] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [activeCycle, setActiveCycle] = useState(null);
@@ -59,6 +60,38 @@ export function RequerimentosAdmin({ user }) {
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
 
+  // New Search States
+  const [militarSearch, setMilitarSearch] = useState('');
+  const [showMilitarResults, setShowMilitarResults] = useState(false);
+
+  // Search logic
+  const filteredEfetivo = militarSearch.length >= 2
+    ? efetivo.filter(m => {
+      const search = militarSearch.toLowerCase();
+      return (
+        m.nome_completo?.toLowerCase().includes(search) ||
+        m.nome_guerra?.toLowerCase().includes(search) ||
+        m.matricula?.toLowerCase().includes(search) ||
+        m.numero_ordem?.toLowerCase().includes(search) ||
+        m.cpf?.toLowerCase().includes(search)
+      );
+    }).slice(0, 10)
+    : [];
+
+  const selectMilitar = (m) => {
+    setFormData({
+      ...formData,
+      numero_ordem: m.matricula || m.numero_ordem || '',
+      name: m.nome_completo,
+      rank: m.posto_graduacao,
+      nome_guerra: m.nome_guerra,
+      phone: m.telefone ? maskPhone(m.telefone) : '',
+      motorista: m.motorista || 'Não'
+    });
+    setMilitarSearch('');
+    setShowMilitarResults(false);
+  };
+
   // Cancel availability states
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelingItem, setCancelingItem] = useState(null);
@@ -71,6 +104,7 @@ export function RequerimentosAdmin({ user }) {
   const [formData, setFormData] = useState({
     numero_ordem: '',
     name: '',
+    nome_guerra: '',
     rank: 'Soldado PM',
     phone: '',
     motorista: 'Não',
@@ -80,7 +114,19 @@ export function RequerimentosAdmin({ user }) {
 
   useEffect(() => {
     fetchMonths();
+    fetchEfetivo();
   }, []);
+
+  const fetchEfetivo = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/efetivo`);
+      const ativos = res.data.filter(e => e.status_ativo);
+      ativos.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+      setEfetivo(ativos);
+    } catch (e) {
+      console.error('Erro ao buscar efetivo', e);
+    }
+  };
 
   useEffect(() => {
     if (selectedMonth) {
@@ -96,13 +142,13 @@ export function RequerimentosAdmin({ user }) {
         const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : '';
 
         return {
-          id_ciclo:          c.id_ciclo,
-          month_key:         c.periodo_ciclo,
-          month_name:        c.period_name || `${c.periodo_ciclo} (${c.status})`,
+          id_ciclo: c.id_ciclo,
+          month_key: c.id_ciclo.toString(),
+          month_name: c.period_name || `${c.periodo_ciclo} (${c.status})`,
           mes_referencia_iso: mesReferenciaISO,
-          status:            c.status,
-          data_inicio:       c.data_inicio || '',
-          data_fim:          c.data_fim    || ''
+          status: c.status,
+          data_inicio: c.data_inicio || '',
+          data_fim: c.data_fim || ''
         };
       });
       setMonths(ciclos);
@@ -127,7 +173,7 @@ export function RequerimentosAdmin({ user }) {
       return;
     }
     try {
-      const res = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
+      const res = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedMonth}`);
       setVolunteers(res.data);
     } catch (e) {
       console.error(e);
@@ -203,33 +249,33 @@ export function RequerimentosAdmin({ user }) {
       observacao: '',
       availability: {}
     });
+    setMilitarSearch('');
+    setShowMilitarResults(false);
     setShowModal(true);
   };
 
   // Efeito para buscar militar por Nº de Ordem
   useEffect(() => {
-    const lookupMilitar = async () => {
-      const matricula = formData.numero_ordem.trim();
-      if (matricula.length >= 4 && !editingVolunteer) {
-        try {
-          const res = await axios.get(`${API_URL}/efetivo/lookup/${matricula}`);
-          if (res.data) {
-            setFormData(prev => ({
-              ...prev,
-              name: res.data.nome_completo,
-              rank: res.data.posto_graduacao,
-              phone: res.data.telefone ? maskPhone(res.data.telefone) : prev.phone
-            }));
-          }
-        } catch (e) {
-          // Militar não encontrado ou erro, ignorar silenciosamente
-        }
-      }
-    };
+    const matricula = formData.numero_ordem.trim();
+    if (matricula.length >= 4 && !editingVolunteer && efetivo.length > 0) {
+      const cleanMatricula = matricula.replace(/\D/g, '');
+      const militar = efetivo.find(e =>
+        e.matricula === matricula ||
+        e.numero_ordem === matricula ||
+        (e.matricula && e.matricula.replace(/\D/g, '') === cleanMatricula)
+      );
 
-    const timeoutId = setTimeout(lookupMilitar, 500);
-    return () => clearTimeout(timeoutId);
-  }, [formData.numero_ordem, editingVolunteer]);
+      if (militar) {
+        setFormData(prev => ({
+          ...prev,
+          name: militar.nome_completo,
+          rank: militar.posto_graduacao,
+          phone: militar.telefone ? maskPhone(militar.telefone) : prev.phone,
+          motorista: militar.motorista || 'Não'
+        }));
+      }
+    }
+  }, [formData.numero_ordem, editingVolunteer, efetivo]);
 
   const openEditModal = (volunteer) => {
     setEditingVolunteer(volunteer);
@@ -275,7 +321,7 @@ export function RequerimentosAdmin({ user }) {
 
   const handleCancelAvailability = async () => {
     if (!cancelingItem) return;
-    
+
     // Verifica se há algo selecionado
     if (Object.keys(cancelingSelection).length === 0) {
       alert('Selecione ao menos um turno para cancelar.');
@@ -306,7 +352,7 @@ export function RequerimentosAdmin({ user }) {
       const dayStr = String(day);
       const dayShifts = prev.availability[dayStr] || [];
       const isSelected = dayShifts.some(s => (typeof s === 'object' ? s.turno === shift : s === shift));
-      
+
       let newShifts;
       if (isSelected) {
         newShifts = dayShifts.filter(s => (typeof s === 'object' ? s.turno !== shift : s !== shift));
@@ -329,13 +375,13 @@ export function RequerimentosAdmin({ user }) {
     const dayStr = String(day);
     const dayShifts = formData.availability[dayStr] || [];
     const shiftData = dayShifts.find(s => (typeof s === 'object' ? s.turno === shift : s === shift));
-    
+
     if (!shiftData) return; // Só comenta se estiver selecionado
 
-    setObsShiftData({ 
-      day, 
-      shift, 
-      value: typeof shiftData === 'object' ? (shiftData.observacoes || '') : '' 
+    setObsShiftData({
+      day,
+      shift,
+      value: typeof shiftData === 'object' ? (shiftData.observacoes || '') : ''
     });
     setShowShiftObsModal(true);
   };
@@ -346,12 +392,12 @@ export function RequerimentosAdmin({ user }) {
       const dayStr = String(day);
       const dayShifts = [...(prev.availability[dayStr] || [])];
       const idx = dayShifts.findIndex(s => (typeof s === 'object' ? s.turno === shift : s === shift));
-      
+
       if (idx !== -1) {
         const current = dayShifts[idx];
-        dayShifts[idx] = { 
-          turno: typeof current === 'object' ? current.turno : current, 
-          observacoes: value 
+        dayShifts[idx] = {
+          turno: typeof current === 'object' ? current.turno : current,
+          observacoes: value
         };
       }
 
@@ -367,8 +413,8 @@ export function RequerimentosAdmin({ user }) {
   };
 
   const handleSave = async () => {
-    const duplicateFound = volunteers.find(v => 
-      v.numero_ordem?.trim() === formData.numero_ordem?.trim() && 
+    const duplicateFound = volunteers.find(v =>
+      v.numero_ordem?.trim() === formData.numero_ordem?.trim() &&
       v.id !== editingVolunteer?.id
     );
 
@@ -393,7 +439,7 @@ export function RequerimentosAdmin({ user }) {
       fetchVolunteers();
     } catch (error) {
       console.error(error);
-      alert('Erro ao salvar requerimento.');
+      alert('Erro: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -408,6 +454,12 @@ export function RequerimentosAdmin({ user }) {
     );
   }).sort((a, b) => {
     if (!sortConfig.key) return 0;
+
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'rank') {
+      const result = compareByRank(a.rank, b.rank);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
 
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
@@ -455,14 +507,14 @@ export function RequerimentosAdmin({ user }) {
       }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gestão de Requerimentos</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={openFolderModal} 
-            disabled={!activeCycle} 
-            style={{ 
-              width: 'auto', 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-              color: 'white', 
+          <button
+            className="btn btn-primary"
+            onClick={openFolderModal}
+            disabled={!activeCycle}
+            style={{
+              width: 'auto',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
               border: 'none',
               boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
             }}
@@ -565,10 +617,10 @@ export function RequerimentosAdmin({ user }) {
                   </td>
                   <td style={{ padding: '0.75rem' }}>
                     {v.observacao && (
-                      <div title={v.observacao} style={{ 
-                        maxWidth: '120px', 
-                        overflow: 'hidden', 
-                        textOverflow: 'ellipsis', 
+                      <div title={v.observacao} style={{
+                        maxWidth: '120px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontSize: '0.75rem',
                         color: 'var(--text-muted)',
@@ -642,68 +694,106 @@ export function RequerimentosAdmin({ user }) {
               </button>
             </div>
 
-            <div className="form-grid-stack" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1.5rem'
-            }}>
-              <div className="form-group">
-                <label>Nº de Ordem</label>
-                <input
-                  type="text"
-                  className={`form-control ${volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? 'is-invalid' : ''}`}
-                  value={formData.numero_ordem}
-                  onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })}
-                  style={volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
-                />
-                {volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) && (
-                  <small style={{ color: '#ef4444', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
-                    ⚠️ Militar já cadastrado neste ciclo.
-                  </small>
+            {/* Novo Campo de Busca de Militar */}
+            {!formData.numero_ordem ? (
+              <div className="form-group" style={{ marginBottom: '1.5rem', position: 'relative' }}>
+                <label>Buscar Militar (Nome, Matrícula, Nº Ordem ou CPF)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Digite para buscar..."
+                    value={militarSearch}
+                    onChange={(e) => {
+                      setMilitarSearch(e.target.value);
+                      setShowMilitarResults(true);
+                    }}
+                    onFocus={() => setShowMilitarResults(true)}
+                  />
+                  <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                </div>
+
+                {showMilitarResults && filteredEfetivo.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    background: 'white', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                    zIndex: 10, marginTop: '5px', maxHeight: '250px', overflowY: 'auto'
+                  }}>
+                    {filteredEfetivo.map(m => (
+                      <div
+                        key={m.id_militar}
+                        onClick={() => selectMilitar(m)}
+                        style={{
+                          padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)',
+                          cursor: 'pointer', transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#f8fafc'}
+                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                      >
+                        <div style={{ fontWeight: '600', color: 'var(--primary)', fontSize: '0.9rem' }}>
+                          {m.posto_graduacao} {m.nome_completo}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Matrícula: {m.matricula} | Nº Ordem: {m.numero_ordem}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="form-group">
-                <label>Posto/Graduação</label>
-                <select
-                  className="form-control"
-                  value={formData.rank}
-                  onChange={e => setFormData({ ...formData, rank: e.target.value })}
+            ) : (
+              /* Label de Militar Selecionado */
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.05)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '12px',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                animation: 'fadeIn 0.3s ease-out'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '10px',
+                    background: 'var(--primary)', color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>
+                      {formData.rank} - {formData.numero_ordem} {formData.name}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Telefone: {formData.phone || 'N/I'} | Motorista: <strong style={{ color: formData.motorista === 'Sim' ? '#10b981' : 'inherit' }}>{formData.motorista}</strong>
+                    </div>
+                    {volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) && (
+                      <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Ban size={12} />
+                        Militar já cadastrado neste ciclo.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFormData({ ...formData, numero_ordem: '', name: '', phone: '', motorista: 'Não' })}
+                  style={{
+                    background: 'none', border: 'none', color: '#ef4444',
+                    cursor: 'pointer', padding: '0.5rem', borderRadius: '6px',
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    fontSize: '0.85rem', fontWeight: '600'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseLeave={(e) => e.target.style.background = 'transparent'}
                 >
-                  {ranks.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                  <Ban size={16} />
+                  Limpar
+                </button>
               </div>
-              <div className="form-group">
-                <label>Nome Completo</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Telefone</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="(00) 00000-0000"
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Motorista?</label>
-                <select
-                  className="form-control"
-                  value={formData.motorista}
-                  onChange={e => setFormData({ ...formData, motorista: e.target.value })}
-                >
-                  <option value="Não">Não</option>
-                  <option value="Sim">Sim</option>
-                </select>
-              </div>
-            </div>
+            )}
 
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label>Observações do Requerimento</label>
@@ -805,9 +895,9 @@ export function RequerimentosAdmin({ user }) {
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSave} 
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
                 disabled={loading || volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id)}
               >
                 {loading ? 'Salvando...' : 'Salvar'}
@@ -1033,7 +1123,7 @@ export function RequerimentosAdmin({ user }) {
                           ✓ Militar(es) Vinculado(s):
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {importResult.results.filter(r => r.success).map(r => (
+                          {importResult.results.filter(r => r.success).map(r => (
                             <span key={r.numero_ordem} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', flexDirection: 'column' }}>
                               <span>#{r.numero_ordem} {r.name ? `— ${r.name}` : ''}</span>
                               {r.ciclos_afetados?.length > 1 ? (
@@ -1270,9 +1360,9 @@ export function RequerimentosAdmin({ user }) {
                 value={cancelObservation}
                 onChange={e => setCancelObservation(e.target.value)}
                 placeholder="Ex: Solicitado pelo militar via telefone..."
-                style={{ 
-                  width: '100%', 
-                  minHeight: '80px', 
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
                   resize: 'vertical',
                   padding: '0.75rem',
                   fontSize: '0.9rem',
@@ -1341,7 +1431,7 @@ export function RequerimentosAdmin({ user }) {
                 <X size={24} />
               </button>
             </div>
-            
+
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
               Dia {String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
             </p>

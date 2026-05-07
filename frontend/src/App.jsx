@@ -153,7 +153,7 @@ function App() {
       <nav className="navbar">
         <div className="navbar-brand">
           <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" />
-          <span>9º BPM - GSVR</span>
+          <span>GSVR - Gestão de Serviço Voluntário Remunerado - {user.opm_sigla || '9º BPM'}</span>
         </div>
 
         <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>

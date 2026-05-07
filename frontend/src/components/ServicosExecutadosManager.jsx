@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar } from 'lucide-react';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -76,7 +77,9 @@ export function ServicosExecutadosManager() {
         axios.get(`${API_URL}/tipos-servico`)
       ]);
       setCiclos(resCiclos.data);
-      setEfetivo(resEfetivo.data.filter(e => e.status_ativo));
+      const ativosEfetivo = resEfetivo.data.filter(e => e.status_ativo);
+      ativosEfetivo.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+      setEfetivo(ativosEfetivo);
       setTiposServico(resTipos.data.filter(t => t.ativo !== false));
       // Priorizar ciclo aberto (status 'Aberto') para seleção inicial
       const active = resCiclos.data.find(c => c.status === 'Aberto');
@@ -211,6 +214,12 @@ export function ServicosExecutadosManager() {
     s.matricula?.includes(searchTerm)
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
+
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
 
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];

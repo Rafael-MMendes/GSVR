@@ -4,6 +4,7 @@ import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, Mou
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -117,9 +118,11 @@ export function AdminDashboardV2() {
 
     const pool = processedVolunteers.filter(p => !assignedIds.has(String(p.id)) && !(p.id_militar && assignedIds.has(`m${p.id_militar}`)))
       .sort((a, b) => {
+        // Primário: disponíveis hoje primeiro
         if (a.isAvailableToday && !b.isAvailableToday) return -1;
         if (!a.isAvailableToday && b.isAvailableToday) return 1;
-        return 0;
+        // Secundário: ordenar por hierarquia (maior posto primeiro)
+        return compareByRank(a.rank, b.rank);
       });
 
     setState({ pool, patrols });
@@ -649,8 +652,14 @@ export function AdminDashboardV2() {
                 {(() => {
                   const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                   if (!currentCycle) return null;
-                  const startBy = new Date(currentCycle.data_inicio);
-                  const endBy = new Date(currentCycle.data_fim);
+                  const startBy = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
+                  // Ajusta para iniciar no dia 16
+                  startBy.setDate(16);
+
+                  const endBy = new Date(startBy);
+                  endBy.setMonth(endBy.getMonth() + 1);
+                  endBy.setDate(15);
+
                   const daysBy = [];
                   let currBy = new Date(startBy);
                   while (currBy <= endBy) {
@@ -1243,8 +1252,14 @@ export function AdminDashboardV2() {
                       const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                       if (!currentCycle) return null;
 
-                      const startDate = new Date(currentCycle.data_inicio);
-                      const endDate = new Date(currentCycle.data_fim);
+                      const startDate = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
+                      // Ajusta para iniciar no dia 16
+                      startDate.setDate(16);
+
+                      const endDate = new Date(startDate);
+                      endDate.setMonth(endDate.getMonth() + 1);
+                      endDate.setDate(15);
+
                       const days = [];
                       let curr = new Date(startDate);
                       while (curr <= endDate) {

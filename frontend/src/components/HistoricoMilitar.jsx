@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Calendar, Search, Shield, Filter, Clock, ChevronDown, User, CheckCircle, AlertTriangle, XCircle, Info, BarChart3, ExternalLink, CalendarCheck } from 'lucide-react';
 import { RelatorioIndividual } from './RelatorioIndividual';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -92,7 +93,12 @@ export function HistoricoMilitar() {
       return (m.nome_guerra || '').toLowerCase().includes(search) ||
         (m.matricula || '').includes(search) ||
         (m.posto_graduacao || '').toLowerCase().includes(search);
-    }).sort((a, b) => b.executados - a.executados); // Ordena por quem mais trabalhou
+    }).sort((a, b) =>
+      // Primário: quem mais trabalhou
+      b.executados - a.executados ||
+      // Secundário: maior hierarquia primeiro
+      compareByRank(a.posto_graduacao, b.posto_graduacao)
+    );
   }, [data, filter]);
 
   const ColumnHeader = ({ label, icon, color }) => (

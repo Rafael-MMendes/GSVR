@@ -1,3 +1,15 @@
+## v1.28.51 — 2026-05-07
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Hierárquica**: Centralização da lógica de hierarquia militar no utilitário `formatters.js`, definindo uma ordem canônica (`MILITARY_RANK_ORDER`) do Coronel ao Soldado.
+- **Ordenação Global**: Implementação de ordenação baseada em postos e graduações em todo o sistema. Militares agora são listados e agrupados respeitando a senioridade por padrão nos módulos de Efetivo, Requerimentos, Gestão de Escalas e Relatórios.
+- **UI/UX**: O gerenciador de efetivo (`EfetivoManager.jsx`) e a gestão de usuários (`UserManager.jsx`) agora iniciam ordenados por hierarquia (índice 0 = CEL PM), facilitando a localização de oficiais e praças.
+- **UI/UX**: A barra de navegação principal (`App.jsx`) tornou-se dinâmica, exibindo a sigla da OPM (`opm.sigla`) vinda do banco de dados no título do sistema, em substituição ao texto estático.
+
+---
+
 ## v1.28.50 — 2026-05-06
 **Autor:** pmal-daten
 **Email:** unknown

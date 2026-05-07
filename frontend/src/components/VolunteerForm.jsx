@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Save, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
-import { maskPhone } from '../utils/formatters';
+import { maskPhone, MILITARY_RANK_ORDER } from '../utils/formatters';
 
 const formatDateDisplay = (dateValue) => {
   if (!dateValue) return '---';
@@ -14,10 +14,7 @@ const formatDateDisplay = (dateValue) => {
   }
 };
 
-const ranks = [
-  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
-  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
-];
+const ranks = MILITARY_RANK_ORDER;
 
 const SHIFTS = [
   "07:00 ÀS 13:00",

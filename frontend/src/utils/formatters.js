@@ -41,3 +41,48 @@ export const formatPhone = (phone) => {
   }
   return phone;
 };
+
+/**
+ * Lista de postos/graduações em ordem decrescente de hierarquia militar.
+ * Índice 0 = maior hierarquia.
+ */
+export const MILITARY_RANK_ORDER = [
+  "CEL PM",
+  "TC PM",
+  "MAJ PM",
+  "CAP PM",
+  "1º TEN PM",
+  "2º TEN PM",
+  "ASP PM",
+  "CAD 1º PM",
+  "CAD 2º PM",
+  "CAD 3º PM",
+  "SUB PM",
+  "1º SGT PM",
+  "2º SGT PM",
+  "3º SGT PM",
+  "CB PM",
+  "SD PM",
+];
+
+/**
+ * Retorna o índice hierárquico de um posto/graduação.
+ * Menor índice = maior hierarquia. Postos desconhecidos ficam no final.
+ * @param {string} rank
+ * @returns {number}
+ */
+export const getRankIndex = (rank) => {
+  const idx = MILITARY_RANK_ORDER.findIndex(
+    (r) => r.toUpperCase() === String(rank || "").trim().toUpperCase()
+  );
+  return idx === -1 ? MILITARY_RANK_ORDER.length : idx;
+};
+
+/**
+ * Comparador para uso em Array.sort() baseado em hierarquia militar.
+ * Ordena do maior para o menor posto.
+ * @param {string} rankA
+ * @param {string} rankB
+ * @returns {number}
+ */
+export const compareByRank = (rankA, rankB) => getRankIndex(rankA) - getRankIndex(rankB);
