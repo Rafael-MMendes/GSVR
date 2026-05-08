@@ -10,6 +10,7 @@ import { RequerimentosAdmin } from './components/RequerimentosAdmin';
 import { FinanceiroDashboard } from './components/FinanceiroDashboard';
 import { OpmManager } from './components/OpmManager';
 import { CicloManager } from './components/CicloManager';
+import { MetasAlocacaoManager } from './components/MetasAlocacaoManager';
 import { EfetivoImport } from './components/EfetivoImport';
 import { ServicosImport } from './components/ServicosImport';
 import { EfetivoManager } from './components/EfetivoManager';
@@ -18,11 +19,12 @@ import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
 import { TiposServicoManager } from './components/TiposServicoManager';
+import { Footer } from './components/Footer';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet
+  FileSpreadsheet, Target
 } from 'lucide-react';
 
 // ============================================================
@@ -202,7 +204,7 @@ function App() {
               {hasPermission('financeiro:read') && (
                 <div className="nav-group">
                   <span
-                    className={`nav-category ${(['analytics', 'financeiro'].includes(currentView)) ? 'active' : ''}`}
+                    className={`nav-category ${(['analytics', 'financeiro', 'metas'].includes(currentView)) ? 'active' : ''}`}
                     onClick={() => toggleDropdown('dashboards')}
                   >
                     <BarChart2 size={18} /> Dashboards {chevron('dashboards')}
@@ -214,6 +216,11 @@ function App() {
                     <a href="#" className={`dropdown-item ${currentView === 'financeiro' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('financeiro'); }}>
                       <DollarSign size={16} /> Dashboard Financeiro
                     </a>
+                    {hasPermission('ciclos:read') && (
+                      <a href="#" className={`dropdown-item ${currentView === 'metas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('metas'); }}>
+                        <Target size={16} /> Metas de Alocação
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
@@ -233,11 +240,11 @@ function App() {
                         <Building2 size={16} /> Configuração OPM
                       </a>
                     )}
-                    {hasPermission('ciclos:read') && (
-                      <a href="#" className={`dropdown-item ${currentView === 'ciclo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('ciclo'); }}>
-                        <Calendar size={16} /> Gerenciamento de Ciclos
-                      </a>
-                    )}
+                    <a href="#" className={`dropdown-item ${currentView === 'ciclo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('ciclo'); }}>
+                      <Calendar size={16} /> Gerenciamento de Ciclos
+                    </a>
+
+
                     {isAdmin && (
                       <a href="#" className={`dropdown-item ${currentView === 'tipos-servico' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tipos-servico'); }}>
                         <DollarSign size={16} /> Tipos de Serviço (Verba)
@@ -312,6 +319,7 @@ function App() {
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
         {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
+        {currentView === 'metas' && hasPermission('ciclos:read') && <MetasAlocacaoManager />}
         {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
         {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
         {currentView === 'import-servicos' && isAdmin && <ServicosImport onBack={() => navigateTo('servicos')} />}
@@ -319,6 +327,7 @@ function App() {
         {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
         {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}
       </main>
+      <Footer />
     </>
   );
 }

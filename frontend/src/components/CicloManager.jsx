@@ -62,7 +62,8 @@ export function CicloManager() {
     data_inicio: '',
     data_fim: '',
     status: 'Aberto',
-    valor_total_previsto: ''
+    valor_total_previsto: '',
+    limite_equipes_diario: 6
   });
 
   useEffect(() => {
@@ -108,6 +109,23 @@ export function CicloManager() {
     }
   };
 
+  const handleDateChange = (field, value) => {
+    const newFormData = { ...formData, [field]: value };
+    
+    // Se mudar a data de início, tenta sugerir a data de fim (dia 15 do próximo mês)
+    if (field === 'data_inicio' && value) {
+      const start = new Date(value + 'T12:00:00');
+      if (start.getDate() === 16) {
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(15);
+        newFormData.data_fim = end.toISOString().split('T')[0];
+      }
+    }
+    
+    setFormData(newFormData);
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Deseja realmente excluir este ciclo? Todos os dados vinculados podem ser afetados.')) return;
     try {
@@ -131,13 +149,34 @@ export function CicloManager() {
     }
   };
 
+  const calculateCycleDates = () => {
+    const today = new Date();
+    let startYear = today.getFullYear();
+    let startMonth = today.getMonth(); // 0-11
+    
+    // Se hoje for depois do dia 15, o próximo ciclo começa no dia 16 do mês atual.
+    // Caso contrário, talvez eles queiram o ciclo que já está correndo (16 do mês anterior).
+    // Para um "Novo Ciclo", geralmente queremos o próximo disponível.
+    
+    // Vamos sugerir o ciclo que começa no dia 16 deste mês.
+    const startDate = new Date(startYear, startMonth, 16);
+    const endDate = new Date(startYear, startMonth + 1, 15);
+    
+    return {
+      inicio: startDate.toISOString().split('T')[0],
+      fim: endDate.toISOString().split('T')[0]
+    };
+  };
+
   const resetForm = () => {
+    const suggested = calculateCycleDates();
     setFormData({
       id_opm: opms.length > 0 ? opms[0].id_opm : '',
-      data_inicio: '',
-      data_fim: '',
+      data_inicio: suggested.inicio,
+      data_fim: suggested.fim,
       status: 'Aberto',
-      valor_total_previsto: ''
+      valor_total_previsto: '',
+      limite_equipes_diario: 6
     });
   };
 
@@ -154,7 +193,8 @@ export function CicloManager() {
       data_inicio: formatParaInput(ciclo.data_inicio),
       data_fim: formatParaInput(ciclo.data_fim),
       status: ciclo.status,
-      valor_total_previsto: ciclo.valor_total_previsto || ''
+      valor_total_previsto: ciclo.valor_total_previsto || '',
+      limite_equipes_diario: ciclo.limite_equipes_diario || 6
     });
     setIsModalOpen(true);
   };
@@ -319,6 +359,20 @@ export function CicloManager() {
                 <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução. Preencha zero para não estabelecer teto.</small>
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Limite de Equipes por Dia</label>
+                <input 
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="form-control" 
+                  value={formData.limite_equipes_diario} 
+                  onChange={e => setFormData({ ...formData, limite_equipes_diario: e.target.value })} 
+                  required
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Quantidade máxima de guarnições físicas que podem ser escaladas simultaneamente.</small>
+              </div>
+
               <div style={{ 
                   background: '#f8fafc', 
                   padding: '1.5rem', 
@@ -336,7 +390,7 @@ export function CicloManager() {
                         type="date"
                         className="form-control" 
                         value={formData.data_inicio} 
-                        onChange={e => setFormData({ ...formData, data_inicio: e.target.value })} 
+                        onChange={e => handleDateChange('data_inicio', e.target.value)} 
                         required 
                     />
                     </div>
@@ -346,7 +400,7 @@ export function CicloManager() {
                         type="date"
                         className="form-control" 
                         value={formData.data_fim} 
-                        onChange={e => setFormData({ ...formData, data_fim: e.target.value })} 
+                        onChange={e => handleDateChange('data_fim', e.target.value)} 
                         required 
                     />
                     </div>

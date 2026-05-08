@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
@@ -51,6 +51,7 @@ export function AdminDashboardV2() {
   const [detailedMilitar, setDetailedMilitar] = useState(null);
   const [militarSchedules, setMilitarSchedules] = useState([]);
   const [showPublicacao, setShowPublicacao] = useState(false);
+  const [metas, setMetas] = useState([]);
 
   const [state, setState] = useState({
     pool: [],
@@ -133,9 +134,13 @@ export function AdminDashboardV2() {
     const loadVolunteers = async () => {
       try {
         setLoadingVolunteers(true);
-        const volRes = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCycleId}`);
+        const [volRes, metasRes] = await Promise.all([
+          axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCycleId}`),
+          axios.get(`${API_URL}/ciclos/${selectedCycleId}/metas`)
+        ]);
         volunteersRef.current = volRes.data;
         setVolunteers(volRes.data);
+        setMetas(metasRes.data);
       } catch (e) {
         console.error(e);
       } finally {
@@ -623,6 +628,39 @@ export function AdminDashboardV2() {
                 Disponíveis: {filteredPool.length}
               </div>
             </div>
+
+            {/* CARD DE METAS DO DIA */}
+            {(() => {
+              const metaDoDia = metas.find(m => String(m.data).split('T')[0] === selectedDate);
+              const totalPlanejado = metaDoDia?.qtd_equipes_planejadas || 0;
+              const atual = state.patrols.length;
+              const isOver = atual > totalPlanejado && totalPlanejado > 0;
+              const isMet = atual === totalPlanejado && totalPlanejado > 0;
+
+              return (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  background: isOver ? '#fef2f2' : (isMet ? '#f0fdf4' : '#fff7ed'),
+                  color: isOver ? '#dc2626' : (isMet ? '#15803d' : '#c2410c'),
+                  border: `1px solid ${isOver ? '#fecaca' : (isMet ? '#bbf7d0' : '#fed7aa')}`,
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  transition: 'all 0.3s ease'
+                }}>
+                  <Target size={16} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Meta do Dia</div>
+                    {atual} / {totalPlanejado} Equipes
+                  </div>
+                  {isMet && <Check size={14} />}
+                  {isOver && <AlertTriangle size={14} />}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

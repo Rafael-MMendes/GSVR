@@ -3,6 +3,7 @@ import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft, Download
 import { formatPhone } from '../utils/formatters';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { Footer } from './Footer';
 
 /**
  * EscalaPublicacaoOficial
@@ -388,22 +389,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
         </div>
 
         {/* Footer Institucional / Assinaturas */}
-        <div style={{
-          marginTop: '3rem',
-          borderTop: '1px solid #e2e8f0',
-          paddingTop: '2rem'
-        }}>
-          <div style={{
-            marginTop: '4rem',
-            textAlign: 'center',
-            fontSize: '0.65rem',
-            color: '#94a3b8',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em'
-          }}>
-            Documento gerado eletronicamente pelo Sistema GSVR em {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}
-          </div>
-        </div>
+        <Footer isPdf={true} />
       </div>
     </div>
   );

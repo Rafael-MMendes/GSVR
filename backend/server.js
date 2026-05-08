@@ -51,6 +51,7 @@ let pdfParser;
 try { pdfParser = require('pdf-parse'); } catch (e) { console.warn('pdf-parse nao disponivel'); }
 
 const { setupDB } = require('./db');
+const { recalculateMetas } = require('./services/ScaleOptimizationService');
 // Multer configurado para memória (Excel) e disco (avatares)
 const uploadMemory = multer({ storage: multer.memoryStorage() });
 const upload = uploadMemory; // alias legado
@@ -1292,7 +1293,7 @@ app.get('/api/ciclos/:id', async (req, res) => {
 
 app.post('/api/ciclos', async (req, res) => {
   try {
-    const { id_opm, data_inicio, data_fim, status, valor_total_previsto } = req.body;
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, limite_equipes_diario } = req.body;
     if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
@@ -1305,16 +1306,20 @@ app.post('/api/ciclos', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
-      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto, ativo) VALUES ($1, $2, $3, $4, $5, $6)',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto']
+      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto, ativo, limite_equipes_diario) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6]
     );
+
+    // Automação: Upsert nas metas
+    await recalculateMetas(r.lastID);
+
     res.status(201).json({ success: true, id_ciclo: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/ciclos/:id', async (req, res) => {
   try {
-    const { id_opm, data_inicio, data_fim, status, valor_total_previsto } = req.body;
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, limite_equipes_diario } = req.body;
     if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
@@ -1327,9 +1332,13 @@ app.put('/api/ciclos/:id', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     await db.run(
-      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5, ativo=$6 WHERE id_ciclo=$7',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', req.params.id]
+      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5, ativo=$6, limite_equipes_diario=$7 WHERE id_ciclo=$8',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6, req.params.id]
     );
+
+    // Automação: Upsert nas metas
+    await recalculateMetas(req.params.id);
+
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1343,6 +1352,102 @@ app.delete('/api/ciclos/:id', async (req, res) => {
     await db.run('DELETE FROM CICLOS WHERE id_ciclo = $1', [req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// METAS_ALOCACAO
+// ============================================================
+app.get('/api/ciclos/:id/metas', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM METAS_ALOCACAO WHERE id_ciclo = $1 ORDER BY data ASC', [req.params.id]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/metas/:id', async (req, res) => {
+  try {
+    const { qtd_equipes_planejadas, custo_estimado } = req.body;
+    await db.run(
+      'UPDATE METAS_ALOCACAO SET qtd_equipes_planejadas=$1, custo_estimado=$2 WHERE id_meta=$3',
+      [qtd_equipes_planejadas, custo_estimado, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/metas/:id', async (req, res) => {
+  try {
+    await db.run('DELETE FROM METAS_ALOCACAO WHERE id_meta = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// EMERGENCY MIGRATION ENDPOINT
+app.get('/api/admin/migrate-fix', async (req, res) => {
+  try {
+    console.log('[MIGRATE] Running emergency fix...');
+    
+    // 1. Garante a coluna limite_equipes_diario
+    await db.run('ALTER TABLE CICLOS ADD COLUMN IF NOT EXISTS limite_equipes_diario INTEGER DEFAULT 6');
+    
+    // 2. REPARA CICLOS EXISTENTES (Shift 15->16 se necessário)
+    // Muitos ciclos foram criados com erro de fuso horário (15 ao invés de 16)
+    await db.run(`
+      UPDATE CICLOS 
+      SET data_inicio = data_inicio + INTERVAL '1 day'
+      WHERE EXTRACT(DAY FROM data_inicio) = 15;
+    `);
+    await db.run(`
+      UPDATE CICLOS 
+      SET data_fim = data_fim + INTERVAL '1 day'
+      WHERE EXTRACT(DAY FROM data_fim) = 14;
+    `);
+    
+    // 3. REPARA METAS ALOCACAO (Shift 15->16 se necessário)
+    await db.run(`
+      UPDATE METAS_ALOCACAO
+      SET data = data + INTERVAL '1 day'
+      WHERE EXTRACT(DAY FROM data) = 15 AND id_meta IN (
+        SELECT id_meta FROM METAS_ALOCACAO m 
+        JOIN CICLOS c ON m.id_ciclo = c.id_ciclo 
+        WHERE EXTRACT(DAY FROM c.data_inicio) = 16
+      );
+    `);
+
+    // 4. Recria a VIEW com as colunas corretas
+    await db.run('DROP VIEW IF EXISTS vw_detalhes_ciclos CASCADE');
+    await db.run(`
+      CREATE VIEW vw_detalhes_ciclos AS
+      SELECT 
+          c.id_ciclo,
+          c.id_opm,
+          o.sigla as opm_sigla,
+          o.descricao as opm_descricao,
+          TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+          (CASE 
+            WHEN EXTRACT(MONTH FROM c.data_inicio) = EXTRACT(MONTH FROM c.data_fim) THEN 
+              TO_CHAR(c.data_inicio, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+            ELSE 
+              TO_CHAR(c.data_inicio, 'FMMonth') || ' / ' || TO_CHAR(c.data_fim, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+          END) as period_name,
+          c.data_inicio,
+          c.data_fim,
+          c.status,
+          c.ativo,
+          c.valor_total_previsto,
+          c.limite_equipes_diario,
+          COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as custo_executado,
+          c.valor_total_previsto - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
+          (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
+          (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
+      FROM CICLOS c
+      LEFT JOIN OPM o ON c.id_opm = o.id_opm
+    `);
+    
+    res.json({ success: true, message: "Migration and Cycle Repair applied successfully" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ============================================================
@@ -1398,6 +1503,10 @@ app.post('/api/servicos', async (req, res) => {
       'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
       [id_ciclo, id_militar, data_execucao, v_diaSemana, v_ehFeriado, cargaCalc, valorCalc, status_presenca]
     );
+
+    // Automacao: Recalcular metas dinamicas
+    await recalculateMetas(id_ciclo);
+
     res.status(201).json({ success: true, id_execucao: r.lastID });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1416,13 +1525,23 @@ app.put('/api/servicos/:id', async (req, res) => {
       'UPDATE SERVICOS_EXECUTADOS SET data_execucao=$1, dia_semana=$2, eh_feriado=$3, carga_horaria=$4, valor_remuneracao=$5, status_presenca=$6 WHERE id_execucao=$7',
       [data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca, req.params.id]
     );
+
+    // Automacao: Recalcular metas dinamicas
+    const service = await db.get('SELECT id_ciclo FROM SERVICOS_EXECUTADOS WHERE id_execucao = $1', [req.params.id]);
+    if (service) await recalculateMetas(service.id_ciclo);
+
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/servicos/:id', async (req, res) => {
   try {
+    const service = await db.get('SELECT id_ciclo FROM SERVICOS_EXECUTADOS WHERE id_execucao = $1', [req.params.id]);
     await db.run('DELETE FROM SERVICOS_EXECUTADOS WHERE id_execucao = $1', [req.params.id]);
+
+    // Automacao: Recalcular metas dinamicas
+    if (service) await recalculateMetas(service.id_ciclo);
+
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1592,6 +1711,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
     let stats = { imported: 0, skipped: 0, errors: 0 };
     let errorDetails = [];
+    const affectedCiclos = new Set();
 
     for (const row of dataRows) {
       if (!row || row.length === 0 || !row.some(c => c !== '')) continue;
@@ -1730,12 +1850,31 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           [idCiclo, military.id_militar, isoDate, diaSemana, feriado, cargaHoraria, valorRemuneracao, 'Presente', cmd, opm, modalidade, guarnicao, idTipoServico]
         );
 
+        affectedCiclos.add(idCiclo);
         stats.imported++;
 
       } catch (err) {
         console.error('[IMPORT ERROR]', err);
         stats.errors++;
         errorDetails.push({ militar: nome || 'Militar', error: err.message });
+      }
+    }
+
+    // Automacao: Recalcular metas dinamicas para todos os ciclos afetados
+    for (const idC of affectedCiclos) {
+      try {
+        await recalculateMetas(idC);
+      } catch (err) {
+        console.error(`[IMPORT] Falha ao recalcular metas para ciclo ${idC}:`, err.message);
+      }
+    }
+
+    // Automacao: Recalcular metas dinamicas para todos os ciclos afetados
+    for (const idC of affectedCiclos) {
+      try {
+        await recalculateMetas(idC);
+      } catch (err) {
+        console.error(`[IMPORT] Falha ao recalcular metas para ciclo ${idC}:`, err.message);
       }
     }
 

@@ -29,7 +29,7 @@ services:
       - postgres
     networks:
       - ft-network
-      - nginx-npm_default
+      #- nginx-npm_default
 
   # Container Admin
   portainer:
@@ -72,7 +72,7 @@ services:
       - backend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
-      - nginx-npm_default
+      #- nginx-npm_default
 
   # Web Frontend
   frontend:
@@ -96,14 +96,14 @@ services:
       - frontend_node_modules:/usr/src/app/node_modules
     networks:
       - ft-network
-      - nginx-npm_default
+      #- nginx-npm_default
 
 networks:
   ft-network:
     driver: bridge
   #rede do proxy reverse
-  nginx-npm_default:
-    external: true
+  #nginx-npm_default:
+   # external: true
 
 volumes:
   pgdata:

@@ -9,11 +9,69 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Helper to convert SQLite '?' to PostgreSQL '$n'
 function translateSQL(sql) {
   let index = 1;
   return sql.replace(/\?/g, () => `$${index++}`);
 }
+
+// Global helper methods that use the pool directly
+const db = {
+  exec: async (sql) => {
+    await pool.query(sql);
+  },
+
+  get: async (sql, params = []) => {
+    const { rows } = await pool.query(translateSQL(sql), params);
+    return rows[0];
+  },
+
+  all: async (sql, params = []) => {
+    const { rows } = await pool.query(translateSQL(sql), params);
+    return rows;
+  },
+
+  run: async (sql, params = []) => {
+    const isInsert = sql.toUpperCase().includes('INSERT');
+    const hasReturning = sql.toUpperCase().includes('RETURNING');
+
+    let internalSql = sql;
+    if (isInsert && !hasReturning) {
+      internalSql += ' RETURNING *';
+    }
+
+    const result = await pool.query(translateSQL(internalSql), params);
+
+    let lastID = null;
+    if (isInsert && result.rows.length > 0) {
+      const firstRow = result.rows[0];
+      lastID = firstRow[Object.keys(firstRow)[0]];
+    }
+
+    return {
+      lastID: lastID,
+      changes: result.rowCount
+    };
+  },
+
+  query: async (text, params) => {
+    return pool.query(text, params);
+  },
+
+  transaction: async (callback) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+};
 
 async function setupDB() {
   let retries = 5;
@@ -54,6 +112,7 @@ async function setupDB() {
           -- Drop views que possuem dependências de colunas que serão migradas
           DROP VIEW IF EXISTS vw_relatorio_operacional_completo CASCADE;
           DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
+          DROP VIEW IF EXISTS vw_detalhes_ciclos CASCADE;
         `);
         console.log('[DB] Tabelas RBAC antigas removidas — serão recriadas com schema correto.');
 
@@ -83,6 +142,14 @@ async function setupDB() {
               WHERE table_name = 'users' AND column_name = 'password'
             ) THEN
               ALTER TABLE users RENAME COLUMN senha TO password;
+            END IF;
+
+            -- Garante que limite_equipes_diario existe na tabela CICLOS
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'ciclos' AND column_name = 'limite_equipes_diario'
+            ) THEN
+              ALTER TABLE CICLOS ADD COLUMN limite_equipes_diario INTEGER DEFAULT 6;
             END IF;
           END $$;
         `);
@@ -128,7 +195,19 @@ async function setupDB() {
               data_fim DATE NOT NULL,
               status VARCHAR(50) NOT NULL DEFAULT 'Aberto',
               valor_total_previsto DECIMAL(12, 2) DEFAULT 0,
-              ativo BOOLEAN DEFAULT TRUE
+              ativo BOOLEAN DEFAULT TRUE,
+              limite_equipes_diario INTEGER DEFAULT 6
+          );
+
+          -- 3.1 Tabela METAS_ALOCACAO (Metas diárias calculadas automaticamente)
+          CREATE TABLE IF NOT EXISTS METAS_ALOCACAO (
+              id_meta SERIAL PRIMARY KEY,
+              id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo) ON DELETE CASCADE,
+              data DATE NOT NULL,
+              cenario CHAR(1) CHECK (cenario IN ('A', 'B')),
+              qtd_equipes_planejadas INTEGER DEFAULT 0,
+              custo_estimado DECIMAL(12, 2) DEFAULT 0,
+              UNIQUE(id_ciclo, data)
           );
 
           -- 4. Tabela REQUERIMENTOS (Substitui volunteers - metadados)
@@ -541,11 +620,20 @@ async function setupDB() {
               o.sigla as opm_sigla,
               o.descricao as opm_descricao,
               TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+              (CASE 
+                WHEN EXTRACT(MONTH FROM c.data_inicio) = EXTRACT(MONTH FROM c.data_fim) THEN 
+                  TO_CHAR(c.data_inicio, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+                ELSE 
+                  TO_CHAR(c.data_inicio, 'FMMonth') || ' / ' || TO_CHAR(c.data_fim, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+              END) as period_name,
               c.data_inicio,
-          c.data_fim,
-          c.status,
-          c.ativo,
-          c.valor_total_previsto,
+              c.data_fim,
+              c.status,
+              c.ativo,
+              c.valor_total_previsto,
+              c.limite_equipes_diario,
+              COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as custo_executado,
+              c.valor_total_previsto - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
               (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
               (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
           FROM CICLOS c
@@ -727,50 +815,7 @@ async function setupDB() {
       }
 
       // Wrapper methods using the pool
-      const dbWrapper = {
-        exec: async (sql) => {
-          await pool.query(sql);
-        },
-
-        get: async (sql, params = []) => {
-          const { rows } = await pool.query(translateSQL(sql), params);
-          return rows[0];
-        },
-
-        all: async (sql, params = []) => {
-          const { rows } = await pool.query(translateSQL(sql), params);
-          return rows;
-        },
-
-        run: async (sql, params = []) => {
-          const isInsert = sql.toUpperCase().includes('INSERT');
-          const hasReturning = sql.toUpperCase().includes('RETURNING');
-
-          let internalSql = sql;
-          if (isInsert && !hasReturning) {
-            internalSql += ' RETURNING *';
-          }
-
-          const result = await pool.query(translateSQL(internalSql), params);
-
-          // Se for insert, tenta pegar o valor da primeira coluna (geralmente o ID) para simular o lastID do SQLite
-          let lastID = null;
-          if (isInsert && result.rows.length > 0) {
-            const firstRow = result.rows[0];
-            lastID = firstRow[Object.keys(firstRow)[0]];
-          }
-
-          return {
-            lastID: lastID,
-            changes: result.rowCount
-          };
-        },
-
-        // Add pool access for complex queries
-        query: async (text, params) => {
-          return pool.query(text, params);
-        }
-      };
+      const dbWrapper = db;
 
       // ============================================================
       // CONFIGURAÇÃO DE TRIGGERS (Automação da Tabela Ternária)
@@ -895,4 +940,7 @@ async function setupDB() {
   }
 }
 
-module.exports = { setupDB };
+module.exports = { 
+  setupDB,
+  ...db
+};

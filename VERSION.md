@@ -1,3 +1,30 @@
+## v1.30.0 — 2026-05-08
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Trava de Segurança Financeira**: Implementada lógica de bloqueio no `MetasAlocacaoManager.jsx` que impede o salvamento de metas que excedam o saldo disponível do ciclo, garantindo a integridade orçamentária.
+- **Métricas Operacionais**: Inclusão da contagem de "Equipes Planejadas (Restante)" no card de resumo financeiro, permitindo visualizar o potencial de escala dentro do orçamento.
+- **Admin Dashboard Pro**: Integração da "Meta do Dia" no sidebar do `AdminDashboardV2.jsx`, com indicadores visuais de progresso (escalado vs meta) e alertas de estouro em tempo real.
+- **Navegação Inteligente**: Reorganização do menu global (`App.jsx`), movendo a gestão de Metas de Alocação para a categoria de "Dashboards" para facilitar o monitoramento financeiro.
+- **Identidade Visual Premium**: Integração do componente `Footer` em todo o sistema e no gerador de PDF oficial, padronizando os créditos de desenvolvimento e informações institucionais.
+- **Layout & UX**: Ajustes finos de grid e espaçamento nas tabelas administrativas para eliminar espaços em branco laterais e melhorar a legibilidade em alta resolução.
+
+---
+
+## v1.29.0 — 2026-05-08
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Automação de Metas**: Implementação de motor de otimização guloza que realiza o 'upsert' automático na tabela `METAS_ALOCACAO` sempre que um ciclo é criado ou atualizado.
+- **Backend**: Criação do `ScaleOptimizationService.js` e adição de helper de transações no `db.js` para garantir a integridade referencial dos dados planejados.
+- **Frontend**: Inclusão do campo "Limite de Equipes por Dia" no `CicloManager.jsx`, permitindo que o gestor ajuste a capacidade operacional do ciclo.
+- **Frontend**: Novo módulo "Metas de Alocação" (`MetasAlocacaoManager.jsx`) para visualização detalhada, edição manual e exclusão de metas diárias.
+- **Database**: Adição da coluna `limite_equipes_diario` na tabela `CICLOS`.
+
+---
+
 ## v1.28.51 — 2026-05-07
 **Autor:** pmal-daten
 **Email:** unknown
