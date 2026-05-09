@@ -269,9 +269,9 @@ export function MetasAlocacaoManager() {
                                 </div>
                             </div>
                             
-                            <div className="responsive-table-container" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                    <thead style={{ position: 'sticky', top: 0, background: '#f1f5f9', zIndex: 10 }}>
+                            <div className="table-premium-wrapper" style={{ maxHeight: '600px' }}>
+                                <table className="admin-table">
+                                    <thead>
                                         <tr>
                                             <th style={{ width: '180px', padding: '1rem 1.5rem' }}>Data</th>
                                             <th style={{ width: '180px', padding: '1rem 1.5rem' }}>Cenário</th>

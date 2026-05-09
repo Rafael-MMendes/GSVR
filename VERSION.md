@@ -1,3 +1,17 @@
+## v1.31.0 — 2026-05-09
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Global de Grids (Premium)**: Implementação de um novo sistema de contêiner para tabelas (`.table-premium-wrapper`) em todo o sistema.
+- **Sticky Headers**: Todos os cabeçalhos das tabelas administrativas e dashboards agora permanecem fixos no topo durante a rolagem, garantindo a visibilidade do contexto das colunas em grandes volumes de dados.
+- **Rolagem Interna & UX**: Implementação de rolagem vertical interna (`overflow-y: auto`) com altura máxima otimizada (`65vh`), permitindo que a navegação principal e o rodapé institucional permaneçam sempre visíveis.
+- **Scrollbar Premium**: Adição de barra de rolagem customizada, minimalista e com estética institucional, melhorando o acabamento visual das tabelas.
+- **Refatoração de Componentes**: Atualização de 11 módulos operacionais, incluindo `HistoricoMilitar`, `EfetivoManager`, `RequerimentosAdmin`, `ServicosExecutadosManager`, `UserManager`, `MetasAlocacaoManager`, `TiposServicoManager`, `RelatorioOperacional`, `AnalyticsDashboard` e `FinanceiroDashboard`.
+- **Integridade de Documentos**: Exclusão explícita de componentes de impressão/PDF da lógica de sticky headers para preservar a fidelidade na geração de documentos oficiais.
+
+---
+
 ## v1.30.0 — 2026-05-08
 **Autor:** pmal-daten
 **Email:** unknown

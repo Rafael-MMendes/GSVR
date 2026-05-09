@@ -439,11 +439,11 @@ export function ServicosExecutadosManager() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Carregando...</div>
       ) : (
-        <div className="responsive-table-container">
-          <table className="admin-table">
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ border: 'none' }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', width: '40px' }}>
+              <tr style={{ borderBottom: 'none' }}>
+                <th style={{ padding: '16px', width: '40px' }}>
                   <input
                     type="checkbox"
                     checked={selectedIds.size === filtered.length && filtered.length > 0}
@@ -451,26 +451,26 @@ export function ServicosExecutadosManager() {
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
                   Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                   Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                   Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
+                <th style={{ padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
                   Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('opm_origem')}>
+                <th style={{ padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('opm_origem')}>
                   OPM {sortConfig.key === 'opm_origem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
+                <th style={{ padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
                   Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center' }}>Feriado</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px' }}>Ações</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Feriado</th>
+                <th style={{ padding: '16px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>

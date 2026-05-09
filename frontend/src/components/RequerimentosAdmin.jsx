@@ -554,26 +554,26 @@ export function RequerimentosAdmin({ user }) {
           </div>
         </div>
 
-        <div className="responsive-table-container">
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+        <div className="table-premium-wrapper">
+          <table className="table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+              <tr>
+                <th onClick={() => requestSort('numero_ordem')} style={{ cursor: 'pointer' }}>
                   Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
+                <th onClick={() => requestSort('rank')} style={{ cursor: 'pointer' }}>
                   Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
+                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>
                   Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
+                <th>Telefone</th>
+                <th style={{ textAlign: 'center' }}>Motorista</th>
+                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
                   Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Obs</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Ações</th>
+                <th>Obs</th>
+                <th style={{ textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>

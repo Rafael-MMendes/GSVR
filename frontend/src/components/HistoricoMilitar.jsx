@@ -168,11 +168,11 @@ export function HistoricoMilitar() {
           <div>Processando estatísticas militares...</div>
         </div>
       ) : (
-        <div style={{ background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+        <div className="table-premium-wrapper">
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'center' }}>
             <thead>
               <tr style={{ background: '#0D3878', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', textAlign: 'left' }}>Nome</th>
+                <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700, textAlign: 'left', color: '#ffffff' }}>Nome</th>
                 <ColumnHeader label="Dias Disponíveis" icon={<CalendarCheck size={14} />} color="#0891b2" />
                 <ColumnHeader label="Executados" icon={<CheckCircle size={14} />} color="#059669" />
                 <ColumnHeader label="Planejados" icon={<Shield size={14} />} color="#2563eb" />

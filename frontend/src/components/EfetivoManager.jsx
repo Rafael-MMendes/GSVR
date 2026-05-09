@@ -213,25 +213,25 @@ export function EfetivoManager() {
       {loading && filteredEfetivo.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem' }}>Carregando...</div>
       ) : (
-        <div className="responsive-table-container" style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-          <table className="admin-table" style={{ border: 'none' }}>
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('status_ativo')}>
+              <tr>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('status_ativo')}>
                   Status {sortConfig.key === 'status_ativo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('posto_graduacao')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                   Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                   Nome de Guerra {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_completo')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_completo')}>
                   Identificação {sortConfig.key === 'nome_completo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>CPF</th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>Telefone</th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', padding: '16px' }}>Ações</th>
+                <th>CPF</th>
+                <th>Telefone</th>
+                <th style={{ textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>

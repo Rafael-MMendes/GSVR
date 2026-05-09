@@ -559,36 +559,36 @@ export function AnalyticsDashboard() {
               <p style={{ color: 'var(--text-muted)' }}>Nenhum dado encontrado para este ciclo.</p>
             </div>
           ) : (
-            <div className="glass-panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <div className="table-premium-wrapper">
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>#</th>
-                    <th onClick={() => requestSort('numero_ordem')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                  <tr>
+                    <th style={{ whiteSpace: 'nowrap' }}>#</th>
+                    <th onClick={() => requestSort('numero_ordem')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       N° Ordem {sortConfig.key === 'numero_ordem' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th onClick={() => requestSort('name')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: '600', letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th onClick={() => requestSort('name')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       Posto / Nome {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: '600', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>OPM</th>
-                    <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: '600', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Motorista</th>
-                    <th onClick={() => requestSort('count6h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th style={{ whiteSpace: 'nowrap' }}>OPM</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Motorista</th>
+                    <th onClick={() => requestSort('count6h')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       SVR 6h {sortConfig.key === 'count6h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th onClick={() => requestSort('count8h')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th onClick={() => requestSort('count8h')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       SVR 8h {sortConfig.key === 'count8h' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th onClick={() => requestSort('total')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th onClick={() => requestSort('total')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       Total SVRs {sortConfig.key === 'total' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th onClick={() => requestSort('remaining')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th onClick={() => requestSort('remaining')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       Restantes {sortConfig.key === 'remaining' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th onClick={() => requestSort('valorTotal')} style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                    <th onClick={() => requestSort('valorTotal')} style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}>
                       Valor Total {sortConfig.key === 'valorTotal' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ padding: '0.85rem 0.75rem', textAlign: 'left', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Situação</th>
-                    <th style={{ padding: '0.85rem 1.5rem', textAlign: 'center', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>Progresso</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Situação</th>
+                    <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Progresso</th>
                   </tr>
                 </thead>
                 <tbody>
