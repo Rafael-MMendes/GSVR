@@ -754,7 +754,7 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
       for (const shiftData of shifts) {
         // Suporta tanto formato legado (string) quanto novo (objeto com observações)
         const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
-        const obs = typeof shiftData === 'object' ? shiftData.observacoes : null;
+        const obs = (typeof shiftData === 'object' && shiftData.observacoes && shiftData.observacoes.trim() !== '') ? shiftData.observacoes : null;
 
         await db.run(
           'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista, observacoes) VALUES ($1, $2, $3, TRUE, $4, $5)', 
@@ -771,22 +771,7 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
 
 app.delete('/api/volunteers/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    // Verifica se existem disponibilidades deste requerimento vinculadas a alguma escala
-    const inUse = await db.get(`
-      SELECT 1 FROM ESCALA_PLANEJAMENTO 
-      WHERE id_disponibilidade IN (SELECT id_disponibilidade FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1)
-      LIMIT 1
-    `, [id]);
-
-    if (inUse) {
-      return res.status(400).json({ 
-        error: "Não é possível excluir este requerimento pois existem turnos deste militar já vinculados a escalas de planejamento ativas." 
-      });
-    }
-
-    await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = $1', [id]);
+    await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = $1', [req.params.id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -834,7 +819,7 @@ app.put('/api/volunteers/:id', authenticate, async (req, res) => {
       for (const [day, shifts] of Object.entries(availability)) {
         for (const shiftData of shifts) {
           const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
-          const obs = typeof shiftData === 'object' ? shiftData.observacoes : null;
+          const obs = (typeof shiftData === 'object' && shiftData.observacoes && shiftData.observacoes.trim() !== '') ? shiftData.observacoes : null;
 
           // 2. Upsert: Se existe, ativa e marca como disponível. Se não, insere.
           await db.run(`
@@ -883,7 +868,7 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
         for (const shift of shifts) {
           const result = await db.run(
             'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE, observacoes = $1 WHERE id_requerimento = $2 AND dia_mes = $3 AND horario_turno = $4',
-            [observacao || null, id, parseInt(day), shift]
+            [(observacao && observacao.trim() !== '') ? observacao : null, id, parseInt(day), shift]
           );
           canceledCount += result.changes;
         }
@@ -892,7 +877,7 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
       // Fallback: se não houver seleção, cancela TUDO (legado)
       const result = await db.run(
         'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE, observacoes = $1 WHERE id_requerimento = $2',
-        [observacao || null, id]
+        [(observacao && observacao.trim() !== '') ? observacao : null, id]
       );
       canceledCount = result.changes;
     }
@@ -2330,49 +2315,47 @@ app.post('/api/schedules', async (req, res) => {
     }
 
     // Inicia transação para garantir atomicidade (importante para triggers de relacionamento)
-    await db.query('BEGIN');
-
-    // Remove escalas existentes do dia (substituição completa do planejamento diário)
-    await db.run(
-      'DELETE FROM ESCALA_PLANEJAMENTO WHERE id_ciclo = $1 AND data_servico = $2',
-      [ciclo.id_ciclo, dataServico]
-    );
-
-    let inserted = 0;
-    const errors = [];
-
-    for (const patrol of patrols) {
-      if (!Array.isArray(patrol.members)) continue;
-
-      const horarioServico = patrol.timeSpan?.trim() || '00:00 às 06:00';
-
-      // Resolve id_tipo_servico pela carga horária da guarnição (ex: '6h' → 6)
-      const cargaHoraria = parseInt(patrol.duration) || 6;
-      const tipoServico = await db.get(
-        'SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = TRUE LIMIT 1',
-        [cargaHoraria]
+    await db.transaction(async (client) => {
+      // Remove escalas existentes do dia (substituição completa do planejamento diário)
+      await client.query(
+        'DELETE FROM ESCALA_PLANEJAMENTO WHERE id_ciclo = $1 AND data_servico = $2',
+        [ciclo.id_ciclo, dataServico]
       );
-      const idTipoServico = tipoServico?.id_tipo_servico || null;
 
-      for (let i = 0; i < patrol.members.length; i++) {
-        const member = patrol.members[i];
-        if (!member || !member.id_militar) continue;
+      let inserted = 0;
+      const errors = [];
 
-        const funcao = PATROL_ROLES[i] || 'Patrulheiro';
+      for (const patrol of patrols) {
+        if (!Array.isArray(patrol.members)) continue;
 
-        try {
+        const horarioServico = patrol.timeSpan?.trim() || '00:00 às 06:00';
+
+        // Resolve id_tipo_servico pela carga horária da guarnição (ex: '6h' → 6)
+        const cargaHoraria = parseInt(patrol.duration) || 6;
+        const tipoServicoRes = await client.query(
+          'SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = TRUE LIMIT 1',
+          [cargaHoraria]
+        );
+        const idTipoServico = tipoServicoRes.rows[0]?.id_tipo_servico || null;
+
+        for (let i = 0; i < patrol.members.length; i++) {
+          const member = patrol.members[i];
+          if (!member || !member.id_militar) continue;
+
+          const funcao = PATROL_ROLES[i] || 'Patrulheiro';
+
           // Verifica se o militar está cadastrado no efetivo (FK id_militar)
-          const militarOk = await db.get(
+          const militarOkRes = await client.query(
             'SELECT id_militar FROM EFETIVO WHERE id_militar = $1',
             [member.id_militar]
           );
-          if (!militarOk) {
+          if (militarOkRes.rows.length === 0) {
             errors.push(`Militar id=${member.id_militar} não encontrado no efetivo.`);
             continue;
           }
 
           // Busca se o militar tem disponibilidade exata para este dia e turno
-          let reqMilitar = await db.get(
+          let reqMilitarRes = await client.query(
             `SELECT dr.id_disponibilidade 
              FROM REQUERIMENTOS r
              JOIN DISPONIBILIDADE_REQUERIMENTO dr ON r.id_requerimento = dr.id_requerimento
@@ -2387,8 +2370,8 @@ app.post('/api/schedules', async (req, res) => {
           );
 
           // Fallback: se o turno não bater perfeitamente devido à nomenclatura, pega a primeira disponibilidade do militar para aquele dia
-          if (!reqMilitar) {
-            reqMilitar = await db.get(
+          if (reqMilitarRes.rows.length === 0) {
+            reqMilitarRes = await client.query(
               `SELECT dr.id_disponibilidade 
                FROM REQUERIMENTOS r
                JOIN DISPONIBILIDADE_REQUERIMENTO dr ON r.id_requerimento = dr.id_requerimento
@@ -2402,9 +2385,9 @@ app.post('/api/schedules', async (req, res) => {
             );
           }
 
-          const idDisponibilidade = reqMilitar ? reqMilitar.id_disponibilidade : null;
+          const idDisponibilidade = reqMilitarRes.rows.length > 0 ? reqMilitarRes.rows[0].id_disponibilidade : null;
 
-          await db.run(`
+          await client.query(`
             INSERT INTO ESCALA_PLANEJAMENTO
               (id_ciclo, id_militar, id_tipo_servico, id_disponibilidade,
                data_servico, horario_servico, funcao,
@@ -2423,18 +2406,13 @@ app.post('/api/schedules', async (req, res) => {
           ]);
 
           inserted++;
-        } catch (insertErr) {
-          await db.query('ROLLBACK');
-          throw insertErr;
         }
       }
-    }
+      res.json({ success: true, inserted });
+    });
 
-    await db.query('COMMIT');
-    res.json({ success: true, inserted });
 
   } catch (e) {
-    try { await db.query('ROLLBACK'); } catch (rbErr) {}
     console.error('[API] Error saving schedules:', e);
     res.status(500).json({ error: 'Erro na transação de salvamento: ' + e.message });
   }
@@ -2797,39 +2775,22 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     let idReq;
     if (existing) {
       idReq = existing.id_requerimento;
-
-      // Atualiza o número do requerimento e mes_referencia se fornecidos
-      const updateFields = [];
-      const updateParams = [];
-      if (numeroReq) { updateFields.push(`numero_requerimento = $${updateParams.length + 1}`); updateParams.push(numeroReq); }
-      if (mesRef)    { updateFields.push(`mes_referencia = $${updateParams.length + 1}`);      updateParams.push(mesRef); }
-      if (updateFields.length > 0) {
-        updateParams.push(idReq);
-        await dbConn.run(
-          `UPDATE REQUERIMENTOS SET ${updateFields.join(', ')} WHERE id_requerimento = $${updateParams.length}`,
-          updateParams
-        );
-      }
-
-      // Sincronização Inteligente (Soft Sync): 
-      // Em vez de deletar (que quebra FKs), desmarcamos a disponibilidade para os dias que serão re-importados.
+      
+      // Remove apenas os dias que serão re-inseridos (cirúrgico, não apaga tudo)
       const diasNumericos = Object.keys(diasMap).map(d => parseInt(d, 10));
       if (diasNumericos.length > 0) {
         await dbConn.query(
-          `UPDATE DISPONIBILIDADE_REQUERIMENTO
-           SET marcado_disponivel = FALSE, ativo = FALSE
+          `DELETE FROM DISPONIBILIDADE_REQUERIMENTO
            WHERE id_requerimento = $1 AND dia_mes = ANY($2::int[])`,
           [idReq, diasNumericos]
         );
       }
-      console.log(`[FRAG] Requerimento existente atualizado (Soft Sync): req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
     } else {
       const r = await dbConn.run(
         'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento, mes_referencia) VALUES ($1, $2, $3, $4)',
         [idMilitar, idCiclo, numeroReq, mesRef]
       );
       idReq = r.lastID;
-      console.log(`[FRAG] Novo requerimento criado: req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
     }
 
     let diasInseridos = 0;
@@ -2838,12 +2799,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         await dbConn.run(
           `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
              (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
-           VALUES ($1, $2, $3, TRUE, TRUE, $4)
-           ON CONFLICT (id_requerimento, dia_mes, horario_turno) 
-           DO UPDATE SET 
-             marcado_disponivel = TRUE, 
-             ativo = TRUE,
-             motorista = EXCLUDED.motorista`,
+           VALUES ($1, $2, $3, TRUE, TRUE, $4)`,
           [idReq, parseInt(diaStr, 10), shiftObj.shift || shiftObj, !!shiftObj.motorista]
         );
         diasInseridos++;

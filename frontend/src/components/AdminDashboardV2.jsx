@@ -67,11 +67,18 @@ export function AdminDashboardV2() {
       try {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
-        const activeCycle = monthsRes.data.find(c => c.status === 'Aberto');
+        const activeCycle = monthsRes.data.find(c => c.status === 'Aberto') || monthsRes.data[0];
         if (activeCycle) {
           setSelectedCycleId(activeCycle.id_ciclo);
-        } else if (monthsRes.data.length > 0) {
-          setSelectedCycleId(monthsRes.data[0].id_ciclo);
+          
+          // Sincroniza a data selecionada: se hoje estiver fora do ciclo, usa o início do ciclo
+          const today = new Date().toISOString().split('T')[0];
+          const start = String(activeCycle.data_inicio).split('T')[0];
+          const end = String(activeCycle.data_fim).split('T')[0];
+          
+          if (today < start || today > end) {
+            setSelectedDate(start);
+          }
         }
       } catch (e) {
         console.error('[Init] Erro ao carregar ciclos:', e);
@@ -127,7 +134,7 @@ export function AdminDashboardV2() {
         return compareByRank(a.rank, b.rank);
       });
 
-    setState({ pool, patrols });
+    setState(prev => ({ ...prev, pool, patrols }));
   };
 
   useEffect(() => {
@@ -152,7 +159,7 @@ export function AdminDashboardV2() {
   }, [selectedCycleId]);
 
   const loadSchedule = async () => {
-    if (!selectedCycleId || volunteersRef.current.length === 0) return;
+    if (!selectedCycleId) return;
     try {
       const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedCycleId}`);
       loadScheduleData(volunteersRef.current, schedRes.data, selectedCycleId, selectedDate);
@@ -610,7 +617,21 @@ export function AdminDashboardV2() {
                 <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Ciclo Ativo</div>
                 <select 
                   value={selectedCycleId}
-                  onChange={(e) => setSelectedCycleId(e.target.value)}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setSelectedCycleId(newId);
+                    const cycle = months.find(c => String(c.id_ciclo) === String(newId));
+                    if (cycle) {
+                      const start = String(cycle.data_inicio).split('T')[0];
+                      const end = String(cycle.data_fim).split('T')[0];
+                      const today = new Date().toISOString().split('T')[0];
+                      if (today < start || today > end) {
+                        setSelectedDate(start);
+                      } else {
+                        setSelectedDate(today);
+                      }
+                    }
+                  }}
                   style={{
                     width: '100%',
                     background: 'transparent',

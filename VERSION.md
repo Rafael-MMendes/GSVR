@@ -1,3 +1,48 @@
+## v1.32.9 — 2026-05-12
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Sanitização de Dados (Database)**: Implementada conversão automática de strings vazias (`''`) para `NULL` no campo `observacoes` em todas as rotas de criação e cancelamento de requerimentos. Isso garante que filtros de banco de dados (`IS NOT NULL`) funcionem conforme o esperado.
+- **Resiliência de Infraestrutura**: Atualização do sistema para o novo IP do servidor (`192.168.1.119`).
+  - **Nginx Proxy Manager**: Reconfiguração dos Proxy Hosts para os novos domínios `nip.io`.
+  - **Configuração**: Sincronização do `.env` do frontend com o novo endpoint da API.
+- **Identidade Visual (Escala Oficial)**: Adicionado o brasão oficial da Polícia Militar de Alagoas (`pmal.png`) ao cabeçalho do componente de exportação de escalas, reforçando o padrão institucional dos documentos gerados.
+
+---
+
+## v1.32.8 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Reversão de Mudanças (v1.32.4)**: Revertida a lógica de UPSERT na importação de PDFs e a validação de segurança na exclusão de requerimentos, retornando ao modelo de "Excluir e Reinserir" físico.
+
+---
+
+## v1.32.7 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resiliência na Sincronização (AdminDashboardV2)**: Resolvida inconsistência onde dados desapareciam após refresh ou troca de ciclo.
+  - **Sincronização de Data**: Agora o dashboard ajusta automaticamente a `selectedDate` para o início do ciclo caso a data atual (Hoje) esteja fora do intervalo permitido.
+  - **Prevenção de Race Conditions**: Implementada atualização de estado funcional (`setState(prev => ...)`) no carregamento de escalas para evitar que atualizações simultâneas de voluntários e patrulhas se sobreponham.
+  - **Estabilidade no Seletor**: O seletor de ciclos agora garante que a data seja validada e ajustada imediatamente após a troca manual.
+
+---
+
+## v1.32.6 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Sincronização de Estado (AdminDashboard)**: Corrigido problema onde novas escalas salvas não apareciam imediatamente na interface.
+  - **Backend**: Refatorada a rota `POST /api/schedules` para utilizar `db.transaction`, garantindo que todas as operações (delete/insert) ocorram na mesma conexão do PostgreSQL e sejam confirmadas corretamente no pool.
+  - **Frontend**: Removida restrição na função `loadSchedule` que impedia o carregamento de escalas se a lista de voluntários estivesse vazia (útil para escalas compulsórias ou ciclos novos).
+
+---
+
 ## v1.32.5 — 2026-05-12
 **Autor:** pmal-daten
 **Email:** unknown
@@ -7,16 +52,6 @@
 - **Filtro 'Mostrar Todos'**: Implementada funcionalidade de exibir voluntários indisponíveis no dia selecionado. Isso permite localizar militares que não marcaram disponibilidade no requerimento original, mas que podem ser escalados manualmente.
 - **Melhoria UX no Pool**: Novo design para o cabeçalho do pool de voluntários e mensagens de "Empty State" orientando o usuário sobre como encontrar militares.
 - **Hardening no Backend**: Adicionados logs de auditoria e conversão explícita de tipos no gatilho de recálculo de metas diárias, garantindo que a ativação de um ciclo gere corretamente o planejamento financeiro/equipes.
-
----
-
-## v1.32.4 — 2026-05-12
-**Autor:** pmal-daten
-**Email:** unknown
-
-### Mudanças:
-- **Correção de Integridade Referencial**: Substituída a lógica de "Excluir e Reinserir" por um modelo de "Atualização Inteligente" (UPSERT) na importação de PDFs de requerimentos. Isso resolve o erro de violação de chave estrangeira que impedia a atualização de voluntários que já possuíam escalas agendadas.
-- **Segurança na Exclusão**: Implementada validação na rota de exclusão de requerimentos para impedir a remoção acidental de dados que já estão sendo utilizados em planejamentos ativos.
 
 ---
 

@@ -244,17 +244,14 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           position: 'relative'
         }}>
           <div style={{
-            width: '70px',
-            height: '70px',
+            width: '80px',
+            height: '80px',
             margin: '0 auto 1rem auto',
-            background: '#f1f5f9',
-            borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            border: '2px solid #0f172a'
+            justifyContent: 'center'
           }}>
-            <Shield size={40} color="#0f172a" />
+            <img src="/pmal.png" alt="Brasão PMAL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
 
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
