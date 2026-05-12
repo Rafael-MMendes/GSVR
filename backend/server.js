@@ -175,6 +175,7 @@ app.use('/avatars', express.static(AVATARS_DIR));
 // ============================================================
 if (helmet) {
   app.use(helmet({
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' } // permite servir avatares cross-origin
   }));
   console.log('[Security] Helmet ativado — headers HTTP protegidos.');

@@ -1,3 +1,15 @@
+## v1.32.10 — 2026-05-12
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Renderização (White Screen)**: Identificada e resolvida a causa da tela branca no index do sistema. O erro ocorria devido ao cabeçalho restritivo de Content Security Policy (`default-src 'none'`) injetado por padrão pelo middleware `helmet` no backend, que bloqueava a aplicação de estilos inline e a execução de scripts do React/Vite.
+  - **Backend**: Desativada a diretiva `contentSecurityPolicy` nas configurações do `helmet` em `backend/server.js`.
+  - **Infraestrutura**: Reinicializados os contêineres `ft-backend` e `ft-frontend` via Portainer para aplicar as alterações em ambiente Docker sem suporte nativo a polling de arquivos do host.
+- **Identidade Visual**: Confirmada a reinserção e o correto dimensionamento do brasão oficial da Polícia Militar de Alagoas (`pmal.png`) no cabeçalho institucional da publicação oficial de escalas.
+
+---
+
 ## v1.32.9 — 2026-05-12
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
