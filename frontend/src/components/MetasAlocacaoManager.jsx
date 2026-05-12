@@ -132,7 +132,7 @@ export function MetasAlocacaoManager() {
 
             {/* Sumário do Ciclo - Premium Cards */}
             {currentCiclo && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                     <div className="card" style={{ 
                         padding: '1.5rem', 
                         background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
@@ -148,12 +148,25 @@ export function MetasAlocacaoManager() {
 
                     <div className="card" style={{ 
                         padding: '1.5rem', 
+                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', 
+                        color: 'white',
+                        border: 'none',
+                        boxShadow: '0 10px 15px -3px rgba(234, 88, 12, 0.2)'
+                    }}>
+                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Contingência</div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <AlertCircle size={24} /> {formatCurrency(currentCiclo.valor_contingencia)}
+                        </div>
+                    </div>
+
+                    <div className="card" style={{ 
+                        padding: '1.5rem', 
                         background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', 
                         color: 'white',
                         border: 'none',
                         boxShadow: '0 10px 15px -3px rgba(220, 38, 38, 0.2)'
                     }}>
-                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Custo Executado (Real)</div>
+                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Executado (Real)</div>
                         <div style={{ fontSize: '1.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <TrendingUp size={24} /> {formatCurrency(currentCiclo.custo_executado)}
                         </div>
@@ -166,7 +179,7 @@ export function MetasAlocacaoManager() {
                         border: 'none',
                         boxShadow: '0 10px 15px -3px rgba(5, 150, 105, 0.2)'
                     }}>
-                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Saldo Disponível</div>
+                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Saldo (Teto - Cont. - Exec.)</div>
                         <div style={{ fontSize: '1.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Check size={24} /> {formatCurrency(currentCiclo.saldo_restante)}
                         </div>
@@ -180,7 +193,7 @@ export function MetasAlocacaoManager() {
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
                         position: 'relative'
                     }}>
-                        <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Total Planejado (Restante)</div>
+                        <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Planejado (Futuro)</div>
                         <div style={{ fontSize: '1.75rem', fontWeight: '800', color: totalPlannedRemaining > currentCiclo.saldo_restante ? '#ef4444' : '#1e293b' }}>
                             {formatCurrency(totalPlannedRemaining)}
                         </div>

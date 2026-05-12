@@ -63,6 +63,7 @@ export function CicloManager() {
     data_fim: '',
     status: 'Aberto',
     valor_total_previsto: '',
+    valor_contingencia: '',
     limite_equipes_diario: 6
   });
 
@@ -176,6 +177,7 @@ export function CicloManager() {
       data_fim: suggested.fim,
       status: 'Aberto',
       valor_total_previsto: '',
+      valor_contingencia: '',
       limite_equipes_diario: 6
     });
   };
@@ -194,6 +196,7 @@ export function CicloManager() {
       data_fim: formatParaInput(ciclo.data_fim),
       status: ciclo.status,
       valor_total_previsto: ciclo.valor_total_previsto || '',
+      valor_contingencia: ciclo.valor_contingencia || '',
       limite_equipes_diario: ciclo.limite_equipes_diario || 6
     });
     setIsModalOpen(true);
@@ -273,7 +276,7 @@ export function CicloManager() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1rem', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
                 <div>
                     <label style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Início</label>
                     <div style={{ color: '#334155', fontWeight: 500 }}>
@@ -287,6 +290,15 @@ export function CicloManager() {
                     </div>
                 </div>
               </div>
+
+              {parseFloat(ciclo.valor_contingencia) > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem', background: '#fff7ed', padding: '8px 12px', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                  <AlertCircle size={14} color="#f97316" />
+                  <span style={{ fontSize: '0.8rem', color: '#c2410c', fontWeight: 600 }}>
+                    Contingência: R$ {parseFloat(ciclo.valor_contingencia).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               
               <div style={{ display: 'flex', justifyContent: 'space-around', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
                 <div style={{ textAlign: 'center' }}>
@@ -356,7 +368,21 @@ export function CicloManager() {
                   onChange={e => setFormData({ ...formData, valor_total_previsto: e.target.value })} 
                   placeholder="R$ 0,00"
                 />
-                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução. Preencha zero para não estabelecer teto.</small>
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução.</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Valor de Contingência (Reserva)</label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control" 
+                  value={formData.valor_contingencia} 
+                  onChange={e => setFormData({ ...formData, valor_contingencia: e.target.value })} 
+                  placeholder="R$ 0,00"
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Valor que será abatido do teto para margem de segurança no planejamento.</small>
               </div>
 
               <div className="form-group">

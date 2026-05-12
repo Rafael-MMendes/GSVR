@@ -24,6 +24,11 @@
 - [x] Implementar `DELETE /api/me/avatar`
 - [x] Implementar `DELETE /api/me` (soft delete — deleted_at + status=inativo)
 - [x] Implementar `GET/POST/PUT/DELETE /api/roles` (CRUD com proteção de roles de sistema)
+- [x] Implement Cycle Selector in `AdminDashboardV2.jsx` sidebar
+- [x] Implement "Mostrar Indisponíveis" toggle in `AdminDashboardV2.jsx`
+- [x] Add empty state feedback in `AdminDashboardV2.jsx` volunteer pool
+- [x] Verify `recalculateMetas` trigger in `server.js`
+- [x] Perform final checks and version bump
 - [x] Implementar `GET /api/permissions` (agrupadas por módulo)
 - [x] Implementar `PUT /api/usuarios/:id/roles` (atribuir roles a usuário)
 - [x] Aplicar `authorize()` nos endpoints de roles e permissions

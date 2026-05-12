@@ -770,8 +770,27 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
 });
 
 app.delete('/api/volunteers/:id', async (req, res) => {
-  await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = $1', [req.params.id]);
-  res.json({ success: true });
+  try {
+    const { id } = req.params;
+    
+    // Verifica se existem disponibilidades deste requerimento vinculadas a alguma escala
+    const inUse = await db.get(`
+      SELECT 1 FROM ESCALA_PLANEJAMENTO 
+      WHERE id_disponibilidade IN (SELECT id_disponibilidade FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = $1)
+      LIMIT 1
+    `, [id]);
+
+    if (inUse) {
+      return res.status(400).json({ 
+        error: "Não é possível excluir este requerimento pois existem turnos deste militar já vinculados a escalas de planejamento ativas." 
+      });
+    }
+
+    await db.run('DELETE FROM REQUERIMENTOS WHERE id_requerimento = $1', [id]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Editar requerimento
@@ -1293,7 +1312,7 @@ app.get('/api/ciclos/:id', async (req, res) => {
 
 app.post('/api/ciclos', async (req, res) => {
   try {
-    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, limite_equipes_diario } = req.body;
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, valor_contingencia, limite_equipes_diario } = req.body;
     if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
@@ -1306,20 +1325,22 @@ app.post('/api/ciclos', async (req, res) => {
     const dataFimISO = formatDateToISO(data_fim);
     
     const r = await db.run(
-      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto, ativo, limite_equipes_diario) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6]
+      'INSERT INTO CICLOS (id_opm, data_inicio, data_fim, status, valor_total_previsto, valor_contingencia, ativo, limite_equipes_diario) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, valor_contingencia || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6]
     );
 
+    const idCiclo = r.lastID;
     // Automação: Upsert nas metas
-    await recalculateMetas(r.lastID);
+    console.log(`[BACKEND] Novo ciclo criado: ${idCiclo}. Iniciando otimização de metas...`);
+    await recalculateMetas(idCiclo);
 
-    res.status(201).json({ success: true, id_ciclo: r.lastID });
+    res.status(201).json({ success: true, id_ciclo: idCiclo });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/ciclos/:id', async (req, res) => {
   try {
-    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, limite_equipes_diario } = req.body;
+    const { id_opm, data_inicio, data_fim, status, valor_total_previsto, valor_contingencia, limite_equipes_diario } = req.body;
     if (!data_inicio || !data_fim) return res.status(400).json({ error: "Campos obrigatórios ausentes." });
     
     const resolvedStatus = status || 'Aberto';
@@ -1331,13 +1352,15 @@ app.put('/api/ciclos/:id', async (req, res) => {
     const dataInicioISO = formatDateToISO(data_inicio);
     const dataFimISO = formatDateToISO(data_fim);
     
+    const idCiclo = parseInt(req.params.id, 10);
     await db.run(
-      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5, ativo=$6, limite_equipes_diario=$7 WHERE id_ciclo=$8',
-      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6, req.params.id]
+      'UPDATE CICLOS SET id_opm=$1, data_inicio=$2, data_fim=$3, status=$4, valor_total_previsto=$5, valor_contingencia=$6, ativo=$7, limite_equipes_diario=$8 WHERE id_ciclo=$9',
+      [id_opm || null, dataInicioISO, dataFimISO, resolvedStatus, valor_total_previsto || 0, valor_contingencia || 0, resolvedStatus === 'Aberto', limite_equipes_diario || 6, idCiclo]
     );
 
     // Automação: Upsert nas metas
-    await recalculateMetas(req.params.id);
+    console.log(`[BACKEND] Gatilho de otimização disparado para ciclo ${idCiclo} (Status: ${resolvedStatus})`);
+    await recalculateMetas(idCiclo);
 
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1387,8 +1410,9 @@ app.get('/api/admin/migrate-fix', async (req, res) => {
   try {
     console.log('[MIGRATE] Running emergency fix...');
     
-    // 1. Garante a coluna limite_equipes_diario
+    // 1. Garante a coluna limite_equipes_diario e valor_contingencia
     await db.run('ALTER TABLE CICLOS ADD COLUMN IF NOT EXISTS limite_equipes_diario INTEGER DEFAULT 6');
+    await db.run('ALTER TABLE CICLOS ADD COLUMN IF NOT EXISTS valor_contingencia DECIMAL(12, 2) DEFAULT 0');
     
     // 2. REPARA CICLOS EXISTENTES (Shift 15->16 se necessário)
     // Muitos ciclos foram criados com erro de fuso horário (15 ao invés de 16)
@@ -1435,9 +1459,10 @@ app.get('/api/admin/migrate-fix', async (req, res) => {
           c.status,
           c.ativo,
           c.valor_total_previsto,
+          c.valor_contingencia,
           c.limite_equipes_diario,
           COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as custo_executado,
-          c.valor_total_previsto - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
+          c.valor_total_previsto - c.valor_contingencia - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
           (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
           (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
       FROM CICLOS c
@@ -2786,16 +2811,18 @@ app.get('/api/financeiro/resumo', async (req, res) => {
         );
       }
 
-      // Remove apenas os dias que serão re-inseridos (cirúrgico, não apaga tudo)
+      // Sincronização Inteligente (Soft Sync): 
+      // Em vez de deletar (que quebra FKs), desmarcamos a disponibilidade para os dias que serão re-importados.
       const diasNumericos = Object.keys(diasMap).map(d => parseInt(d, 10));
       if (diasNumericos.length > 0) {
         await dbConn.query(
-          `DELETE FROM DISPONIBILIDADE_REQUERIMENTO
+          `UPDATE DISPONIBILIDADE_REQUERIMENTO
+           SET marcado_disponivel = FALSE, ativo = FALSE
            WHERE id_requerimento = $1 AND dia_mes = ANY($2::int[])`,
           [idReq, diasNumericos]
         );
       }
-      console.log(`[FRAG] Requerimento existente atualizado: req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
+      console.log(`[FRAG] Requerimento existente atualizado (Soft Sync): req=${idReq}, ciclo=${idCiclo}, mes=${mesRef}`);
     } else {
       const r = await dbConn.run(
         'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento, mes_referencia) VALUES ($1, $2, $3, $4)',
@@ -2810,9 +2837,13 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       for (const shiftObj of shifts) {
         await dbConn.run(
           `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
-             (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista)
-           VALUES ($1, $2, $3, TRUE, $4)
-           ON CONFLICT (id_requerimento, dia_mes, horario_turno) DO NOTHING`,
+             (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
+           VALUES ($1, $2, $3, TRUE, TRUE, $4)
+           ON CONFLICT (id_requerimento, dia_mes, horario_turno) 
+           DO UPDATE SET 
+             marcado_disponivel = TRUE, 
+             ativo = TRUE,
+             motorista = EXCLUDED.motorista`,
           [idReq, parseInt(diaStr, 10), shiftObj.shift || shiftObj, !!shiftObj.motorista]
         );
         diasInseridos++;

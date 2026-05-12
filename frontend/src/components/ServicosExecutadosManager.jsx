@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar } from 'lucide-react';
+import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar, Users } from 'lucide-react';
 import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -49,6 +49,7 @@ export function ServicosExecutadosManager() {
   const [filterDataFim, setFilterDataFim] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'data_execucao', direction: 'desc' });
+  const [activeTab, setActiveTab] = useState('list'); // 'list' ou 'guarnicao'
 
   const [formData, setFormData] = useState({
     id_ciclo: '',
@@ -211,7 +212,8 @@ export function ServicosExecutadosManager() {
   const filtered = servicos.filter(s =>
     !searchTerm ||
     s.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.matricula?.includes(searchTerm)
+    s.matricula?.includes(searchTerm) ||
+    s.guarnicao?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
 
@@ -284,6 +286,40 @@ export function ServicosExecutadosManager() {
     const tipo = tiposServico.find(t => t.carga_horaria === formData.carga_horaria);
     return tipo ? parseFloat(tipo.valor_remuneracao).toFixed(2) : '0.00';
   };
+
+  // Lógica de agrupamento por guarnição
+  const groupedByGuarnicao = filtered.reduce((acc, s) => {
+    // Só agrupa se tiver guarnição definida
+    if (!s.guarnicao || s.guarnicao === '---') return acc;
+
+    const key = `${s.data_execucao}_${s.guarnicao}`;
+    if (!acc[key]) {
+      acc[key] = {
+        id: key,
+        guarnicao: s.guarnicao,
+        data: s.data_execucao,
+        militares: [],
+        totalValor: 0,
+        cargaHoraria: s.carga_horaria,
+        opm: s.opm_origem
+      };
+    }
+    acc[key].militares.push(s);
+    if (s.status_presenca === 'Presente') {
+      acc[key].totalValor += parseFloat(s.valor_remuneracao || 0);
+    }
+    return acc;
+  }, {});
+
+  const currentCiclo = ciclos.find(c => String(c.id_ciclo) === String(filterCiclo));
+  const cicloOpm = currentCiclo?.opm_sigla;
+
+  const guarnicaoRows = Object.values(groupedByGuarnicao)
+    .filter(row => !cicloOpm || row.opm === cicloOpm)
+    .sort((a, b) => {
+      if (a.data !== b.data) return new Date(b.data) - new Date(a.data);
+      return a.guarnicao.localeCompare(b.guarnicao);
+    });
 
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
@@ -415,10 +451,52 @@ export function ServicosExecutadosManager() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}>
+        <button
+          onClick={() => setActiveTab('list')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'list' ? 'white' : 'transparent',
+            color: activeTab === 'list' ? 'var(--primary)' : '#64748b',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            borderBottom: activeTab === 'list' ? '3px solid var(--primary)' : '3px solid transparent',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <ClipboardCheck size={18} /> Lista Individual
+        </button>
+        <button
+          onClick={() => setActiveTab('guarnicao')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'guarnicao' ? 'white' : 'transparent',
+            color: activeTab === 'guarnicao' ? 'var(--primary)' : '#64748b',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            borderBottom: activeTab === 'guarnicao' ? '3px solid var(--primary)' : '3px solid transparent',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Users size={18} /> Visão por Guarnição
+        </button>
+      </div>
+
       {/* Botões de ação em massa e Busca */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          {selectedIds.size > 0 && (
+          {activeTab === 'list' && selectedIds.size > 0 && (
             <>
               <button
                 className="btn btn-primary"
@@ -438,7 +516,7 @@ export function ServicosExecutadosManager() {
       {/* Tabela */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Carregando...</div>
-      ) : (
+      ) : activeTab === 'list' ? (
         <div className="table-premium-wrapper">
           <table className="admin-table" style={{ border: 'none' }}>
             <thead>
@@ -530,6 +608,64 @@ export function ServicosExecutadosManager() {
                         <button className="action-btn action-btn-primary" onClick={() => openEdit(s)} title="Editar"><Edit2 size={14} /></button>
                         <button className="action-btn action-btn-danger" onClick={() => handleDelete(s.id_execucao)} title="Excluir"><Trash2 size={14} /></button>
                       </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ border: 'none' }}>
+            <thead>
+              <tr style={{ borderBottom: 'none' }}>
+                <th style={{ padding: '16px' }}>Guarnição</th>
+                <th style={{ padding: '16px' }}>Data</th>
+                <th style={{ padding: '16px' }}>Efetivo (Integrantes)</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Qtd</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Carga</th>
+                <th style={{ padding: '16px', textAlign: 'right' }}>Total Remuneração</th>
+              </tr>
+            </thead>
+            <tbody>
+              {guarnicaoRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                    Nenhuma guarnição identificada nos filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                guarnicaoRows.map(row => (
+                  <tr key={row.id}>
+                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                      {row.guarnicao}
+                    </td>
+                    <td>{formatDateDisplay(row.data)}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {row.militares.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao)).map((m, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '0.75rem',
+                            background: '#f1f5f9',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            color: m.status_presenca === 'Presente' ? '#334155' : '#94a3b8',
+                            textDecoration: m.status_presenca !== 'Presente' ? 'line-through' : 'none'
+                          }}>
+                            {m.nome_guerra}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.militares.length}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
+                        {row.cargaHoraria}h
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                      {formatCurrency(row.totalValor)}
                     </td>
                   </tr>
                 ))

@@ -1,3 +1,69 @@
+## v1.32.5 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Seletor de Ciclo Dinâmico**: Adicionado seletor de ciclos no `AdminDashboardV2.jsx`, permitindo que o gestor alterne manualmente entre ciclos operacionais para planejar escalas futuras ou auditar passadas.
+- **Filtro 'Mostrar Todos'**: Implementada funcionalidade de exibir voluntários indisponíveis no dia selecionado. Isso permite localizar militares que não marcaram disponibilidade no requerimento original, mas que podem ser escalados manualmente.
+- **Melhoria UX no Pool**: Novo design para o cabeçalho do pool de voluntários e mensagens de "Empty State" orientando o usuário sobre como encontrar militares.
+- **Hardening no Backend**: Adicionados logs de auditoria e conversão explícita de tipos no gatilho de recálculo de metas diárias, garantindo que a ativação de um ciclo gere corretamente o planejamento financeiro/equipes.
+
+---
+
+## v1.32.4 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Integridade Referencial**: Substituída a lógica de "Excluir e Reinserir" por um modelo de "Atualização Inteligente" (UPSERT) na importação de PDFs de requerimentos. Isso resolve o erro de violação de chave estrangeira que impedia a atualização de voluntários que já possuíam escalas agendadas.
+- **Segurança na Exclusão**: Implementada validação na rota de exclusão de requerimentos para impedir a remoção acidental de dados que já estão sendo utilizados em planejamentos ativos.
+
+---
+
+## v1.32.3 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Busca Multicritério**: Expandida a funcionalidade de busca no `ServicosExecutadosManager.jsx` para incluir a coluna **Guarnição**. Agora o gestor pode localizar registros pesquisando simultaneamente por Nome de Guerra, Matrícula ou Nome da Equipe.
+
+---
+
+## v1.32.2 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Filtro por OPM no Agrupamento**: A visão de guarnições agrupadas agora filtra automaticamente os resultados para exibir apenas as equipes vinculadas à OPM do ciclo operacional selecionado.
+- **Precisão Operacional**: Garantia de que guarnições de unidades distintas (ex: CPM/I-Faz vs 9º BPM) não sejam misturadas na visualização quando múltiplos contextos de serviço coexistem no mesmo período.
+
+---
+
+## v1.32.1 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Visão por Guarnição**: Implementado sistema de abas no `ServicosExecutadosManager.jsx`, permitindo alternar entre a lista individual de serviços e uma nova visão agrupada por equipe (guarnição).
+- **Agrupamento Dinâmico**: Nova lógica de processamento que agrupa militares que prestaram serviço na mesma guarnição e data, facilitando a conferência de equipes formadas.
+- **Tabela de Equipes**: Exibição consolidada com lista de integrantes, quantidade de militares por equipe, carga horaria comum e valor total de remuneração da guarnição.
+- **UX/UI**: Adição de indicadores visuais para militares ausentes/justificados dentro do agrupamento de guarnição (nome tachado).
+
+---
+
+## v1.32.0 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Contingência de Orçamento**: Implementada a funcionalidade de definir um valor de contingência (reserva de segurança) por ciclo operacional.
+- **Cálculo de Saldo Real**: Atualizada a lógica do sistema para que o saldo disponível para planejamento seja calculado como `Teto - Contingência - Executado`, garantindo maior transparência e segurança financeira.
+- **Automação de Metas**: O motor de otimização (`ScaleOptimizationService.js`) agora abate automaticamente o valor contingenciado antes de distribuir as metas diárias, evitando o empenho total do orçamento previsto.
+- **Interface de Gestão**: Inclusão de campo específico para Valor de Contingência no cadastro de ciclos (`CicloManager.jsx`) com indicadores visuais nos cards de resumo.
+- **Painel de Planejamento**: Adicionado card de "Contingência" no `MetasAlocacaoManager.jsx` e expansão do sumário financeiro para 5 colunas, detalhando a composição do saldo.
+
+---
+
 ## v1.31.0 — 2026-05-09
 **Autor:** pmal-daten
 **Email:** unknown

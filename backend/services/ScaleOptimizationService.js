@@ -109,7 +109,7 @@ async function recalculateMetas(id_ciclo) {
         AND UPPER(TRIM(opm_origem)) = UPPER(TRIM($2))
     `, [id_ciclo, cycle.opm_sigla]);
     const spent = parseFloat(executedRes.total) || 0;
-    const remainingBudget = Math.max(0, parseFloat(cycle.valor_total_previsto) - spent);
+    const remainingBudget = Math.max(0, parseFloat(cycle.valor_total_previsto) - parseFloat(cycle.valor_contingencia || 0) - spent);
 
     // 3. Determine remaining period (Optimization starts TODAY)
     const today = new Date();

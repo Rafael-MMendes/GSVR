@@ -52,6 +52,7 @@ export function AdminDashboardV2() {
   const [militarSchedules, setMilitarSchedules] = useState([]);
   const [showPublicacao, setShowPublicacao] = useState(false);
   const [metas, setMetas] = useState([]);
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   const [state, setState] = useState({
     pool: [],
@@ -201,7 +202,8 @@ export function AdminDashboardV2() {
       if (!matchesSearch) return false;
 
       if (selectedShift !== 'Todos') {
-        if (!p.isAvailableToday) return false;
+        if (!p.isAvailableToday && !showUnavailable) return false;
+        if (!p.isAvailableToday && showUnavailable) return true; // Mostra todos se showUnavailable estiver on
         return p.todayShifts.some(s => {
           if (!s) return false;
           const shiftStr = typeof s === 'object' ? s.turno : s;
@@ -209,11 +211,11 @@ export function AdminDashboardV2() {
         });
       }
 
-      if (!isSearchActive && !p.isAvailableToday) return false;
+      if (!isSearchActive && !p.isAvailableToday && !showUnavailable) return false;
 
       return true;
     });
-  }, [state.pool, searchTerm, selectedShift, selectedDate]);
+  }, [state.pool, searchTerm, selectedShift, selectedDate, showUnavailable]);
 
   const assignToActiveSlot = (person) => {
     if (!activeSlot) return;
@@ -605,8 +607,26 @@ export function AdminDashboardV2() {
             }}>
               <Clock size={16} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Ciclo Ativo</div>
-                {months.find(m => m.id_ciclo === selectedCycleId)?.period_name || '---'}
+                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Ciclo Ativo</div>
+                <select 
+                  value={selectedCycleId}
+                  onChange={(e) => setSelectedCycleId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    color: colors.primary,
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    padding: 0
+                  }}
+                >
+                  {months.map(m => (
+                    <option key={m.id_ciclo} value={m.id_ciclo}>{m.period_name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -624,8 +644,25 @@ export function AdminDashboardV2() {
             }}>
               <Users size={16} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
-                Disponíveis: {filteredPool.length}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
+                  <button 
+                    onClick={() => setShowUnavailable(!showUnavailable)}
+                    style={{ 
+                      fontSize: '0.65rem', 
+                      background: showUnavailable ? '#fee2e2' : '#f1f5f9',
+                      border: 'none',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      color: showUnavailable ? '#b91c1c' : '#64748b',
+                      cursor: 'pointer',
+                      fontWeight: 700
+                    }}
+                  >
+                    {showUnavailable ? 'Ocultar' : 'Mostrar Todos'}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>Disponíveis: {filteredPool.length}</div>
               </div>
             </div>
 
@@ -1403,17 +1440,37 @@ export function AdminDashboardV2() {
                 <div style={{
                   padding: '0.85rem 1.25rem',
                   borderRadius: '12px',
-                  background: '#f0fdf4',
-                  color: '#166534',
-                  border: '1px solid #bbf7d0',
+                  background: showUnavailable ? '#fee2e2' : '#f0fdf4',
+                  color: showUnavailable ? '#b91c1c' : '#166534',
+                  border: showUnavailable ? '1px solid #fecaca' : '1px solid #bbf7d0',
                   fontWeight: 700,
                   fontSize: '0.9rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  minWidth: '220px'
                 }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
-                  {filteredPool.length} Disponíveis
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: showUnavailable ? '#ef4444' : '#22c55e' }}></div>
+                    {filteredPool.length} {showUnavailable ? 'Encontrados' : 'Disponíveis'}
+                  </div>
+                  <button
+                    onClick={() => setShowUnavailable(!showUnavailable)}
+                    style={{
+                      background: 'white',
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      color: showUnavailable ? '#b91c1c' : '#166534',
+                      fontWeight: 800,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {showUnavailable ? 'Ver Disponíveis' : 'Mostrar Todos'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1432,8 +1489,10 @@ export function AdminDashboardV2() {
               {filteredPool.length === 0 ? (
                 <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: colors.textMuted }}>
                   <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar encontrado</p>
-                  <p style={{ fontSize: '0.9rem' }}>Tente ajustar os filtros ou a busca</p>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar disponível hoje</p>
+                  <p style={{ fontSize: '0.9rem', maxWidth: '300px', margin: '0.5rem auto' }}>
+                    Tente clicar em <strong>"Mostrar Todos"</strong> no topo para ver voluntários que não marcaram este dia.
+                  </p>
                 </div>
               ) : (
                 filteredPool.map(p => {

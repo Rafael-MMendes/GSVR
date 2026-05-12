@@ -195,6 +195,7 @@ async function setupDB() {
               data_fim DATE NOT NULL,
               status VARCHAR(50) NOT NULL DEFAULT 'Aberto',
               valor_total_previsto DECIMAL(12, 2) DEFAULT 0,
+              valor_contingencia DECIMAL(12, 2) DEFAULT 0,
               ativo BOOLEAN DEFAULT TRUE,
               limite_equipes_diario INTEGER DEFAULT 6
           );
@@ -295,6 +296,9 @@ async function setupDB() {
           BEGIN 
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_total_previsto') THEN
               ALTER TABLE CICLOS ADD COLUMN valor_total_previsto DECIMAL(12, 2) DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_contingencia') THEN
+              ALTER TABLE CICLOS ADD COLUMN valor_contingencia DECIMAL(12, 2) DEFAULT 0;
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='ativo') THEN
               ALTER TABLE CICLOS ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
@@ -631,9 +635,10 @@ async function setupDB() {
               c.status,
               c.ativo,
               c.valor_total_previsto,
+              c.valor_contingencia,
               c.limite_equipes_diario,
               COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as custo_executado,
-              c.valor_total_previsto - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
+              c.valor_total_previsto - c.valor_contingencia - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
               (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
               (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
           FROM CICLOS c
