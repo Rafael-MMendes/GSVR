@@ -1,3 +1,15 @@
+## v1.32.12 — 2026-05-18
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Controle de Publicação de Guarnições**:
+  - **Interface Administrativa (AdminDashboardV2)**: Adicionado um botão interativo (ícones `Eye` / `EyeOff`) e um status pill ("Publicada" / "Não Publicada") em cada cartão de guarnição no painel de planejamento. Guarnições marcadas como não publicadas ganham um estilo visual diferenciado (borda tracejada vermelha e leve transparência) para feedback visual imediato.
+  - **Publicação Oficial (EscalaPublicacaoOficial)**: Filtrada a lista de patrulhas para ocultar automaticamente equipes marcadas com `publicado === false` do layout de publicação oficial e da geração do PDF.
+  - **Persistência de Dados (Backend & DB)**: Adicionada a coluna `publicado` na tabela `ESCALA_PLANEJAMENTO` no banco de dados PostgreSQL (via schema inicial e script de migração no `db.js`) e ajustados os endpoints de listagem e salvamento no `server.js` para garantir que o estado de publicação seja persistido no banco de dados.
+
+---
+
 ## v1.32.11 — 2026-05-18
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

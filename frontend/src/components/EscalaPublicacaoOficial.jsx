@@ -30,6 +30,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
   const groupedPatrols = useMemo(() => {
     const groups = {};
     patrols.forEach(p => {
+      if (p.publicado === false) return;
       const shift = p.timeSpan || 'Horário Não Definido';
       if (!groups[shift]) groups[shift] = [];
       groups[shift].push(p);

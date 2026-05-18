@@ -2056,6 +2056,7 @@ app.get('/api/schedules', async (req, res) => {
         ep.nome_recurso   AS patrol_id,
         ep.nome_recurso   AS patrol_name,
         ep.observacoes      AS patrol_duration,
+        ep.publicado,
         e.nome_guerra       AS name,
         e.posto_graduacao   AS rank,
         e.telefone          AS phone,
@@ -2106,6 +2107,7 @@ app.get('/api/schedules', async (req, res) => {
           name:     patrolName,
           duration: row.patrol_duration || '6h',
           timeSpan: row.horario_servico || '',
+          publicado: row.publicado !== false,
           members:  [null, null, null]
         };
         patrols.push(patrol);
@@ -2387,13 +2389,14 @@ app.post('/api/schedules', async (req, res) => {
           }
 
           const idDisponibilidade = reqMilitarRes.rows.length > 0 ? reqMilitarRes.rows[0].id_disponibilidade : null;
+          const publicado = patrol.publicado !== false;
 
           await client.query(`
             INSERT INTO ESCALA_PLANEJAMENTO
               (id_ciclo, id_militar, id_tipo_servico, id_disponibilidade,
                data_servico, horario_servico, funcao,
-               nome_recurso, observacoes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               nome_recurso, observacoes, publicado)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `, [
             parseInt(ciclo.id_ciclo, 10),
             parseInt(member.id_militar, 10),
@@ -2403,7 +2406,8 @@ app.post('/api/schedules', async (req, res) => {
             horarioServico,
             funcao,
             patrol.name || 'GSVR', 
-            patrol.duration || '6h'        
+            patrol.duration || '6h',
+            publicado
           ]);
 
           inserted++;

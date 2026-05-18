@@ -270,7 +270,8 @@ async function setupDB() {
               horario_embarque VARCHAR(50),
               nome_recurso VARCHAR(100),
               funcao VARCHAR(50),
-              observacoes TEXT
+              observacoes TEXT,
+              publicado BOOLEAN DEFAULT TRUE
           );
 
           -- 7. Tabela SERVICOS_EXECUTADOS
@@ -306,6 +307,9 @@ async function setupDB() {
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
               ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='publicado') THEN
+              ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN publicado BOOLEAN DEFAULT TRUE;
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_tipo_servico') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);

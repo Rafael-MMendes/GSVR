@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target, Eye, EyeOff } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
@@ -914,8 +914,9 @@ export function AdminDashboardV2() {
                 style={{
                   background: colors.white,
                   borderRadius: '20px',
-                  border: `1px solid ${colors.border}`,
+                  border: patrol.publicado === false ? '1px dashed #ef4444' : `1px solid ${colors.border}`,
                   boxShadow: shadowMd,
+                  opacity: patrol.publicado === false ? 0.85 : 1,
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
@@ -967,31 +968,55 @@ export function AdminDashboardV2() {
                         placeholder="Nome da Guarnição"
                       />
                     </div>
-                    <button
-                      onClick={() => removePatrol(patrol.id)}
-                      className="no-print"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.12)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        cursor: 'pointer',
-                        borderRadius: '12px',
-                        padding: '8px',
-                        display: 'flex',
-                        transition: transitions,
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }}
-                      onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
-                      onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
-                      title="Remover Guarnição"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <button
+                        onClick={() => handlePatrolSettingChange(patrol.id, 'publicado', patrol.publicado === false ? true : false)}
+                        className="no-print"
+                        style={{
+                          background: patrol.publicado !== false ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
+                          backdropFilter: 'blur(8px)',
+                          border: `1px solid ${patrol.publicado !== false ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                          color: 'white',
+                          cursor: 'pointer',
+                          borderRadius: '12px',
+                          padding: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }}
+                        title={patrol.publicado !== false ? "Esta guarnição será publicada na escala oficial (Clique para ocultar)" : "Esta guarnição está oculta e não será publicada (Clique para exibir)"}
+                      >
+                        {patrol.publicado !== false ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </button>
+
+                      <button
+                        onClick={() => removePatrol(patrol.id)}
+                        className="no-print"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.12)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          cursor: 'pointer',
+                          borderRadius: '12px',
+                          padding: '8px',
+                          display: 'flex',
+                          transition: transitions,
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
+                        title="Remover Guarnição"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Status Pills inside header */}
-                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                     <div style={{
                       fontSize: '0.8rem',
                       fontWeight: 700,
@@ -1016,6 +1041,22 @@ export function AdminDashboardV2() {
                         {patrol.timeSpan}
                       </div>
                     )}
+                    <div style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      background: patrol.publicado !== false ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '20px',
+                      backdropFilter: 'blur(4px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {patrol.publicado !== false ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
+                      {patrol.publicado !== false ? 'Publicada' : 'Não Publicada'}
+                    </div>
                   </div>
 
                   {/* Input Local de Embarque */}
