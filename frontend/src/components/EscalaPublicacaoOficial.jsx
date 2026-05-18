@@ -45,17 +45,65 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
 
   const handleExportPDF = async () => {
     if (!printRef.current) return;
+    const elementoImpressao = printRef.current;
+    let exibicoesOriginais = [];
+    const espacadoresCriadosParaQuebra = [];
+
+    // Guardar estilos originais de largura para restauração
+    const larguraOriginal = elementoImpressao.style.width;
+    const larguraMaximaOriginal = elementoImpressao.style.maxWidth;
+
     try {
       setIsExporting(true);
 
-      const element = printRef.current;
+      // Forçar largura exata de 900px para garantir cálculos idênticos ao do html2canvas
+      elementoImpressao.style.width = '900px';
+      elementoImpressao.style.maxWidth = '900px';
 
       // Ocultar temporariamente elementos com classe 'no-print'
-      const noPrintElements = element.querySelectorAll('.no-print');
-      const originalDisplays = Array.from(noPrintElements).map(el => el.style.display);
-      noPrintElements.forEach(el => el.style.display = 'none');
+      const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
+      exibicoesOriginais = Array.from(elementosSemImpressao).map(el => el.style.display);
+      elementosSemImpressao.forEach(el => el.style.display = 'none');
 
-      const canvas = await html2canvas(element, {
+      // Evitar quebras de tabelas no meio da página de forma dinâmica
+      const ALTURA_PAGINA_A4 = 1270;
+      const elementosParaEvitar = elementoImpressao.querySelectorAll('.bloco-guarnicao, .pdf-footer');
+
+      // Função para calcular a distância do elemento até o topo do container de impressão
+      const obterTopoRelativo = (elementoIndividual, conteiner) => {
+        const retanguloIndividual = elementoIndividual.getBoundingClientRect();
+        const retanguloConteiner = conteiner.getBoundingClientRect();
+        return retanguloIndividual.top - retanguloConteiner.top;
+      };
+
+      elementosParaEvitar.forEach(elementoIndividual => {
+        const topoCalculado = obterTopoRelativo(elementoIndividual, elementoImpressao);
+        const alturaCalculada = elementoIndividual.offsetHeight;
+
+        const paginaInicioCalculada = Math.floor(topoCalculado / ALTURA_PAGINA_A4);
+        const paginaFimCalculada = Math.floor((topoCalculado + alturaCalculada) / ALTURA_PAGINA_A4);
+
+        // Se o elemento começar em uma página e terminar na outra, adiciona o espaçador antes dele
+        if (paginaInicioCalculada !== paginaFimCalculada) {
+          // Adicionamos um recuo de 35px no topo da nova página para que o cabeçalho do turno desça um pouco
+          const MARGEM_TOPO_NOVA_PAGINA = 35;
+          const espacoRestanteCalculado = (paginaInicioCalculada + 1) * ALTURA_PAGINA_A4 - topoCalculado + MARGEM_TOPO_NOVA_PAGINA;
+          
+          const divEspacadora = document.createElement('div');
+          divEspacadora.className = 'espacador-impressao-pdf';
+          divEspacadora.style.height = `${espacoRestanteCalculado}px`;
+          divEspacadora.style.width = '100%';
+          divEspacadora.style.backgroundColor = 'transparent';
+          divEspacadora.style.margin = '0';
+          divEspacadora.style.padding = '0';
+          divEspacadora.style.border = 'none';
+          
+          elementoIndividual.parentNode.insertBefore(divEspacadora, elementoIndividual);
+          espacadoresCriadosParaQuebra.push(divEspacadora);
+        }
+      });
+
+      const capturaDeTela = await html2canvas(elementoImpressao, {
         scale: 2,
         useCORS: true,
         logging: false,
@@ -63,40 +111,56 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
         windowWidth: 900 // Force fixed width to match A4 rendering exactly
       });
 
-      // Restaurar visibilidade
-      noPrintElements.forEach((el, index) => el.style.display = originalDisplays[index]);
+      const dadosDaImagem = capturaDeTela.toDataURL('image/png');
 
-      const imgData = canvas.toDataURL('image/png');
-
-      const pdf = new jsPDF({
+      const documentoPdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const larguraDoPdf = documentoPdf.internal.pageSize.getWidth(); // 210
+      const alturaDoPdf = (capturaDeTela.height * larguraDoPdf) / capturaDeTela.width;
 
-      let position = 0;
+      let posicao = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      documentoPdf.addImage(dadosDaImagem, 'PNG', 0, posicao, larguraDoPdf, alturaDoPdf);
 
-      let heightLeft = pdfHeight - pdf.internal.pageSize.getHeight();
+      let alturaRestante = alturaDoPdf - documentoPdf.internal.pageSize.getHeight();
 
-      while (heightLeft >= 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+      while (alturaRestante >= 0) {
+        posicao = alturaRestante - alturaDoPdf;
+        documentoPdf.addPage();
+        documentoPdf.addImage(dadosDaImagem, 'PNG', 0, posicao, larguraDoPdf, alturaDoPdf);
+        alturaRestante -= documentoPdf.internal.pageSize.getHeight();
       }
 
-      const formattedFileNameDate = formatDate(date).replace(/\//g, '-');
-      pdf.save(`Escala_do_dia_${formattedFileNameDate}.pdf`);
-    } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+      const dataFormatadaParaNomeArquivo = formatDate(date).replace(/\//g, '-');
+      documentoPdf.save(`Escala_do_dia_${dataFormatadaParaNomeArquivo}.pdf`);
+    } catch (erro) {
+      console.error('Erro ao gerar PDF:', erro);
       alert('Houve um erro ao gerar o PDF.');
     } finally {
       setIsExporting(false);
+
+      // Restaurar largura original do container
+      elementoImpressao.style.width = larguraOriginal;
+      elementoImpressao.style.maxWidth = larguraMaximaOriginal;
+
+      // Restaurar visibilidade dos elementos no-print
+      const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
+      elementosSemImpressao.forEach((el, index) => {
+        if (exibicoesOriginais[index] !== undefined) {
+          el.style.display = exibicoesOriginais[index];
+        }
+      });
+
+      // Remover espaçadores temporários
+      espacadoresCriadosParaQuebra.forEach(espacador => {
+        if (espacador && espacador.parentNode) {
+          espacador.parentNode.removeChild(espacador);
+        }
+      });
     }
   };
 
@@ -244,14 +308,22 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           position: 'relative'
         }}>
           <div style={{
-            width: '80px',
-            height: '80px',
+            height: '90px',
             margin: '0 auto 1rem auto',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <img src="/pmal.png" alt="Brasão PMAL" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img 
+              src="/pmal.png" 
+              alt="Brasão PMAL" 
+              style={{ 
+                height: '90px',
+                width: 'auto',
+                maxWidth: '100%',
+                objectFit: 'contain'
+              }} 
+            />
           </div>
 
           <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
@@ -284,7 +356,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           {Object.entries(groupedPatrols).map(([shift, shiftPatrols], idx) => (
             <div key={shift} className="shift-block" style={{ marginBottom: '1rem' }}>
               {shiftPatrols.map(patrol => (
-                <div key={patrol.id} style={{ marginBottom: '2.5rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+                <div key={patrol.id} className="bloco-guarnicao" style={{ marginBottom: '2.5rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
 
                   {/* Cabeçalho do Turno acima da tabela */}
                   <div style={{

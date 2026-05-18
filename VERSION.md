@@ -1,3 +1,15 @@
+## v1.32.11 — 2026-05-18
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Exportação e Diagramação de Escalas em PDF**:
+  - **Identidade Visual**: Refatorada o brasão oficial da Polícia Militar de Alagoas (`pmal.png`) no cabeçalho do documento de publicação de escalas, com proporções nativas preservadas (`objectFit: 'contain'`) para evitar achatamento.
+  - **Paginação Dinâmica e Precisa**: Refatorada a função `handleExportPDF` para aplicar temporariamente `width: '900px'` no contêiner durante a exportação, alinhando de forma 100% precisa os cálculos de `getBoundingClientRect()` e `offsetHeight` com o motor de renderização do `html2canvas` independente da resolução ou zoom do navegador do usuário.
+  - **Recuo de Margem Superior**: Implementado recuo dinâmico de `35px` no topo da segunda e terceira páginas do PDF para garantir que o título do turno (`TURNO: DIURNO...`) não fique colado no corte físico superior da folha, mantendo a harmonia visual idêntica à da primeira página.
+
+---
+
 ## v1.32.10 — 2026-05-12
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
