@@ -2047,6 +2047,7 @@ app.get('/api/schedules', async (req, res) => {
     }
 
     // Busca todas os registros ESCALA_PLANEJAMENTO do dia com dados do militar
+    // LATERAL + LIMIT 1 evita duplicação quando um militar tem múltiplos requerimentos no mesmo ciclo
     const { rows } = await db.query(`
       SELECT
         ep.id_escala,
@@ -2062,7 +2063,7 @@ app.get('/api/schedules', async (req, res) => {
         e.telefone          AS phone,
         e.motorista,
         COALESCE(e.numero_ordem, e.matricula) AS numero_ordem,
-        r.id_requerimento   AS volunteer_id,
+        r_lat.id_requerimento AS volunteer_id,
         COALESCE(ts.carga_horaria, 6) AS carga_horaria,
         (
           SELECT COUNT(*)
@@ -2073,9 +2074,13 @@ app.get('/api/schedules', async (req, res) => {
       FROM ESCALA_PLANEJAMENTO ep
       JOIN EFETIVO e
         ON ep.id_militar = e.id_militar
-      LEFT JOIN REQUERIMENTOS r
-        ON r.id_militar = ep.id_militar
-       AND r.id_ciclo   = ep.id_ciclo
+      LEFT JOIN LATERAL (
+        SELECT r.id_requerimento
+        FROM REQUERIMENTOS r
+        WHERE r.id_militar = ep.id_militar
+          AND r.id_ciclo   = ep.id_ciclo
+        LIMIT 1
+      ) r_lat ON TRUE
       LEFT JOIN TIPOS_SERVICO ts
         ON ep.id_tipo_servico = ts.id_tipo_servico
       WHERE ep.id_ciclo    = $1
@@ -2087,8 +2092,13 @@ app.get('/api/schedules', async (req, res) => {
 
     // Reconstrói o array de patrulhas agrupando por nome e horário sem sobrescrever slots ocupados
     const patrols = [];
+    const seenEscalas = new Set(); // Segurança: deduplica por id_escala
 
     for (const row of rows) {
+      // Proteção contra linhas duplicadas (mesmo id_escala processado 2x)
+      if (seenEscalas.has(row.id_escala)) continue;
+      seenEscalas.add(row.id_escala);
+
       const patrolName = row.patrol_name || 'GSVR';
       const roleIndex = PATROL_ROLES.indexOf(row.funcao);
       const slot = roleIndex >= 0 ? roleIndex : 0;

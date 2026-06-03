@@ -1,3 +1,13 @@
+## v1.32.13 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Duplicação de Guarnições**:
+  - **Backend (server.js)**: Corrigido o bug na rota `GET /api/schedules` que causava a duplicação de guarnições no painel administrativo (`AdminDashboardV2`). A duplicação ocorria porque a junção com a tabela de requerimentos (`LEFT JOIN REQUERIMENTOS`) gerava registros duplicados quando um militar possuía mais de um requerimento ativo no mesmo ciclo operacional. A consulta foi otimizada para utilizar um `LEFT JOIN LATERAL` limitando o resultado a 1 registro por militar, e foi adicionada uma validação de unicidade (`seenEscalas`) durante o agrupamento de escalas no JavaScript.
+
+---
+
 ## v1.32.12 — 2026-05-18
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
