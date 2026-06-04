@@ -446,8 +446,15 @@ async function setupDB() {
                  WHERE r.id_requerimento = dr.id_requerimento
                    AND r.mes_referencia IS NOT NULL
                    AND r.mes_referencia ~ '^\d{4}-\d{2}$'),
-                (SELECT public.safe_make_date(EXTRACT(YEAR FROM r.data_solicitacao)::int, EXTRACT(MONTH FROM r.data_solicitacao)::int, dr.dia_mes)
+                (SELECT 
+                   CASE 
+                     WHEN dr.dia_mes >= EXTRACT(DAY FROM c.data_inicio)::int THEN
+                       public.safe_make_date(EXTRACT(YEAR FROM c.data_inicio)::int, EXTRACT(MONTH FROM c.data_inicio)::int, dr.dia_mes)
+                     ELSE
+                       public.safe_make_date(EXTRACT(YEAR FROM c.data_fim)::int, EXTRACT(MONTH FROM c.data_fim)::int, dr.dia_mes)
+                   END
                  FROM REQUERIMENTOS r
+                 JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
                  WHERE r.id_requerimento = dr.id_requerimento)
               );
 
@@ -1032,7 +1039,7 @@ async function setupDB() {
               ELSE
                   -- Sem Planejamento: Cria novo registro de execução avulsa
                   INSERT INTO ESCALA_EFETIVO_SERVICO (id_execucao, id_militar, status)
-                  VALUES (NEW.id_execucao, NEW.id_militar, 'Apenas executado');
+                  VALUES (NEW.id_execucao, NEW.id_militar, 'Executado e Não Planejado');
               END IF;
 
               RETURN NEW;
@@ -1061,7 +1068,7 @@ async function setupDB() {
   }
 }
 
-module.exports = { 
+module.exports = {
   setupDB,
   ...db
 };

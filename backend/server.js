@@ -681,22 +681,60 @@ app.get('/api/volunteers', async (req, res) => {
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
               GROUP BY dia_mes
             ) d) as availability_json,
-            (SELECT json_object_agg(EXTRACT(DAY FROM dia_mes)::int, turnos_completos) FROM (
-              SELECT dia_mes, json_agg(json_build_object(
+            (SELECT json_object_agg(dia_mes_num, turnos_completos) FROM (
+              SELECT dia_mes_num, json_agg(json_build_object(
                 'turno', horario_turno, 
                 'ativo', ativo, 
                 'motorista', motorista, 
                 'observacoes', observacoes,
-                'teve_execucao', EXISTS (
-                  SELECT 1 FROM SERVICOS_EXECUTADOS se
+                'teve_execucao', teve_execucao
+              )) as turnos_completos
+              FROM (
+                SELECT 
+                  dia_mes_num,
+                  horario_turno,
+                  BOOL_OR(ativo) as ativo,
+                  BOOL_OR(motorista) as motorista,
+                  MAX(observacoes) as observacoes,
+                  BOOL_OR(teve_execucao) as teve_execucao
+                FROM (
+                  SELECT 
+                    EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes_num,
+                    dr.horario_turno, 
+                    dr.ativo, 
+                    dr.motorista, 
+                    dr.observacoes,
+                    EXISTS (
+                      SELECT 1 FROM SERVICOS_EXECUTADOS se
+                      WHERE se.id_militar = r.id_militar
+                        AND se.id_ciclo = r.id_ciclo
+                        AND se.data_execucao = dr.dia_mes
+                    ) as teve_execucao
+                  FROM DISPONIBILIDADE_REQUERIMENTO dr
+                  WHERE dr.id_requerimento = r.id_requerimento AND dr.marcado_disponivel = TRUE
+
+                  UNION ALL
+
+                  SELECT 
+                    EXTRACT(DAY FROM se.data_execucao)::int as dia_mes_num,
+                    t.turno as horario_turno,
+                    true as ativo,
+                    false as motorista,
+                    '' as observacoes,
+                    true as teve_execucao
+                  FROM SERVICOS_EXECUTADOS se
+                  CROSS JOIN (
+                    SELECT '07:00 ÀS 13:00' as turno
+                    UNION ALL SELECT '13:00 ÀS 19:00'
+                    UNION ALL SELECT '19:00 ÀS 01:00'
+                    UNION ALL SELECT '01:00 ÀS 07:00'
+                  ) t
                   WHERE se.id_militar = r.id_militar
                     AND se.id_ciclo = r.id_ciclo
-                    AND se.data_execucao = dia_mes
-                )
-              )) as turnos_completos
-              FROM DISPONIBILIDADE_REQUERIMENTO
-              WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
-              GROUP BY dia_mes
+                ) inner_sub
+                GROUP BY dia_mes_num, horario_turno
+              ) outer_sub
+              GROUP BY dia_mes_num
             ) d) as availability_completa_json,
             (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_militar = e.id_militar AND ep.id_ciclo = c.id_ciclo) as service_count,
             (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as executed_count,
@@ -2293,24 +2331,53 @@ app.get('/api/reports/disponibilidade-grid', async (req, res) => {
     }
 
     const rows = await db.all(`
-      SELECT
-        EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes,
-        dr.horario_turno,
-        dr.marcado_disponivel,
-        dr.ativo,
-        dr.marcado_servico_ordinario,
-        EXISTS (
-          SELECT 1
-          FROM SERVICOS_EXECUTADOS se
-          WHERE se.id_militar = r.id_militar
-            AND se.id_ciclo   = r.id_ciclo
-            AND se.data_execucao = dr.dia_mes
-        ) AS teve_execucao
-      FROM DISPONIBILIDADE_REQUERIMENTO dr
-      JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
-      WHERE r.id_militar = $1
-        AND r.id_ciclo   = $2
-      ORDER BY dr.dia_mes ASC, dr.horario_turno ASC
+      SELECT 
+        dia_mes,
+        horario_turno,
+        BOOL_OR(marcado_disponivel) as marcado_disponivel,
+        BOOL_OR(ativo) as ativo,
+        BOOL_OR(marcado_servico_ordinario) as marcado_servico_ordinario,
+        BOOL_OR(teve_execucao) as teve_execucao
+      FROM (
+        SELECT
+          EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes,
+          dr.horario_turno,
+          dr.marcado_disponivel,
+          dr.ativo,
+          dr.marcado_servico_ordinario,
+          EXISTS (
+            SELECT 1
+            FROM SERVICOS_EXECUTADOS se
+            WHERE se.id_militar = r.id_militar
+              AND se.id_ciclo   = r.id_ciclo
+              AND se.data_execucao = dr.dia_mes
+          ) AS teve_execucao
+        FROM DISPONIBILIDADE_REQUERIMENTO dr
+        JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
+        WHERE r.id_militar = $1
+          AND r.id_ciclo   = $2
+
+        UNION ALL
+
+        SELECT 
+          EXTRACT(DAY FROM se.data_execucao)::int as dia_mes,
+          t.turno as horario_turno,
+          true as marcado_disponivel,
+          true as ativo,
+          false as marcado_servico_ordinario,
+          true as teve_execucao
+        FROM SERVICOS_EXECUTADOS se
+        CROSS JOIN (
+          SELECT '07:00 ÀS 13:00' as turno
+          UNION ALL SELECT '13:00 ÀS 19:00'
+          UNION ALL SELECT '19:00 ÀS 01:00'
+          UNION ALL SELECT '01:00 ÀS 07:00'
+        ) t
+        WHERE se.id_militar = $1
+          AND se.id_ciclo = $2
+      ) sub
+      GROUP BY dia_mes, horario_turno
+      ORDER BY dia_mes ASC, horario_turno ASC
     `, [id_militar, ciclo_id]);
 
     res.json(rows);

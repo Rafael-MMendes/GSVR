@@ -1,3 +1,25 @@
+## v1.32.18 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Exibição de Serviços Executados sem Disponibilidade Registrada**:
+  - **[Backend]** Modificado o endpoint `/api/reports/disponibilidade-grid` para gerar sinteticamente os 4 turnos diários na cor verde para qualquer dia contendo serviços executados (planejados ou não planejados), mesmo que o militar não tenha cadastrado disponibilidade para esse dia.
+  - **[Backend]** Atualizado o campo `availability_completa_json` no relatório de voluntários para incluir turnos gerados dinamicamente para dias com serviço executado sem disponibilidade registrada.
+
+---
+
+## v1.32.17 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção da Grade de Disponibilidade**:
+  - **[Database/Backend]** Correção do script de migração em `backend/db.js` para alinhar as datas de disponibilidade com os limites de início/fim do ciclo operacional correspondente.
+  - **[Database]** Executado script corretivo `corrigir_datas.sql` diretamente no contêiner do banco de dados no servidor VPS, corrigindo retroativamente **621 registros** de disponibilidade com datas corrompidas.
+
+---
+
 ## v1.32.16 — 2026-06-03
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
