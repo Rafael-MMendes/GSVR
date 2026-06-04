@@ -32,6 +32,32 @@ function formatDateToISO(dateOrString) {
   return dataStr;
 }
 
+function parseDayToDate(day, cycleDataInicio, cycleDataFim) {
+  if (!day) return null;
+  const dayStr = String(day).trim();
+  if (dayStr.includes('-')) {
+    return dayStr; // Já é uma data YYYY-MM-DD
+  }
+  const dayNum = parseInt(dayStr, 10);
+  if (isNaN(dayNum)) return null;
+
+  const dInicio = new Date(cycleDataInicio);
+  const dFim = new Date(cycleDataFim);
+  const startDay = dInicio.getUTCDate();
+  
+  let targetYear, targetMonth;
+  if (dayNum >= startDay) {
+    targetYear = dInicio.getUTCFullYear();
+    targetMonth = dInicio.getUTCMonth() + 1;
+  } else {
+    targetYear = dFim.getUTCFullYear();
+    targetMonth = dFim.getUTCMonth() + 1;
+  }
+  
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${targetYear}-${pad(targetMonth)}-${pad(dayNum)}`;
+}
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -649,14 +675,25 @@ app.get('/api/volunteers', async (req, res) => {
             e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             c.data_inicio, c.data_fim,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
-            (SELECT json_object_agg(dia_mes, turnos) FROM (
+            (SELECT json_object_agg(EXTRACT(DAY FROM dia_mes)::int, turnos) FROM (
               SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'observacoes', observacoes)) as turnos
               FROM DISPONIBILIDADE_REQUERIMENTO
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
               GROUP BY dia_mes
             ) d) as availability_json,
-            (SELECT json_object_agg(dia_mes, turnos_completos) FROM (
-              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'ativo', ativo, 'motorista', motorista, 'observacoes', observacoes)) as turnos_completos
+            (SELECT json_object_agg(EXTRACT(DAY FROM dia_mes)::int, turnos_completos) FROM (
+              SELECT dia_mes, json_agg(json_build_object(
+                'turno', horario_turno, 
+                'ativo', ativo, 
+                'motorista', motorista, 
+                'observacoes', observacoes,
+                'teve_execucao', EXISTS (
+                  SELECT 1 FROM SERVICOS_EXECUTADOS se
+                  WHERE se.id_militar = r.id_militar
+                    AND se.id_ciclo = r.id_ciclo
+                    AND se.data_execucao = dia_mes
+                )
+              )) as turnos_completos
               FROM DISPONIBILIDADE_REQUERIMENTO
               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE
               GROUP BY dia_mes
@@ -727,8 +764,11 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
     
     // Prioriza id_ciclo do corpo, fallback para o ciclo ativo hoje
     let targetCycleId = id_ciclo;
-    if (!targetCycleId) {
-      const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
+    let cycle = null;
+    if (targetCycleId) {
+      cycle = await db.get('SELECT id_ciclo, data_inicio, data_fim FROM CICLOS WHERE id_ciclo = $1', [targetCycleId]);
+    } else {
+      cycle = await db.get('SELECT id_ciclo, data_inicio, data_fim FROM CICLOS WHERE CURRENT_DATE BETWEEN data_inicio AND data_fim');
       targetCycleId = cycle?.id_ciclo;
     }
 
@@ -736,7 +776,7 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
       console.warn(`[API] Militar não encontrado para o número de ordem: ${numero_ordem}`);
       return res.status(400).json({ error: "Militar não encontrado no banco de dados." });
     }
-    if (!targetCycleId) {
+    if (!targetCycleId || !cycle) {
       console.warn(`[API] Ciclo não identificado para a data atual.`);
       return res.status(400).json({ error: "Ciclo não encontrado. Verifique se existe um ciclo aberto para a data atual." });
     }
@@ -752,6 +792,7 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
 
     const isMot = (motorista === 'Sim');
     for (const [day, shifts] of Object.entries(availability)) {
+      const dateKey = parseDayToDate(day, cycle.data_inicio, cycle.data_fim);
       for (const shiftData of shifts) {
         // Suporta tanto formato legado (string) quanto novo (objeto com observações)
         const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
@@ -759,7 +800,7 @@ app.post('/api/volunteers', authenticate, async (req, res) => {
 
         await db.run(
           'INSERT INTO DISPONIBILIDADE_REQUERIMENTO (id_requerimento, dia_mes, horario_turno, marcado_disponivel, motorista, observacoes) VALUES ($1, $2, $3, TRUE, $4, $5)', 
-          [reqResult.lastID, parseInt(day), shift, isMot, obs]
+          [reqResult.lastID, dateKey, shift, isMot, obs]
         );
       }
     }
@@ -787,12 +828,17 @@ app.put('/api/volunteers/:id', authenticate, async (req, res) => {
     
     // Verifica se o requerimento existe
     const requerimento = await db.get(
-      'SELECT id_requerimento, id_militar FROM REQUERIMENTOS WHERE id_requerimento = $1',
+      'SELECT id_requerimento, id_militar, id_ciclo FROM REQUERIMENTOS WHERE id_requerimento = $1',
       [id]
     );
     
     if (!requerimento) {
       return res.status(404).json({ error: 'Requerimento não encontrado' });
+    }
+
+    const cycle = await db.get('SELECT data_inicio, data_fim FROM CICLOS WHERE id_ciclo = $1', [requerimento.id_ciclo]);
+    if (!cycle) {
+      return res.status(400).json({ error: 'Ciclo associado não encontrado' });
     }
 
     // Atualizar observação no Requerimento
@@ -818,6 +864,7 @@ app.put('/api/volunteers/:id', authenticate, async (req, res) => {
     const isMot = (motorista === 'Sim');
     if (availability && typeof availability === 'object') {
       for (const [day, shifts] of Object.entries(availability)) {
+        const dateKey = parseDayToDate(day, cycle.data_inicio, cycle.data_fim);
         for (const shiftData of shifts) {
           const shift = typeof shiftData === 'object' ? shiftData.turno : shiftData;
           const obs = (typeof shiftData === 'object' && shiftData.observacoes && shiftData.observacoes.trim() !== '') ? shiftData.observacoes : null;
@@ -832,7 +879,7 @@ app.put('/api/volunteers/:id', authenticate, async (req, res) => {
               ativo = TRUE,
               motorista = EXCLUDED.motorista,
               observacoes = EXCLUDED.observacoes
-          `, [id, parseInt(day), shift, isMot, obs]);
+          `, [id, dateKey, shift, isMot, obs]);
         }
       }
     }
@@ -852,12 +899,17 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
     
     // Verifica se o requerimento existe
     const requerimento = await db.get(
-      'SELECT id_requerimento FROM REQUERIMENTOS WHERE id_requerimento = $1',
+      'SELECT id_requerimento, id_ciclo FROM REQUERIMENTOS WHERE id_requerimento = $1',
       [id]
     );
     
     if (!requerimento) {
       return res.status(404).json({ error: 'Requerimento não encontrado' });
+    }
+
+    const cycle = await db.get('SELECT data_inicio, data_fim FROM CICLOS WHERE id_ciclo = $1', [requerimento.id_ciclo]);
+    if (!cycle) {
+      return res.status(400).json({ error: 'Ciclo associado não encontrado' });
     }
 
     let canceledCount = 0;
@@ -866,10 +918,11 @@ app.put('/api/volunteers/:id/cancel-availability', async (req, res) => {
     if (availability && typeof availability === 'object' && Object.keys(availability).length > 0) {
       for (const [day, shifts] of Object.entries(availability)) {
         if (!Array.isArray(shifts)) continue;
+        const dateKey = parseDayToDate(day, cycle.data_inicio, cycle.data_fim);
         for (const shift of shifts) {
           const result = await db.run(
             'UPDATE DISPONIBILIDADE_REQUERIMENTO SET ativo = FALSE, observacoes = $1 WHERE id_requerimento = $2 AND dia_mes = $3 AND horario_turno = $4',
-            [(observacao && observacao.trim() !== '') ? observacao : null, id, parseInt(day), shift]
+            [(observacao && observacao.trim() !== '') ? observacao : null, id, dateKey, shift]
           );
           canceledCount += result.changes;
         }
@@ -2183,13 +2236,7 @@ app.get('/api/reports/operacional-detalhado', async (req, res) => {
         SELECT 
           r.id_militar,
           r.id_ciclo,
-          -- Para desistências, tentamos aproximar a data pelo dia_mes do requerimento se possível
-          CASE 
-            WHEN dr.dia_mes >= EXTRACT(DAY FROM c.data_inicio) THEN 
-              make_date(EXTRACT(YEAR FROM c.data_inicio)::int, EXTRACT(MONTH FROM c.data_inicio)::int, dr.dia_mes)
-            ELSE 
-              make_date(EXTRACT(YEAR FROM c.data_fim)::int, EXTRACT(MONTH FROM c.data_fim)::int, dr.dia_mes)
-          END as data_ref,
+          dr.dia_mes as data_ref,
           NULL::integer as id_escala,
           NULL::integer as id_execucao,
           NULL as recurso_planejado,
@@ -2247,7 +2294,7 @@ app.get('/api/reports/disponibilidade-grid', async (req, res) => {
 
     const rows = await db.all(`
       SELECT
-        dr.dia_mes,
+        EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes,
         dr.horario_turno,
         dr.marcado_disponivel,
         dr.ativo,
@@ -2257,7 +2304,7 @@ app.get('/api/reports/disponibilidade-grid', async (req, res) => {
           FROM SERVICOS_EXECUTADOS se
           WHERE se.id_militar = r.id_militar
             AND se.id_ciclo   = r.id_ciclo
-            AND EXTRACT(DAY FROM se.data_execucao) = dr.dia_mes
+            AND se.data_execucao = dr.dia_mes
         ) AS teve_execucao
       FROM DISPONIBILIDADE_REQUERIMENTO dr
       JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
@@ -2379,7 +2426,7 @@ app.post('/api/schedules', async (req, res) => {
                AND dr.marcado_disponivel = TRUE 
                AND dr.ativo = TRUE 
              LIMIT 1`,
-            [member.id_militar, ciclo.id_ciclo, diaMes, horarioServico]
+            [member.id_militar, ciclo.id_ciclo, dataServico, horarioServico]
           );
 
           // Fallback: se o turno não bater perfeitamente devido à nomenclatura, pega a primeira disponibilidade do militar para aquele dia
@@ -2394,7 +2441,7 @@ app.post('/api/schedules', async (req, res) => {
                  AND dr.marcado_disponivel = TRUE 
                  AND dr.ativo = TRUE 
                LIMIT 1`,
-              [member.id_militar, ciclo.id_ciclo, diaMes]
+              [member.id_militar, ciclo.id_ciclo, dataServico]
             );
           }
 
@@ -2668,425 +2715,164 @@ app.get('/api/financeiro/resumo', async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
   });
 
-  // ============================================================
-  // PDF IMPORT (Requerimentos via PDF)
-  // ============================================================
-  function processMarksLine(line, shiftCode, data) {
-    if (!line || line.length === 0) return;
-
-    // NÃO usar trim() - preservar todos os espaços para manter posições
-    const chars = line.split('');
-
-    console.log(`  processMarksLine: "${line.trim()}"`);
-    console.log(`    Total caracteres: ${chars.length}`);
-
-      // Posição 0 = MOTORISTA
-      const motoristChar = chars[0];
-      const isMotorist = (motoristChar && motoristChar.toUpperCase() === 'X');
-
-      // Posição 1 = Dia 01, Posição 2 = Dia 02, ... Posição 31 = Dia 31
-      let dayCounter = 0;
-
-      for (let pos = 1; pos < chars.length && dayCounter < 31; pos++) {
-        const char = chars[pos];
-        dayCounter++;
-        const dayStr = String(dayCounter).padStart(2, '0');
-
-        // Disponível: "X". Não disponível: " " (espaço) ou "S"
-        const isAvailable = (char && char.toUpperCase() === 'X');
-
-        if (isAvailable) {
-          if (!data.availability[dayStr]) data.availability[dayStr] = [];
-          
-          // Verifica se já existe esse turno para o dia
-          const existingShift = data.availability[dayStr].find(s => s.shift === shiftCode);
-          if (!existingShift) {
-            data.availability[dayStr].push({ 
-              shift: shiftCode, 
-              motorista: isMotorist 
-            });
-            console.log(`    Dia ${dayStr}: disponível (Motorista: ${isMotorist})`);
-          }
-        }
-      }
-
-    console.log(`    Total dias processados: ${dayCounter}`);
-  }
 
   // ============================================================
-  // FRAGMENTAÇÃO DE DISPONIBILIDADE POR CICLO OPERACIONAL
-  // Distribui os dias de um requerimento civil (1-31) nos
-  // ciclos operacionais corretos (16 ao 15 do mês seguinte).
+  // PDF IMPORT — Módulo de Importação de Requerimentos SVR (v2)
+  // Serviços: RequirementImporter, PdfExtractor, CycleEngine
   // ============================================================
+  const { processFile } = require('./services/RequirementImporter');
+  const { uploadPdf, handleUploadError } = require('./middleware/uploadValidation');
 
   /**
-   * Para cada dia do mapa de disponibilidade, constrói a data real
-   * e consulta qual ciclo operacional a cobre. Agrupa os dias por
-   * ciclo e chama upsertRequerimentoFragmento para cada um.
-   *
-   * @param {object} dbConn   - Conexão com o banco (db)
-   * @param {number} idMilitar - id_militar do efetivo
-   * @param {object} availability - { "16": [shifts], "17": [shifts], ... }
-   * @param {string} mesRef    - "YYYY-MM" (mês civil de referência)
-   * @returns {Array} Lista de { id_ciclo, id_requerimento, dias_inseridos }
+   * POST /api/import/volunteers/files
+   * Importação em lote de PDFs de requerimento SVR.
+   * Autentica o usuário, valida arquivos, fragmenta ciclos e persiste.
    */
-  async function distribuirDisponibilidadeEmCiclos(dbConn, idMilitar, availability, mesRef, numeroReq = null) {
-    const [anoStr, mesStr] = mesRef.split('-');
-    const ano = parseInt(anoStr, 10);
-    const mes = parseInt(mesStr, 10);
-
-    // Agrupa os dias do requerimento pelo id_ciclo correspondente
-    const cicloMap = new Map();
-
-    for (const [diaStr, shifts] of Object.entries(availability)) {
-      const dia = parseInt(diaStr, 10);
-      if (!dia || dia < 1 || dia > 31) continue;
-
-      // Regra de Negócio: Ignorar dias inválidos para o mês (ex: 31 de Abril, 30/31 de Fev)
-      const dateCheck = new Date(ano, mes - 1, dia);
-      if (dateCheck.getFullYear() !== ano || dateCheck.getMonth() !== mes - 1 || dateCheck.getDate() !== dia) {
-        console.log(`[FRAG] Dia ${diaStr} inválido para o mês ${mesRef} — ignorado.`);
-        continue;
+  app.post(
+    '/api/import/volunteers/files',
+    authenticate,
+    uploadPdf.array('files', 50),
+    handleUploadError,
+    async (req, res) => {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, error: 'Nenhum arquivo recebido.' });
+      }
+      if (!pdfParser) {
+        return res.status(503).json({ success: false, error: 'Módulo pdf-parse não disponível no servidor.' });
       }
 
-      const dataReal = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      const results = [];
+      const errors  = [];
 
-      const ciclo = await dbConn.get(
-        `SELECT id_ciclo FROM CICLOS WHERE $1::date BETWEEN data_inicio AND data_fim LIMIT 1`,
-        [dataReal]
-      );
-
-      if (!ciclo) {
-        console.log(`[FRAG] Dia ${diaStr} (${dataReal}) nao coberto por nenhum ciclo — ignorado.`);
-        continue;
-      }
-
-      if (!cicloMap.has(ciclo.id_ciclo)) {
-        cicloMap.set(ciclo.id_ciclo, {});
-      }
-      cicloMap.get(ciclo.id_ciclo)[diaStr] = shifts;
-    }
-
-    console.log(`[FRAG] ${cicloMap.size} ciclo(s) identificado(s) para o militar ${idMilitar} no mes ${mesRef}`);
-
-    const results = [];
-    for (const [idCiclo, diasDoCiclo] of cicloMap.entries()) {
-      const r = await upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasDoCiclo, numeroReq, mesRef);
-      results.push({ id_ciclo: idCiclo, ...r });
-    }
-    return results;
-  }
-
-  /**
-   * Cria ou atualiza um REQUERIMENTO para um (militar, ciclo) específico
-   * e insere os turnos do fragmento. Opera com idempotência via ON CONFLICT.
-   */
-  async function upsertRequerimentoFragmento(dbConn, idMilitar, idCiclo, diasMap, numeroReq = null, mesRef = null) {
-    const existing = await dbConn.get(
-      'SELECT id_requerimento FROM REQUERIMENTOS WHERE id_militar = $1 AND id_ciclo = $2',
-      [idMilitar, idCiclo]
-    );
-
-    let idReq;
-    if (existing) {
-      idReq = existing.id_requerimento;
-      
-      // Remove apenas os dias que serão re-inseridos (cirúrgico, não apaga tudo)
-      const diasNumericos = Object.keys(diasMap).map(d => parseInt(d, 10));
-      if (diasNumericos.length > 0) {
-        await dbConn.query(
-          `DELETE FROM DISPONIBILIDADE_REQUERIMENTO
-           WHERE id_requerimento = $1 AND dia_mes = ANY($2::int[])`,
-          [idReq, diasNumericos]
-        );
-      }
-    } else {
-      const r = await dbConn.run(
-        'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento, mes_referencia) VALUES ($1, $2, $3, $4)',
-        [idMilitar, idCiclo, numeroReq, mesRef]
-      );
-      idReq = r.lastID;
-    }
-
-    let diasInseridos = 0;
-    for (const [diaStr, shifts] of Object.entries(diasMap)) {
-      for (const shiftObj of shifts) {
-        await dbConn.run(
-          `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
-             (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
-           VALUES ($1, $2, $3, TRUE, TRUE, $4)`,
-          [idReq, parseInt(diaStr, 10), shiftObj.shift || shiftObj, !!shiftObj.motorista]
-        );
-        diasInseridos++;
-      }
-    }
-
-    return { id_requerimento: idReq, dias_inseridos: diasInseridos };
-  }
-
-  async function parseRequerimentoPDF(text, db) {
-    const data = { numero_ordem: '', name: '', rank: '', phone: '', motorist: 'Nao', availability: {}, month_key: '', numero_requerimento: '' };
-
-    // Extrair Número do Requerimento (ex: "Requerido nº 17566/2026")
-    const reqNumMatch = text.match(/(?:Requerido nº|REQUERIMENTO)\s*[:\.]?\s*(\d{1,10}\/\d{4}[^\n]*)/i);
-    if (reqNumMatch) {
-      data.numero_requerimento = reqNumMatch[1].trim();
-    }
-
-    // Extrair mês de referência do PDF (ex: "Abril/2026", "04/2026", "ABRIL DE 2026")
-    const MONTH_PT = { janeiro:1, fevereiro:2, marco:3, março:3, abril:4, maio:5, junho:6,
-                       julho:7, agosto:8, setembro:9, outubro:10, novembro:11, dezembro:12 };
-    const mesNomeMatch = text.match(
-      /(?:MÊS|MES|REFERÊNCIA|REFERENCIA|PERÍODO|PERIODO|REQUERIMENTO)[^\n]{0,40}?(JANEIRO|FEVEREIRO|MAR[ÇC]O|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)[^\d]{0,10}(\d{4})/i
-    );
-    if (mesNomeMatch) {
-      const nomeMes = mesNomeMatch[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      const numMes = MONTH_PT[nomeMes] || 0;
-      if (numMes) data.month_key = `${mesNomeMatch[2]}-${String(numMes).padStart(2,'0')}`;
-    }
-    // Fallback: formato numérico MM/YYYY no texto
-    if (!data.month_key) {
-      const mesNumMatch = text.match(/(0[1-9]|1[0-2])\/(20\d{2})/);
-      if (mesNumMatch) data.month_key = `${mesNumMatch[2]}-${mesNumMatch[1]}`;
-    }
-
-    // Extrair Nº de Ordem ou Matrícula (mais flexível)
-    // Busca por N.ORD, ORDEM, MATRICULA, MATR acompanhado de 3 a 10 dígitos
-    const ordMatch = text.match(/(?:N[º\.]?\s*ORD[A-Z\.]*|MATR\w*|ORDEM|MATRÍCULA)\s*[:\.]?\s*(\d{3,10})/i);
-    if (ordMatch) data.numero_ordem = ordMatch[1];
-
-    // Extrair CPF (11 dígitos, opcionalmente com separadores)
-    const cpfMatch = text.match(/(?:CPF|C\.P\.F)\s*[:\.]?\s*([\d\.\-]{11,14})/i);
-    if (cpfMatch) data.cpf = cpfMatch[1].replace(/\D/g, '');
-
-    // Tentar extrair Posto/Graduação (ex: SD PM, CB PM, 1º SGT PM, etc)
-    const rankRegex = /(?:CEL|TC|MAJ|CAP|1º\s*TEN|2º\s*TEN|SUB|1º\s*SGT|2º\s*SGT|3º\s*SGT|CB|SD)\s+PM/i;
-    const rankMatch = text.match(rankRegex);
-    if (rankMatch) {
-      data.rank = rankMatch[0].toUpperCase().replace(/\s+/g, ' ');
-    } else {
-      const rankRegexAlt = /(?:CORONEL|TENENTE\s*CORONEL|MAJOR|CAPIT[ÃA]O|TENENTE|SUBTENENTE|SARGENTO|CABO|SOLDADO)/i;
-      const rankMatchAlt = text.match(rankRegexAlt);
-      if (rankMatchAlt) data.rank = rankMatchAlt[0].toUpperCase();
-    }
-
-    // Tentar extrair Nome de Guerra ou Nome Completo (mais agressivo)
-    // Mais restritivo contra cabeçalhos (mínimo 5 chars, remove palavras reservadas)
-    const nameMatch = text.match(/(?:NOME(?:\s*COMPLETO)?|MILITAR|MATR\w*\s*\d+)\s*[:\.\-]?\s*([A-ZÀ-Ú\s]{5,45})/i);
-    if (nameMatch) {
-      let n = nameMatch[1].trim().replace(/\s+/g, ' ');
-      // Limpeza profunda de lixo de cabeçalho
-      n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|REGIÃO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO|C\.P\.C|C\.P\.I|REGI[ÃA]O|ESTADO|SECRETARIA/gi, '')
-           .replace(/^\s*(?:DE\s+)?DA\s+/i, '') // Remove "DE DA" ou "DA" no início
-           .replace(/^\s*DE\s+/, '').trim();
-           
-      if (n.length > 3) data.name = n;
-    }
-    
-    if (!data.name && data.rank) {
-      const rankClean = data.rank.replace(' PM', '').trim();
-      const afterRankRegex = new RegExp(`${rankClean}\\s*(?:PM)?\\s*(?:\\d{3,10})?\\s*[:\\-]?\\s*([A-ZÀ-Ú\\s]{3,40})`, 'i');
-      const afterRankMatch = text.match(afterRankRegex);
-      if (afterRankMatch) {
-        let n = afterRankMatch[1].trim();
-        n = n.replace(/POL[ÍI]CIA MILITAR|ALAGOAS|COMANDO|REGIONAL|REGIAO|POLICIAMENTO|DIRETORIA|REQUERIMENTO|VOLUNT[ÁA]RIO|SUBCOMANDO/gi, '')
-             .replace(/^\s*DE\s+/, '').trim();
-        if (n.length > 3) data.name = n;
-      }
-    }
-
-    if (data.numero_ordem && db) {
-      try {
-        // Preserva letras mas remove separadores comuns
-        const cleanMatricula = data.numero_ordem.replace(/[\.\-\ ]/g, '').toUpperCase();
-        
-        // Tenta encontrar por matrícula exata, ou por número sem zeros à esquerda
-        const searchValNumeric = cleanMatricula.replace(/^0+/, '');
-        
-        const militar = await db.get(`
-            SELECT id_militar, posto_graduacao, nome_completo, nome_guerra, telefone 
-            FROM EFETIVO 
-            WHERE 
-               (TRIM(UPPER(numero_ordem)) = $1 OR TRIM(UPPER(matricula)) = $1 
-                OR TRIM(UPPER(REPLACE(REPLACE(matricula, '.', ''), '-', ''))) = $1 
-                OR TRIM(UPPER(REPLACE(REPLACE(numero_ordem, '.', ''), '-', ''))) = $1
-                OR (numero_ordem ~ $3) OR (matricula ~ $3) OR (rgpm ~ $3))
-               OR ($2 != '' AND cpf = $2)
-          `, [cleanMatricula, data.cpf || '', `^0*${searchValNumeric}$`]);
-
-        if (militar) {
-          data.id_militar = militar.id_militar;
-          // SEMPRE PRIORIZAR O BANCO DE DADOS
-          data.rank = militar.posto_graduacao;
-          data.name = militar.nome_completo || militar.nome_guerra;
-          data.phone = militar.telefone || '';
-        }
-      } catch (e) { console.error('Erro no lookup do militar via PDF:', e); }
-    }
-    const lines = text.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const l = lines[i].trim().toUpperCase();
-      const nl = (i + 1 < lines.length) ? lines[i + 1].trim().toUpperCase() : '';
-      if (l === '07:00 ÀS' && nl === '13:00') { console.log('Turno manha detectado'); processMarksLine(lines[i + 2] || '', '07:00 ÀS 13:00', data); }
-      if (l === '13:00 ÀS' && nl === '19:00') { console.log('Turno tarde detectado'); processMarksLine(lines[i + 2] || '', '13:00 ÀS 19:00', data); }
-      if (l === '19:00 ÀS' && nl === '01:00') { console.log('Turno noite detectada'); processMarksLine(lines[i + 2] || '', '19:00 ÀS 01:00', data); }
-      if (l === '01:00 ÀS' && nl === '07:00') { console.log('Turno madrugada detectada'); processMarksLine(lines[i + 2] || '', '01:00 ÀS 07:00', data); }
-    }
-    if (Object.keys(data.availability).length === 0) {
-      console.log('Nenhum turno detectado no primeiro método, tentando método alternativo');
-      for (let i = 0; i < lines.length; i++) {
-        const l = lines[i].trim().toUpperCase();
-        if (l.includes('07:00') && l.includes('13:00') && l.length < 20) {
-          const nextLine = lines[i + 1] || '';
-          if (nextLine.trim().length > 10) processMarksLine(nextLine, '07:00 ÀS 13:00', data);
-        }
-        if (l.includes('13:00') && l.includes('19:00') && l.length < 20) {
-          const nextLine = lines[i + 1] || '';
-          if (nextLine.trim().length > 10) processMarksLine(nextLine, '13:00 ÀS 19:00', data);
-        }
-        if (l.includes('19:00') && l.includes('01:00') && l.length < 20) {
-          const nextLine = lines[i + 1] || '';
-          if (nextLine.trim().length > 10) processMarksLine(nextLine, '19:00 ÀS 01:00', data);
-        }
-        if (l.includes('01:00') && l.includes('07:00') && l.length < 20) {
-          const nextLine = lines[i + 1] || '';
-          if (nextLine.trim().length > 10) processMarksLine(nextLine, '01:00 ÀS 07:00', data);
-        }
-      }
-    }
-    return data;
-  }
-
-  app.post('/api/import/volunteers/files', upload.array('files', 100), async (req, res) => {
-    let { id_ciclo } = req.body;
-    
-    console.log('Import request:', { id_ciclo, filesCount: req.files?.length });
-    if (!req.files || !id_ciclo) return res.status(400).json({ error: "Ciclo não informado ou arquivos ausentes." });
-    try {
-      const volunteers = [], errors = [];
       for (const file of req.files) {
         try {
-          console.log('Processing file:', file.originalname);
-          const pdf = await pdfParser(file.buffer);
-          console.log('PDF text length:', pdf.text.length);
-          const parsed = await parseRequerimentoPDF(pdf.text, db);
-          console.log('Parsed data:', JSON.stringify(parsed));
-          parsed.id_ciclo = id_ciclo;
-          if (parsed.numero_ordem) volunteers.push(parsed);
-          else errors.push({ file: file.originalname, error: "Nao encontrou numero" });
-        } catch (e) { console.error('Error processing file:', e); errors.push({ file: file.originalname, error: e.message }); }
-      }
-      console.log('Volunteers parsed:', volunteers.length, 'Errors:', errors.length);
-      const results = [];
-      for (const item of volunteers) {
-        try {
-          let m;
-          if (item.id_militar) {
-            m = { id_militar: item.id_militar };
-          } else {
-            const cleanMat = item.numero_ordem.replace(/[\.\-\ ]/g, '').toUpperCase();
-            const cleanCpf = item.cpf || '';
-            const searchValNumeric = cleanMat.replace(/^0+/, '');
-            
-            m = await db.get(`
-              SELECT id_militar FROM EFETIVO 
-              WHERE (TRIM(UPPER(numero_ordem)) = $1 OR TRIM(UPPER(matricula)) = $1 
-                  OR TRIM(UPPER(REPLACE(REPLACE(matricula, '.', ''), '-', ''))) = $1 
-                  OR TRIM(UPPER(REPLACE(REPLACE(numero_ordem, '.', ''), '-', ''))) = $1
-                  OR (numero_ordem ~ $3) OR (matricula ~ $3) OR (rgpm ~ $3))
-                 OR ($2 != '' AND cpf = $2)
-            `, [cleanMat, cleanCpf, `^0*${searchValNumeric}$`]);
-          }
-
-          if (!m) { 
-            // AUTO-REGISTRO: Se tiver CPF e Nome, cadastra o militar automaticamente
-            if (item.cpf && item.cpf.length === 11) {
-              try {
-                const nomeProv = item.name && item.name !== 'Desconhecido' ? item.name : `MILITAR ${item.numero_ordem}`;
-                const postoProv = item.rank || 'SOLDADO PM';
-                
-                // Insere no Efetivo
-                const newMilitar = await db.run(
-                  `INSERT INTO EFETIVO (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf)
-                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING id_militar`,
-                  [nomeProv, nomeProv.split(' ')[0], postoProv, item.numero_ordem, item.numero_ordem, item.cpf]
-                );
-
-                m = { id_militar: newMilitar.id_militar };
-                
-                // Cria usuário
-                await db.run(
-                   `INSERT INTO users (numero_ordem, password, is_admin)
-                    VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
-                   [item.numero_ordem, item.cpf]
-                );
-                
-                console.log(`[AUTO-REG] Criado militar ${item.numero_ordem} / CPF ${item.cpf}`);
-              } catch (regErr) {
-                results.push({ 
-                  numero_ordem: item.numero_ordem, 
-                  name: item.name || 'Desconhecido',
-                  success: false, 
-                  error: "Erro ao cadastrar militar automaticamente: " + regErr.message 
-                }); 
-                continue;
-              }
-            } else {
-              results.push({ 
-                numero_ordem: item.numero_ordem, 
-                name: item.name || 'Desconhecido',
-                success: false, 
-                error: "Militar não cadastrado e PDF sem CPF válido para auto-registro." 
-              }); 
-              continue;
-            }
-          }
-
-          // Atualizar informação de motorista e POSTO vinda do PDF
-          // Atualizar apenas o motorista, não sobrescrever o Posto/Grad se já existir e for confiável no banco
-          await db.run('UPDATE EFETIVO SET motorista = $1 WHERE id_militar = $2', [item.motorist, m.id_militar]);
-          
-          const cycle = await db.get('SELECT id_ciclo FROM CICLOS WHERE id_ciclo = $1', [parseInt(item.id_ciclo)]);
-          if (!cycle) {
-            results.push({ numero_ordem: item.numero_ordem, success: false, error: "Ciclo operacional não encontrado." });
-            continue;
-          }
-          
-          // Determina o mês de referência civil do requerimento.
-          // Prioridade: (1) extraído do PDF, (2) enviado pelo frontend, (3) mês do ciclo preferencial.
-          let mesRef = item.month_key || req.body.mes_referencia || '';
-          if (!mesRef && cycle) {
-            // Fallback: usa o mês de início do ciclo enviado pelo frontend
-            const d = new Date(cycle.data_inicio);
-            mesRef = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          }
-
-          let ciclosAfetados = [];
-
-          if (mesRef && Object.keys(item.availability).length > 0) {
-            // CAMINHO PRINCIPAL: Fragmentação automática por ciclo operacional
-            const fragmentResults = await distribuirDisponibilidadeEmCiclos(
-              db, m.id_militar, item.availability, mesRef, item.numero_requerimento
-            );
-            ciclosAfetados = fragmentResults.map(r => r.id_ciclo);
-            console.log(`[IMPORT] Militar ${item.numero_ordem}: ${fragmentResults.length} ciclo(s) afetado(s).`);
-          } else {
-            // FALLBACK SEGURO: sem mês de referência, usa o ciclo preferencial fixo (comportamento antigo)
-            console.warn(`[IMPORT] Militar ${item.numero_ordem}: sem mes_referencia, usando ciclo fixo ${cycle?.id_ciclo}.`);
-            if (cycle) {
-              await upsertRequerimentoFragmento(db, m.id_militar, cycle.id_ciclo, item.availability, item.numero_requerimento);
-              ciclosAfetados = [cycle.id_ciclo];
-            }
-          }
-
-          results.push({
-            numero_ordem: item.numero_ordem,
-            name: item.name || '',
-            success: true,
-            ciclos_afetados: ciclosAfetados
+          const result = await processFile({
+            buffer:       file.buffer,
+            originalname: file.originalname,
+            mimetype:     file.mimetype,
+            size:         file.size,
+            db,
+            pdfParser,
+            idUsuario:    req.user?.id || null,
+            dryRun:       false,
           });
-        } catch (e) { results.push({ numero_ordem: item.numero_ordem, success: false, error: e.message }); }
+
+          if (result.success) {
+            results.push(result);
+          } else {
+            errors.push({ file: file.originalname, ...result });
+          }
+        } catch (e) {
+          console.error(`[IMPORT] Erro inesperado em ${file.originalname}:`, e.message);
+          errors.push({ file: file.originalname, success: false, error: e.message });
+        }
       }
-      res.json({ success: true, processed: volunteers.length, results, errors: errors.slice(0, 20) });
+
+      res.json({
+        success:   true,
+        processed: results.length,
+        results,
+        errors:    errors.slice(0, 50),
+      });
+    }
+  );
+
+  /**
+   * POST /api/import/preview
+   * Extrai e retorna os dados de um único PDF sem persistir.
+   * Permite ao operador confirmar antes de importar definitivamente.
+   */
+  app.post(
+    '/api/import/preview',
+    authenticate,
+    uploadPdf.single('file'),
+    handleUploadError,
+    async (req, res) => {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'Nenhum arquivo recebido.' });
+      }
+      if (!pdfParser) {
+        return res.status(503).json({ success: false, error: 'Módulo pdf-parse não disponível.' });
+      }
+
+      try {
+        const result = await processFile({
+          buffer:       req.file.buffer,
+          originalname: req.file.originalname,
+          mimetype:     req.file.mimetype,
+          size:         req.file.size,
+          db,
+          pdfParser,
+          idUsuario:    req.user?.id || null,
+          dryRun:       true,
+        });
+        res.json(result);
+      } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+      }
+    }
+  );
+
+  /**
+   * GET /api/import/logs
+   * Histórico de importações de PDF com filtros opcionais.
+   */
+  app.get('/api/import/logs', authenticate, async (req, res) => {
+    try {
+      const { id_militar, id_usuario, status, limit = 100 } = req.query;
+      const conditions = [];
+      const params     = [];
+
+      if (id_militar) { params.push(id_militar); conditions.push(`il.id_militar = $${params.length}`); }
+      if (id_usuario) { params.push(id_usuario); conditions.push(`il.id_usuario = $${params.length}`); }
+      if (status)     { params.push(status);     conditions.push(`il.status = $${params.length}`); }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      params.push(Math.min(parseInt(limit, 10) || 100, 500));
+
+      const rows = await db.all(
+        `SELECT il.*, e.nome_guerra, e.posto_graduacao, u.numero_ordem as usuario_ordem
+           FROM IMPORTACAO_LOG il
+           LEFT JOIN EFETIVO e ON il.id_militar = e.id_militar
+           LEFT JOIN users   u ON il.id_usuario = u.id
+         ${where}
+         ORDER BY il.importado_em DESC
+         LIMIT $${params.length}`,
+        params
+      );
+      res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  /**
+   * GET /api/ciclo-config
+   * Retorna a configuração vigente do Motor de Ciclos.
+   */
+  app.get('/api/ciclo-config', async (_req, res) => {
+    try {
+      const config = await db.get(
+        `SELECT * FROM CICLO_CONFIG ORDER BY vigente_desde DESC LIMIT 1`
+      );
+      res.json(config || { dia_inicio: 16, dia_fim: 15 });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
+
+  /**
+   * PUT /api/ciclo-config
+   * Atualiza o dia de início dos ciclos (admin only).
+   * Cria uma nova entrada de configuração com vigência a partir de hoje.
+   */
+  app.put('/api/ciclo-config', authenticate, authorize('ciclos:update'), async (req, res) => {
+    try {
+      const { dia_inicio, id_opm } = req.body;
+      if (!dia_inicio || !Number.isInteger(Number(dia_inicio)) || dia_inicio < 2 || dia_inicio > 28) {
+        return res.status(400).json({ error: 'dia_inicio deve ser inteiro entre 2 e 28.' });
+      }
+      await db.run(
+        `INSERT INTO CICLO_CONFIG (dia_inicio, dia_fim, id_opm, vigente_desde)
+         VALUES ($1, $2, $3, CURRENT_DATE)`,
+        [parseInt(dia_inicio, 10), parseInt(dia_inicio, 10) - 1, id_opm || null]
+      );
+      res.json({ success: true, dia_inicio });
     } catch (e) { res.status(500).json({ error: e.message }); }
   });

@@ -187,6 +187,17 @@ async function setupDB() {
           -- Migration: Adicionar coluna motorista se não existir
           ALTER TABLE EFETIVO ADD COLUMN IF NOT EXISTS motorista VARCHAR(10) DEFAULT 'Não';
 
+          -- Migration: Garantir unique constraint em REQUERIMENTOS
+          DO $$ 
+          BEGIN 
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name='uq_requerimentos_militar_ciclo' AND table_name='requerimentos'
+            ) THEN
+                ALTER TABLE REQUERIMENTOS ADD CONSTRAINT uq_requerimentos_militar_ciclo UNIQUE (id_militar, id_ciclo);
+            END IF;
+          END $$;
+
           -- 3. Tabela CICLOS
           CREATE TABLE IF NOT EXISTS CICLOS (
               id_ciclo SERIAL PRIMARY KEY,
@@ -211,6 +222,39 @@ async function setupDB() {
               UNIQUE(id_ciclo, data)
           );
 
+          -- 3.2 Configuração parametrizável do Motor de Ciclos (elimina hardcode)
+          CREATE TABLE IF NOT EXISTS CICLO_CONFIG (
+              id_config     SERIAL PRIMARY KEY,
+              dia_inicio    INTEGER NOT NULL DEFAULT 16,
+              dia_fim       INTEGER NOT NULL DEFAULT 15,
+              id_opm        INTEGER REFERENCES OPM(id_opm),
+              vigente_desde DATE NOT NULL DEFAULT CURRENT_DATE,
+              criado_em     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Seed: configuração padrão do ciclo (16 ao 15)
+          INSERT INTO CICLO_CONFIG (dia_inicio, dia_fim, vigente_desde)
+          VALUES (16, 15, '2020-01-01')
+          ON CONFLICT DO NOTHING;
+
+          -- 3.3 Log de auditoria de importações de PDF
+          CREATE TABLE IF NOT EXISTS IMPORTACAO_LOG (
+              id_log          SERIAL PRIMARY KEY,
+              id_usuario      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+              arquivo_nome    VARCHAR(255),
+              arquivo_hash    TEXT,
+              status          VARCHAR(50) DEFAULT 'sucesso',
+              id_militar      INTEGER REFERENCES EFETIVO(id_militar) ON DELETE SET NULL,
+              id_requerimento INTEGER REFERENCES REQUERIMENTOS(id_requerimento) ON DELETE SET NULL,
+              ciclos_afetados INTEGER[],
+              detalhes        JSONB,
+              importado_em    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_militar  ON IMPORTACAO_LOG(id_militar);
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_hash     ON IMPORTACAO_LOG(arquivo_hash);
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_usuario  ON IMPORTACAO_LOG(id_usuario);
+
           -- 4. Tabela REQUERIMENTOS (Substitui volunteers - metadados)
           CREATE TABLE IF NOT EXISTS REQUERIMENTOS (
               id_requerimento SERIAL PRIMARY KEY,
@@ -227,7 +271,7 @@ async function setupDB() {
           CREATE TABLE IF NOT EXISTS DISPONIBILIDADE_REQUERIMENTO (
               id_disponibilidade SERIAL PRIMARY KEY,
               id_requerimento INTEGER NOT NULL REFERENCES REQUERIMENTOS(id_requerimento) ON DELETE CASCADE,
-              dia_mes INTEGER NOT NULL,
+              dia_mes DATE NOT NULL,
               horario_turno VARCHAR(50) NOT NULL,
               marcado_disponivel BOOLEAN DEFAULT FALSE,
               marcado_servico_ordinario BOOLEAN DEFAULT FALSE,
@@ -338,11 +382,6 @@ async function setupDB() {
               ALTER TABLE REQUERIMENTOS ADD COLUMN observacao TEXT;
             END IF;
 
-            -- Migration v1.29: Armazenar mês civil de referência do requerimento (YYYY-MM)
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='mes_referencia') THEN
-              ALTER TABLE REQUERIMENTOS ADD COLUMN mes_referencia VARCHAR(7);
-            END IF;
-
             -- Migration v1.28.3: Garantir constraint de unicidade para idempotência na importação
             IF NOT EXISTS (
               SELECT 1 FROM pg_constraint 
@@ -364,6 +403,79 @@ async function setupDB() {
 
             IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_ciclo' AND is_nullable='YES') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ALTER COLUMN id_ciclo SET NOT NULL;
+            END IF;
+
+            -- Migration: Refatoração de dia_mes (INTEGER -> DATE) e remoção de mes_referencia
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'disponibilidade_requerimento' 
+                AND column_name = 'dia_mes' 
+                AND data_type = 'integer'
+            ) THEN
+              -- 1. Criar funções temporárias de conversão segura
+              CREATE OR REPLACE FUNCTION public.safe_cast_to_date(year_month text, day_num integer)
+              RETURNS date AS $body$
+              BEGIN
+                RETURN (year_month || '-' || LPAD(day_num::text, 2, '0'))::date;
+              EXCEPTION WHEN OTHERS THEN
+                RETURN NULL;
+              END;
+              $body$ LANGUAGE plpgsql;
+
+              CREATE OR REPLACE FUNCTION public.safe_make_date(y integer, m integer, d integer)
+              RETURNS date AS $body$
+              BEGIN
+                RETURN make_date(y, m, d);
+              EXCEPTION WHEN OTHERS THEN
+                RETURN NULL;
+              END;
+              $body$ LANGUAGE plpgsql;
+
+              -- 2. Remover constraints que usam dia_mes
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP CONSTRAINT IF EXISTS uq_disp_req_dia_turno;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP CONSTRAINT IF EXISTS disponibilidade_requerimento_id_requerimento_dia_mes_horar_key;
+              
+              -- 3. Adicionar coluna temporária do tipo DATE
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN dia_mes_date DATE;
+
+              -- 4. Atualizar a nova coluna com as datas convertidas de forma segura
+              UPDATE DISPONIBILIDADE_REQUERIMENTO dr
+              SET dia_mes_date = COALESCE(
+                (SELECT public.safe_cast_to_date(r.mes_referencia, dr.dia_mes)
+                 FROM REQUERIMENTOS r
+                 WHERE r.id_requerimento = dr.id_requerimento
+                   AND r.mes_referencia IS NOT NULL
+                   AND r.mes_referencia ~ '^\d{4}-\d{2}$'),
+                (SELECT public.safe_make_date(EXTRACT(YEAR FROM r.data_solicitacao)::int, EXTRACT(MONTH FROM r.data_solicitacao)::int, dr.dia_mes)
+                 FROM REQUERIMENTOS r
+                 WHERE r.id_requerimento = dr.id_requerimento)
+              );
+
+              -- 5. Excluir registros inválidos (como dia 31 em abril/fevereiro) que resultaram em NULL
+              DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE dia_mes_date IS NULL;
+
+              -- 6. Remover coluna antiga e renomear a nova
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP COLUMN dia_mes;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO RENAME COLUMN dia_mes_date TO dia_mes;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ALTER COLUMN dia_mes SET NOT NULL;
+
+              -- 7. Recriar a constraint de unicidade
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO 
+                ADD CONSTRAINT uq_disp_req_dia_turno 
+                UNIQUE (id_requerimento, dia_mes, horario_turno);
+
+              -- 8. Dropar funções temporárias auxiliares
+              DROP FUNCTION IF EXISTS public.safe_cast_to_date(text, integer);
+              DROP FUNCTION IF EXISTS public.safe_make_date(integer, integer, integer);
+            END IF;
+
+            -- Migration: remover mes_referencia de REQUERIMENTOS
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'requerimentos' 
+                AND column_name = 'mes_referencia'
+            ) THEN
+              ALTER TABLE REQUERIMENTOS DROP COLUMN mes_referencia;
             END IF;
 
 

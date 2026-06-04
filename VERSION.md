@@ -1,3 +1,43 @@
+## v1.32.16 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Resolução de Requerimentos Duplicados**:
+  - **[Database]** Adicionada a constraint de unicidade `uq_requerimentos_militar_ciclo` (`UNIQUE(id_militar, id_ciclo)`) na tabela `REQUERIMENTOS` para impedir a existência de múltiplas grades de disponibilidade para o mesmo militar no mesmo ciclo.
+  - **[Database]** Executado script de migração para fundir automaticamente as disponibilidades e redirecionar escalas planejadas dos requerimentos duplicados existentes para o registro principal, eliminando as redundâncias no banco de dados.
+
+---
+
+## v1.32.15 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Refatoração estrutural de datas de disponibilidade (SVR)**:
+  - **[Database] Migração para data completa**: Alterado o tipo de `disponibilidade_requerimento.dia_mes` de `INTEGER` para `DATE` para representação temporal absoluta de cada turno de disponibilidade. Criado script de migração segura e automatizada que converte os inteiros legados para datas reais baseado no `mes_referencia` e data de solicitação dos requerimentos existentes.
+  - **[Database] Remoção da coluna redundante**: Removida a coluna `requerimentos.mes_referencia` do banco de dados, eliminando dados duplicados.
+  - **[Backend] Motor de ciclos absoluto**: `CycleEngine.js` e `RequirementImporter.js` atualizados para trabalhar nativamente com chaves de data absoluta (`YYYY-MM-DD`).
+  - **[Backend] Adaptação de Queries e APIs**: Atualizadas as queries de desistências, relatórios operacionais, grade de disponibilidade e cadastro manual para realizar comparações nativas de data (`DATE`), mantendo as agregações retrocompatíveis com chaves de dia do mês para o frontend.
+  - **[Database] Views atualizadas**: Ajustado `db_views_relacionais.sql` para suportar o novo tipo de dado das views.
+
+---
+
+## v1.32.14 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Redesenho completo do módulo de importação de Requerimentos SVR via PDF**:
+  - **[NEW] `backend/services/CycleEngine.js`**: Motor parametrizável de ciclos operacionais. Implementa a regra de fragmentação de disponibilidade entre ciclos (dias 01–15 → ciclo anterior; dias 16–31 → ciclo corrente) sem hardcode. Configurável via tabela `CICLO_CONFIG` no banco.
+  - **[NEW] `backend/services/PdfExtractor.js`**: Extrator resiliente com 4 estratégias de detecção do mês de referência em cascata e 2 estratégias de parsing de marcações de disponibilidade. Elimina a dependência de regex única frágil.
+  - **[NEW] `backend/services/RequirementImporter.js`**: Orquestrador de pipeline de 7 estágios (validação, extração, parsing, disponibilidade, negócio, fragmentação, auditoria). Implementa auto-registro **removido** por segurança, validação de ciclos fechados e deduplicação via SHA-256.
+  - **[NEW] `backend/middleware/uploadValidation.js`**: Middleware multer restrito a PDFs (MIME type, 10MB, 50 arquivos/req) com handler de erro padronizado.
+  - **[MOD] `backend/server.js`**: Rotas de importação PDF completamente refatoradas. Adicionadas: `POST /api/import/volunteers/files` (com autenticação), `POST /api/import/preview` (dry-run), `GET /api/import/logs` (auditoria), `GET /api/ciclo-config`, `PUT /api/ciclo-config` (admin). Removido código legado (`parseRequerimentoPDF`, `processMarksLine`, `distribuirDisponibilidadeEmCiclos`, `upsertRequerimentoFragmento`).
+  - **[MOD] `backend/db.js`**: Adicionadas tabelas `CICLO_CONFIG` (motor parametrizável, seed com `dia_inicio=16`) e `IMPORTACAO_LOG` (rastreabilidade completa de importações com índices).
+
+---
+
 ## v1.32.13 — 2026-06-03
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

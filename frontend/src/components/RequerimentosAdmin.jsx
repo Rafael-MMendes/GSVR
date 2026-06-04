@@ -937,10 +937,24 @@ export function RequerimentosAdmin({ user }) {
               <div><strong>Posto/Grad:</strong><br />{viewingVolunteer.rank}</div>
               <div><strong>Nome:</strong><br />{viewingVolunteer.name}</div>
               <div><strong>Telefone:</strong><br />{formatPhone(viewingVolunteer.phone)}</div>
-              <div><strong>Motorista:</strong><br />{viewingVolunteer.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
+              <div><strong>Motorista:</strong><br />{(viewingVolunteer.motorista_req || viewingVolunteer.motorista === 'Sim') ? 'Sim' : 'Não'}</div>
             </div>
 
-            <h4 style={{ marginBottom: '1rem' }}>Grade de Disponibilidade</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h4 style={{ margin: 0 }}>Grade de Disponibilidade</h4>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#059669' }} /> Executado
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
+                </span>
+              </div>
+            </div>
+
             <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.85rem' }}>
                 <thead>
@@ -975,18 +989,47 @@ export function RequerimentosAdmin({ user }) {
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
                         const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
+                        const teveExecucao = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.teve_execucao === true;
 
-                        let bgColor = 'transparent';
+                        let bgColor = '#f8fafc';
+                        let borderStyle = '1px dashed #e2e8f0';
                         let textColor = 'transparent';
                         let label = '·';
-                        if (isSelected) { bgColor = 'var(--primary)'; textColor = 'white'; label = 'X'; }
-                        else if (isCancelado) { bgColor = 'var(--danger)'; textColor = 'white'; label = 'X'; }
+                        let titleText = '';
+
+                        if (teveExecucao) {
+                          bgColor = '#059669';
+                          borderStyle = '1px solid #047857';
+                          textColor = 'white';
+                          label = '✕';
+                          titleText = 'Serviço executado';
+                        } else if (isCancelado) {
+                          bgColor = '#dc2626';
+                          borderStyle = '1px solid #b91c1c';
+                          textColor = 'white';
+                          label = '✕';
+                          titleText = `Desistência${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}`;
+                        } else if (isSelected) {
+                          bgColor = '#2563eb';
+                          borderStyle = '1px solid #1d4ed8';
+                          textColor = 'white';
+                          label = '✕';
+                          titleText = `Disponível${hasObs ? ': ' + currentShiftData.observacoes : ''}`;
+                        }
 
                         return (
                           <td
                             key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            style={{ textAlign: 'center', backgroundColor: bgColor, color: textColor, border: '1px solid #e2e8f0', fontWeight: 'bold', position: 'relative' }}
-                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''}` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
+                            style={{ 
+                              textAlign: 'center', 
+                              backgroundColor: bgColor, 
+                              color: textColor, 
+                              border: borderStyle, 
+                              fontWeight: 'bold', 
+                              position: 'relative',
+                              padding: '0.25rem 0'
+                            }}
+                            title={titleText}
                           >
                             {label}
                             {isSelected && hasObs && (
