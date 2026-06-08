@@ -13,6 +13,10 @@ const IMPORT_ERRORS = {
   FILE_TOO_LARGE:           'Arquivo muito grande: o limite é 10MB por PDF.',
   PDF_UNREADABLE:           'PDF ilegível, protegido ou corrompido. Verifique o arquivo.',
   MONTH_NOT_FOUND:          'Mês de referência não identificado no PDF. Verifique o formato do documento.',
+  COMPETENCIA_REQUIRED:     'Competência (MM/YYYY) não informada. Selecione o mês e ano de referência no formulário.',
+  COMPETENCIA_INVALID:      'Competência inválida. Use o formato MM/YYYY com data real (ex: 06/2026).',
+  CICLOS_REQUIRED:          'Selecione ao menos 1 e no máximo 2 ciclos antes de importar.',
+  CICLO_NOT_FOUND:          'Um ou mais ciclos selecionados não foram encontrados no banco de dados.',
   MILITARY_ID_NOT_FOUND:    'Matrícula / Nº de Ordem não localizado no PDF.',
   MILITARY_NOT_REGISTERED:  'Militar não cadastrado no sistema. Cadastre o efetivo antes de importar o requerimento.',
   MILITARY_INACTIVE:        'Militar inativo. Reative o cadastro para importar requerimentos.',
@@ -20,6 +24,7 @@ const IMPORT_ERRORS = {
   CYCLE_NOT_FOUND_FOR_DATES:'Não existe ciclo cadastrado para as datas do requerimento. Crie os ciclos antes de importar.',
   CYCLE_CLOSED:             'Um ou mais ciclos alvo estão fechados. Os dias do fragmento foram ignorados.',
   DUPLICATE_FILE:           'Este PDF já foi importado anteriormente (hash SHA-256 duplicado).',
+  DUPLICATE_REQUIREMENT:    'Requerimento existente para este ciclo será sobrescrito.',
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -31,6 +36,40 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 /** Calcula SHA-256 de um buffer */
 function sha256(buffer) {
   return crypto.createHash('sha256').update(buffer).digest('hex');
+}
+
+/**
+ * Valida e parseia a competência "MM/YYYY" informada pelo formulário.
+ * Retorna { refMonth, refYear } ou null se inválida.
+ *
+ * @param {string} competencia - "MM/YYYY"
+ * @returns {{ refMonth: number, refYear: number }|null}
+ */
+function parseCompetencia(competencia) {
+  if (!competencia || typeof competencia !== 'string') return null;
+
+  const match = competencia.match(/^(0[1-9]|1[0-2])\/(20\d{2})$/);
+  if (!match) return null;
+
+  const refMonth = parseInt(match[1], 10);
+  const refYear  = parseInt(match[2], 10);
+
+  // Valida data real
+  const testDate = new Date(refYear, refMonth - 1, 1);
+  if (testDate.getFullYear() !== refYear || testDate.getMonth() !== refMonth - 1) return null;
+
+  return { refMonth, refYear };
+}
+
+/**
+ * Retorna quantos dias tem um determinado mês/ano.
+ *
+ * @param {number} year
+ * @param {number} month - 1-based
+ * @returns {number}
+ */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
 }
 
 /**
@@ -61,14 +100,14 @@ async function findMilitar(db, numeroOrdem, cpf) {
 
 /**
  * Cria ou atualiza um REQUERIMENTO e insere os turnos do fragmento (idempotente).
+ * A chave de data (dateKey) já deve estar no formato ISO "YYYY-MM-DD".
  *
  * @param {object} db
  * @param {number} idMilitar
  * @param {number} idCiclo
- * @param {object} diasMap      - { "01": [{ shift, motorista }], ... }
+ * @param {object} diasMap      - { "YYYY-MM-DD": [{ shift, motorista }], ... }
  * @param {string|null} numeroReq
- * @param {string|null} mesRef  - "YYYY-MM"
- * @returns {{ id_requerimento: number, dias_inseridos: number }}
+ * @returns {{ id_requerimento: number, dias_inseridos: number, sobrescreveu: boolean }}
  */
 async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, numeroReq) {
   const existing = await db.get(
@@ -77,6 +116,7 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
   );
 
   let idReq;
+  const sobrescreveu = !!existing;
 
   if (existing) {
     idReq = existing.id_requerimento;
@@ -100,8 +140,8 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
   let diasInseridos = 0;
   for (const [diaStr, shifts] of Object.entries(diasMap)) {
     for (const shiftObj of shifts) {
-      const turno  = shiftObj.shift  || shiftObj;
-      const isMot  = !!shiftObj.motorista;
+      const turno = shiftObj.shift || shiftObj;
+      const isMot = !!shiftObj.motorista;
       await db.run(
         `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
            (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
@@ -112,7 +152,78 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
     }
   }
 
-  return { id_requerimento: idReq, dias_inseridos: diasInseridos };
+  return { id_requerimento: idReq, dias_inseridos: diasInseridos, sobrescreveu };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fragmentação explícita com ciclos do formulário
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Fragmenta o mapa de disponibilidade nos ciclos explicitamente informados pelo usuário.
+ *
+ * - 1 ciclo: todos os dias válidos → ciclosIds[0]
+ * - 2 ciclos: usa CycleEngine (diaInicio) para separar anterior/corrente
+ *             dias < diaInicio → ciclosIds[0], dias >= diaInicio → ciclosIds[1]
+ *
+ * As datas resultantes são construídas com a competência do formulário (não do PDF).
+ *
+ * @param {object} availability  - { "1": [shifts], "16": [shifts], ... } (chaves = dia DD)
+ * @param {number} refYear
+ * @param {number} refMonth
+ * @param {number[]} ciclosIds   - [id] ou [idAnterior, idCorrente]
+ * @param {CycleEngine} engine
+ * @returns {{
+ *   fragmentos: Array<{ idCiclo: number, diasMap: Object }>,
+ *   ignorados: Array<number>,
+ *   warnings: string[]
+ * }}
+ */
+function fragmentarComCiclosExplicitos(availability, refYear, refMonth, ciclosIds, engine) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const maxDias = daysInMonth(refYear, refMonth);
+
+  // Mapas por índice de ciclo
+  const mapas = ciclosIds.map(() => ({}));
+  const ignorados = [];
+  const warnings  = [];
+
+  for (const [diaStr, shifts] of Object.entries(availability)) {
+    const dia = parseInt(diaStr, 10);
+
+    if (!dia || dia < 1 || dia > 31) {
+      ignorados.push(dia);
+      continue;
+    }
+
+    // Valida dia vs. competência selecionada
+    if (dia > maxDias) {
+      ignorados.push(dia);
+      warnings.push(
+        `Dia ${dia} não existe em ${pad(refMonth)}/${refYear} (mês tem ${maxDias} dias). Dia ignorado.`
+      );
+      continue;
+    }
+
+    const dateKey = `${refYear}-${pad(refMonth)}-${pad(dia)}`;
+
+    if (ciclosIds.length === 1) {
+      // Caso simples: 1 ciclo recebe tudo
+      mapas[0][dateKey] = shifts;
+    } else {
+      // 2 ciclos: fragmenta pelo diaInicio do engine
+      const segmento = engine.getSegmento(dia); // 'anterior' ou 'corrente'
+      const idx = segmento === 'anterior' ? 0 : 1;
+      mapas[idx][dateKey] = shifts;
+    }
+  }
+
+  const fragmentos = ciclosIds.map((idCiclo, i) => ({
+    idCiclo,
+    diasMap: mapas[i],
+  })).filter(f => Object.keys(f.diasMap).length > 0);
+
+  return { fragmentos, ignorados, warnings };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,28 +234,42 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
  * Processa um arquivo PDF de requerimento SVR através de 7 estágios.
  *
  * @param {object} params
- * @param {Buffer}  params.buffer        - Conteúdo binário do PDF
- * @param {string}  params.originalname  - Nome original do arquivo
- * @param {string}  params.mimetype      - MIME type declarado pelo cliente
- * @param {number}  params.size          - Tamanho em bytes
- * @param {object}  params.db            - Instância do db
- * @param {object}  params.pdfParser     - Instância do pdf-parse
- * @param {number|null} params.idUsuario - ID do usuário que está importando
- * @param {boolean} params.dryRun        - Se true, não persiste (preview mode)
+ * @param {Buffer}      params.buffer        - Conteúdo binário do PDF
+ * @param {string}      params.originalname  - Nome original do arquivo
+ * @param {string}      params.mimetype      - MIME type declarado pelo cliente
+ * @param {number}      params.size          - Tamanho em bytes
+ * @param {object}      params.db            - Instância do db
+ * @param {object}      params.pdfParser     - Instância do pdf-parse
+ * @param {number|null} params.idUsuario     - ID do usuário que está importando
+ * @param {boolean}     params.dryRun        - Se true, não persiste (preview mode)
+ * @param {number[]}    params.ciclosIds     - IDs dos ciclos selecionados (1 ou 2)
+ * @param {string}      params.competencia   - Competência "MM/YYYY" do formulário
  *
  * @returns {Promise<{
  *   success: boolean,
- *   preview?: object,      // em dryRun=true
+ *   preview?: object,
  *   numero_ordem?: string,
  *   name?: string,
  *   ciclos_afetados?: number[],
+ *   competencia_usada?: string,
  *   warnings?: string[],
  *   error?: string,
  *   error_code?: string,
  *   stage?: string,
  * }>}
  */
-async function processFile({ buffer, originalname, mimetype, size, db, pdfParser, idUsuario = null, dryRun = false }) {
+async function processFile({
+  buffer,
+  originalname,
+  mimetype,
+  size,
+  db,
+  pdfParser,
+  idUsuario = null,
+  dryRun    = false,
+  ciclosIds = [],
+  competencia = '',
+}) {
   const warnings = [];
   let idMilitar    = null;
   let idReqPrimary = null;
@@ -156,6 +281,17 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
   if (size > MAX_FILE_SIZE) {
     return _fail('FILE_TOO_LARGE', 'stage_1_validation');
   }
+
+  // ── Estágio 1.5: Validação dos parâmetros do formulário ─────────────────
+  if (!Array.isArray(ciclosIds) || ciclosIds.length < 1 || ciclosIds.length > 2) {
+    return _fail('CICLOS_REQUIRED', 'stage_1_validation');
+  }
+
+  const parsedComp = parseCompetencia(competencia);
+  if (!parsedComp) {
+    return _fail('COMPETENCIA_INVALID', 'stage_1_validation');
+  }
+  const { refMonth, refYear } = parsedComp;
 
   // Hash SHA-256 para deduplicação
   const fileHash = sha256(buffer);
@@ -172,15 +308,13 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
     return _fail('PDF_UNREADABLE', 'stage_2_extraction');
   }
 
-  // ── Estágio 3: Parsing dos metadados ────────────────────────────────────
+  // ── Estágio 3: Parsing dos metadados ─────────────────────────────────────
+  // Nota: month_key extraído do PDF é IGNORADO — a competência vem do formulário.
   const extracted = extractFromText(pdfText);
-  const { numero_requerimento, month_key, numero_ordem, cpf, motorist, availability } = extracted;
+  const { numero_requerimento, numero_ordem, cpf, motorist, availability } = extracted;
 
   if (!numero_ordem) {
     return _fail('MILITARY_ID_NOT_FOUND', 'stage_3_metadata');
-  }
-  if (!month_key) {
-    return _fail('MONTH_NOT_FOUND', 'stage_3_metadata');
   }
 
   // ── Estágio 4: Parsing das disponibilidades ──────────────────────────────
@@ -198,7 +332,7 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
   }
   idMilitar = militar.id_militar;
 
-  // Verifica duplicata pelo hash
+  // Verifica duplicata pelo hash do arquivo
   if (!dryRun) {
     const dup = await db.get(
       `SELECT id_log FROM IMPORTACAO_LOG WHERE arquivo_hash = $1 AND id_militar = $2`,
@@ -207,16 +341,34 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
     if (dup) warnings.push(IMPORT_ERRORS.DUPLICATE_FILE);
   }
 
-  // ── Estágio 6: Fragmentação e persistência ──────────────────────────────
-  const [anoStr, mesStr] = month_key.split('-');
-  const refYear  = parseInt(anoStr, 10);
-  const refMonth = parseInt(mesStr, 10);
+  // Verifica ciclos no banco
+  const ciclosNoBanco = [];
+  for (const idCiclo of ciclosIds) {
+    const ciclo = await db.get(
+      'SELECT id_ciclo, status FROM CICLOS WHERE id_ciclo = $1',
+      [idCiclo]
+    );
+    if (!ciclo) {
+      return _fail('CICLO_NOT_FOUND', 'stage_5_validation', { numero_ordem });
+    }
+    ciclosNoBanco.push(ciclo);
+  }
 
+  // ── Estágio 6: Fragmentação com competência do formulário ────────────────
   const engine = await CycleEngine.fromDatabase(db);
-  const { anterior, corrente, ignorados } = engine.fragmentAvailabilityByCycle(availability, refYear, refMonth);
 
-  if (ignorados.length > 0) {
-    warnings.push(`Dias ignorados (inválidos para o mês ${month_key}): ${ignorados.join(', ')}`);
+  const { fragmentos, ignorados, warnings: fragWarnings } = fragmentarComCiclosExplicitos(
+    availability,
+    refYear,
+    refMonth,
+    ciclosIds,
+    engine
+  );
+
+  // Adiciona warnings de dias ignorados
+  warnings.push(...fragWarnings);
+  if (ignorados.length > 0 && fragWarnings.length === 0) {
+    warnings.push(`Dias ignorados (fora do intervalo 1-31): ${ignorados.join(', ')}`);
   }
 
   // Preview mode — retorna os dados sem persistir
@@ -225,13 +377,15 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
       success: true,
       preview: {
         numero_requerimento,
-        month_key,
+        competencia_usada: competencia,
         numero_ordem,
         name: militar.nome_completo || militar.nome_guerra,
         rank: militar.posto_graduacao,
         motorist,
-        fragmento_anterior: { dias: Object.keys(anterior), ciclo: engine.getCycleBoundsAnterior(refYear, refMonth) },
-        fragmento_corrente: { dias: Object.keys(corrente), ciclo: engine.getCycleBoundsCorrente(refYear, refMonth) },
+        fragmentos: fragmentos.map(f => ({
+          idCiclo: f.idCiclo,
+          dias: Object.keys(f.diasMap),
+        })),
         ignorados,
         warnings,
       },
@@ -240,42 +394,31 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
 
   const ciclosAfetados = [];
 
-  // Processa fragmento ANTERIOR (dias 1 a diaInicio-1)
-  if (Object.keys(anterior).length > 0) {
-    const bounds = engine.getCycleBoundsAnterior(refYear, refMonth);
-    const cicloAnt = await db.get(
-      `SELECT id_ciclo, status FROM CICLOS WHERE $1::date BETWEEN data_inicio AND data_fim LIMIT 1`,
-      [bounds.inicio]
-    );
+  // Processa cada fragmento no ciclo correspondente
+  for (const fragmento of fragmentos) {
+    const { idCiclo, diasMap } = fragmento;
 
-    if (!cicloAnt) {
-      warnings.push(`${IMPORT_ERRORS.CYCLE_NOT_FOUND_FOR_DATES} (período anterior: ${bounds.inicio}–${bounds.fim})`);
-    } else if (cicloAnt.status === 'Fechado') {
-      warnings.push(`${IMPORT_ERRORS.CYCLE_CLOSED} (ciclo ${cicloAnt.id_ciclo} — período anterior)`);
-    } else {
-      const r = await upsertRequerimentoFragmento(db, idMilitar, cicloAnt.id_ciclo, anterior, numero_requerimento);
-      ciclosAfetados.push(cicloAnt.id_ciclo);
-      if (!idReqPrimary) idReqPrimary = r.id_requerimento;
+    // Usa coerção numérica para evitar falha por tipo (string vs number) vindo do banco
+    const cicloInfo = ciclosNoBanco.find(c => Number(c.id_ciclo) === Number(idCiclo));
+
+    if (!cicloInfo) {
+      warnings.push(`${IMPORT_ERRORS.CICLO_NOT_FOUND} (id: ${idCiclo})`);
+      continue;
     }
-  }
 
-  // Processa fragmento CORRENTE (dias diaInicio a fim do mês)
-  if (Object.keys(corrente).length > 0) {
-    const bounds = engine.getCycleBoundsCorrente(refYear, refMonth);
-    const cicloAtual = await db.get(
-      `SELECT id_ciclo, status FROM CICLOS WHERE $1::date BETWEEN data_inicio AND data_fim LIMIT 1`,
-      [bounds.inicio]
-    );
-
-    if (!cicloAtual) {
-      warnings.push(`${IMPORT_ERRORS.CYCLE_NOT_FOUND_FOR_DATES} (período corrente: ${bounds.inicio}–${bounds.fim})`);
-    } else if (cicloAtual.status === 'Fechado') {
-      warnings.push(`${IMPORT_ERRORS.CYCLE_CLOSED} (ciclo ${cicloAtual.id_ciclo} — período corrente)`);
-    } else {
-      const r = await upsertRequerimentoFragmento(db, idMilitar, cicloAtual.id_ciclo, corrente, numero_requerimento);
-      ciclosAfetados.push(cicloAtual.id_ciclo);
-      if (!idReqPrimary) idReqPrimary = r.id_requerimento;
+    // Ciclo FECHADO: emite aviso mas prossegue (usuário selecionou explicitamente)
+    if (cicloInfo.status === 'Fechado') {
+      warnings.push(`Atenção: ciclo ${idCiclo} está Fechado. Dados importados mesmo assim conforme seleção explícita.`);
     }
+
+    const r = await upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, numero_requerimento);
+
+    if (r.sobrescreveu) {
+      warnings.push(`${IMPORT_ERRORS.DUPLICATE_REQUIREMENT} (ciclo ${idCiclo})`);
+    }
+
+    ciclosAfetados.push(idCiclo);
+    if (!idReqPrimary) idReqPrimary = r.id_requerimento;
   }
 
   if (ciclosAfetados.length === 0 && Object.keys(availability).length > 0) {
@@ -300,16 +443,17 @@ async function processFile({ buffer, originalname, mimetype, size, db, pdfParser
       idMilitar,
       idReqPrimary || null,
       ciclosAfetados,
-      JSON.stringify({ warnings, month_key, numero_requerimento }),
+      JSON.stringify({ warnings, competencia_usada: competencia, numero_requerimento }),
     ]
   );
 
   return {
-    success: true,
+    success:           true,
     numero_ordem,
-    name: militar.nome_completo || militar.nome_guerra,
-    ciclos_afetados: ciclosAfetados,
-    warnings: warnings.length > 0 ? warnings : undefined,
+    name:              militar.nome_completo || militar.nome_guerra,
+    ciclos_afetados:   ciclosAfetados,
+    competencia_usada: competencia,
+    warnings:          warnings.length > 0 ? warnings : undefined,
   };
 }
 

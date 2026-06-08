@@ -1,3 +1,130 @@
+## v1.32.30 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Formatação Monetária no Memorando SVR**:
+  - **[Frontend]** Substituídas as formatações manuais de valor por chamadas à função `formatarValor` no layout A4 do memorando em `AnalyticsDashboard.jsx`. Isso assegura que todos os montantes financeiros (valores individuais de serviço, total acumulado de cada militar, débitos por OPM, recurso geral utilizado e limite orçamentário) sejam exibidos no formato oficial de Real Brasileiro (`R$ 1.234,56`) com separadores de milhares e decimais corretos.
+
+---
+
+## v1.32.29 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Sobreposição nos Metadados do Memorando SVR**:
+  - **[Frontend]** Reestruturado o cabeçalho de metadados em `AnalyticsDashboard.jsx` (Número do Memorando e Data/Localização) para ocupar linhas individuais sequenciais em vez de colunas flexíveis horizontais. Isso evita completamente a colisão e sobreposição de textos quando o número do memorando é muito extenso.
+
+---
+
+## v1.32.28 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Prevenção de Quebras de Página no Bloco Final do Memorando SVR**:
+  - **[Frontend]** Envelopado todo o bloco final do memorando (relação de débitos, parágrafo orçamentário adicional, termo de encerramento e assinaturas) em uma única `div` com a classe `bloco-militar-memo`. Isso garante que o bloco final seja analisado em conjunto pelo script de cálculo de limites da folha A4 e seja empurrado para a próxima página integralmente caso ultrapasse a borda, evitando a quebra indesejada do encerramento e da assinatura como mostrado na imagem.
+
+---
+
+## v1.32.27 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Refinamento do Memorando SVR**:
+  - **[Frontend]** Removida a coluna `CMD` da tabela de serviços executados no memorando SVR em `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Removido o botão "Imprimir Memorando" dos controles laterais do gerador.
+  - **[Frontend]** Implementado algoritmo de quebra de página dinâmico no `handleDownloadPDF` para calcular a altura dos blocos militares (`bloco-militar-memo`) e inserir espaçadores transparentes temporários, prevenindo que uma tabela fique cortada ao meio entre duas páginas no arquivo PDF final.
+
+---
+
+## v1.32.26 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Visual do Memorando SVR**:
+  - **[Frontend]** Padronizado o estilo visual, fontes (`Inter`), linhas e tabelas do gerador de memorando em `AnalyticsDashboard.jsx` para seguir os padrões do módulo de publicação de escala (`EscalaPublicacaoOficial.jsx`).
+  - **[Frontend]** Substituído o logotipo provisório em CSS do memorando pelo brasão oficial da Polícia Militar (`/pmal.png`).
+
+---
+
+## v1.32.25 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Identificação de OPM no Memorando SVR**:
+  - **[Frontend]** Normalizado o filtro de OPMs no `AnalyticsDashboard.jsx` para aceitar tanto a grafia com o caractere "º" (`9º BPM`) quanto com o caractere "o" (`9o BPM`). Isso corrige a listagem de militares no memorando SVR quando executam serviço em outras unidades.
+
+---
+
+## v1.32.24 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Erro de Execução no Print do Memorando**:
+  - **[Frontend]** Corrigido erro de referência `handlePrint is not defined` no componente `AnalyticsDashboard.jsx` ao declarar a função `handlePrint` que aciona a impressão da folha.
+
+---
+
+## v1.32.23 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Tela Branca no Publicador de Memorando**:
+  - **[Frontend]** Corrigido erro de referência `selectedCicloText is not defined` no componente `AnalyticsDashboard.jsx` ao declarar e unificar a constante com os seletores da interface.
+
+---
+
+## v1.32.22 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Publicador de Memorando SVR Oficial**:
+  - **[Frontend]** Adicionado botão "Publicar Memorando SVR" no cabeçalho do `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Desenvolvido modal interativo com painel de visualização A4 do memorando oficial para consolidação de serviços executados fora do 9º BPM.
+  - **[Frontend]** Implementado suporte a edição in-line (contentEditable) das informações no próprio layout da folha, geração de PDF nativa (via jsPDF/html2canvas) e formatação otimizada para impressão.
+
+---
+
+## v1.32.21 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Reorganização de Colunas em Serviços Executados**:
+  - **[Frontend]** Invertidas as posições das colunas "Militar" (Nome) e "Posto" em `ServicosExecutadosManager.jsx` para exibir a patente primeiro, renomeando o cabeçalho para "Posto/Grad".
+
+---
+
+## v1.32.20 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ordenação padrão por Posto/Graduação**:
+  - **[Frontend]** Alterada a ordenação padrão inicial da grade de requerimentos em `RequerimentosAdmin.jsx` para ordenar por senioridade militar (Posto/Grad).
+  - **[Frontend]** Ajustada a ordenação primária no `HistoricoMilitar.jsx` para priorizar a senioridade militar (Posto/Grad) e usar a quantidade de serviços executados como critério secundário.
+
+---
+
+## v1.32.19 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajuste na contagem e exibição de disponibilidade**:
+  - **[Frontend]** Modificado o grid no componente RequerimentosAdmin.jsx para exibir "Dias Disponíveis" no cabeçalho.
+  - **[Frontend]** Alterada a lógica de contagem e ordenação da grade para considerar dias únicos de disponibilidade (cada dia com 1 a 4 turnos selecionados conta como exatamente 1 dia de disponibilidade).
+
+---
+
 ## v1.32.18 — 2026-06-03
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

@@ -98,6 +98,7 @@ export function AdminDashboardV2() {
 
     const processedVolunteers = volunteersData.map(v => {
       const availabilityForDay =
+        (v.availability && typeof dateVal === 'string' && v.availability[dateVal]) ||
         (v.availability && v.availability[dayKey1]) ||
         (v.availability && v.availability[dayKey2]) ||
         (v.availability && v.availability[selectedDateNum]);
@@ -749,12 +750,7 @@ export function AdminDashboardV2() {
                   const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                   if (!currentCycle) return null;
                   const startBy = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
-                  // Ajusta para iniciar no dia 16
-                  startBy.setDate(16);
-
-                  const endBy = new Date(startBy);
-                  endBy.setMonth(endBy.getMonth() + 1);
-                  endBy.setDate(15);
+                  const endBy = new Date(String(currentCycle.data_fim).split('T')[0] + 'T12:00:00');
 
                   const daysBy = [];
                   let currBy = new Date(startBy);
@@ -1390,12 +1386,7 @@ export function AdminDashboardV2() {
                       if (!currentCycle) return null;
 
                       const startDate = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
-                      // Ajusta para iniciar no dia 16
-                      startDate.setDate(16);
-
-                      const endDate = new Date(startDate);
-                      endDate.setMonth(endDate.getMonth() + 1);
-                      endDate.setDate(15);
+                      const endDate = new Date(String(currentCycle.data_fim).split('T')[0] + 'T12:00:00');
 
                       const days = [];
                       let curr = new Date(startDate);

@@ -17,13 +17,10 @@ const SHIFTS = [
 // Gera array de dias a partir do intervalo data_inicio..data_fim do ciclo
 const getCycleDays = (dataInicio, dataFim) => {
   if (!dataInicio || !dataFim) {
-    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+    return [];
   }
   const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
-  start.setDate(16);
-  const end = new Date(start);
-  end.setMonth(end.getMonth() + 1);
-  end.setDate(15);
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
   const days = [];
   const cur = new Date(start);
   while (cur <= end) {
@@ -51,14 +48,37 @@ export function RequerimentosAdmin({ user }) {
   const [viewingVolunteer, setViewingVolunteer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'data_solicitacao', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
   // PDF Folder Import states
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importCycles, setImportCycles] = useState([]);
+  const [importCompetencia, setImportCompetencia] = useState('');
   const fileInputRef = useRef(null);
+
+  /** Gera opções MM/YYYY: próximos 2 meses + mês atual + últimos 12 meses (mais recente primeiro) */
+  const generateCompetenciaOptions = () => {
+    const opts = [];
+    const now = new Date();
+    for (let offset = 2; offset >= -12; offset--) {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      opts.push(`${mm}/${yyyy}`);
+    }
+    return opts;
+  };
+
+  const toggleImportCycle = (id) => {
+    setImportCycles(prev => {
+      if (prev.includes(id)) return prev.filter(c => c !== id);
+      if (prev.length >= 2) return prev; // limite de 2
+      return [...prev, id];
+    });
+  };
 
   // New Search States
   const [militarSearch, setMilitarSearch] = useState('');
@@ -197,6 +217,8 @@ export function RequerimentosAdmin({ user }) {
     setShowFolderModal(true);
     setImportResult(null);
     setSelectedFiles([]);
+    setImportCycles([]);
+    setImportCompetencia('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -208,31 +230,35 @@ export function RequerimentosAdmin({ user }) {
   };
 
   const handleImportFromFiles = async () => {
-    if (selectedFiles.length === 0 || !activeCycle) {
-      alert('Selecione arquivos PDF e aguarde o carregamento do ciclo ativo.');
+    if (selectedFiles.length === 0) {
+      alert('Selecione ao menos um arquivo PDF.');
+      return;
+    }
+    if (importCycles.length === 0) {
+      alert('Selecione ao menos 1 ciclo de destino.');
+      return;
+    }
+    if (!importCompetencia) {
+      alert('Selecione a Competência (Mês/Ano) de referência.');
       return;
     }
 
     setImporting(true);
     setImportResult(null);
     try {
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
-      });
+      const fd = new FormData();
+      selectedFiles.forEach(file => fd.append('files', file));
+      fd.append('ciclos_ids', JSON.stringify(importCycles));
+      fd.append('competencia', importCompetencia);
 
-      // Envia o id_ciclo como preferência e o mes_referencia em YYYY-MM para fragmentação
-      formData.append('id_ciclo', activeCycle.id_ciclo || '');
-      formData.append('mes_referencia', activeCycle.mes_referencia_iso || '');
-
-      const res = await axios.post(`${API_URL}/import/volunteers/files`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await axios.post(`${API_URL}/import/volunteers/files`, fd);
       setImportResult(res.data);
       fetchVolunteers();
     } catch (e) {
       console.error(e);
-      alert('Erro ao importar PDFs: ' + (e.response?.data?.error || e.message));
+      const rawErr = e.response?.data?.error ?? e.response?.data?.message ?? e.message ?? e;
+      const errMsg = typeof rawErr === 'string' ? rawErr : JSON.stringify(rawErr);
+      alert('Erro ao importar PDFs: ' + errMsg);
     } finally {
       setImporting(false);
     }
@@ -471,8 +497,8 @@ export function RequerimentosAdmin({ user }) {
     }
 
     if (sortConfig.key === 'turnos') {
-      aVal = Object.values(a.availability || {}).flat().length;
-      bVal = Object.values(b.availability || {}).flat().length;
+      aVal = Object.keys(a.availability || {}).length;
+      bVal = Object.keys(b.availability || {}).length;
     }
 
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -510,7 +536,6 @@ export function RequerimentosAdmin({ user }) {
           <button
             className="btn btn-primary"
             onClick={openFolderModal}
-            disabled={!activeCycle}
             style={{
               width: 'auto',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -570,7 +595,7 @@ export function RequerimentosAdmin({ user }) {
                 <th>Telefone</th>
                 <th style={{ textAlign: 'center' }}>Motorista</th>
                 <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
-                  Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                  Dias Disponíveis {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th>Obs</th>
                 <th style={{ textAlign: 'center' }}>Ações</th>
@@ -609,9 +634,7 @@ export function RequerimentosAdmin({ user }) {
                         </span>
                       )}
                       <span>
-                        {Object.keys(v.availability || {}).length > 0
-                          ? `${Object.values(v.availability).flat().length}`
-                          : '0'}
+                        {Object.keys(v.availability || {}).length}
                       </span>
                     </div>
                   </td>
@@ -829,17 +852,18 @@ export function RequerimentosAdmin({ user }) {
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
                         const dayStr = String(dayObj.day);
-                        const isSelected = (formData.availability[dayStr] || []).some(s =>
+                        const isSelected = (formData.availability[dateKey] || formData.availability[dayStr] || []).some(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
 
-                        const currentShiftData = (formData.availability[dayStr] || []).find(s =>
+                        const currentShiftData = (formData.availability[dateKey] || formData.availability[dayStr] || []).find(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
                         const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
 
-                        const completeData = formData.availability_completa?.[dayStr] || [];
+                        const completeData = formData.availability_completa?.[dateKey] || formData.availability_completa?.[dayStr] || [];
                         const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
@@ -863,8 +887,8 @@ export function RequerimentosAdmin({ user }) {
                         return (
                           <td
                             key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            onClick={() => toggleShift(dayObj.day, shift)}
-                            onContextMenu={(e) => openShiftObsModal(e, dayObj.day, shift)}
+                            onClick={() => toggleShift(dateKey, shift)}
+                            onContextMenu={(e) => openShiftObsModal(e, dateKey, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: 'pointer',
@@ -976,15 +1000,16 @@ export function RequerimentosAdmin({ user }) {
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
                         const dayStr = String(dayObj.day);
-                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).some(s =>
+                        const isSelected = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).some(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
-                        const currentShiftData = (viewingVolunteer.availability?.[dayStr] || []).find(s =>
+                        const currentShiftData = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).find(s =>
                           (typeof s === 'object' ? s.turno === shift : s === shift)
                         );
                         const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
-                        const completeData = viewingVolunteer.availability_completa?.[dayStr] || [];
+                        const completeData = viewingVolunteer.availability_completa?.[dateKey] || viewingVolunteer.availability_completa?.[dayStr] || [];
                         const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
@@ -1069,21 +1094,101 @@ export function RequerimentosAdmin({ user }) {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Header do Modal com Status do Ciclo */}
-              <div style={{
-                background: 'rgba(56, 189, 248, 0.05)',
-                borderLeft: '4px solid var(--accent)',
-                padding: '1rem',
-                borderRadius: '0 8px 8px 0'
-              }}>
-                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className="fas fa-calendar-check"></i> Ciclo de Destino
-                </h4>
-                <div style={{ marginTop: '0.4rem', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                  {activeCycle ? activeCycle.month_name : 'Nenhum ciclo ativo selecionado'}
+
+              {/* ── Seleção de Ciclo(s) ───────────────────────────────── */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  📅 Ciclo(s) de Destino
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>
+                    (selecione 1 ou 2 ciclos)
+                  </span>
+                  {importCycles.length === 0 && (
+                    <span style={{ marginLeft: '0.5rem', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠ obrigatório</span>
+                  )}
+                </label>
+                <div style={{
+                  maxHeight: '160px', overflowY: 'auto',
+                  border: `1px solid ${importCycles.length === 0 ? '#ef4444' : 'var(--border-color)'}`,
+                  borderRadius: '8px',
+                  padding: '0.25rem'
+                }}>
+                  {months.length === 0 && (
+                    <div style={{ padding: '0.75rem', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+                      Nenhum ciclo cadastrado.
+                    </div>
+                  )}
+                  {months.map(ciclo => {
+                    const isSelected = importCycles.includes(ciclo.id_ciclo);
+                    const isDisabled = !isSelected && importCycles.length >= 2;
+                    return (
+                      <label
+                        key={ciclo.id_ciclo}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          padding: '0.5rem 0.75rem', borderRadius: '6px', cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                          opacity: isDisabled ? 0.45 : 1,
+                          transition: 'background 0.15s',
+                          marginBottom: '2px'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => toggleImportCycle(ciclo.id_ciclo)}
+                          style={{ accentColor: 'var(--primary)', width: '15px', height: '15px', flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isSelected ? 600 : 400 }}>
+                          {ciclo.month_name}
+                        </span>
+                        {ciclo.status === 'Aberto' && (
+                          <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: '#10b981', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 700 }}>ABERTO</span>
+                        )}
+                        {ciclo.status === 'Fechado' && (
+                          <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: '#6b7280', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>FECHADO</span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
-                <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                  Todos os arquivos processados serão vinculados automaticamente a este período.
+                {importCycles.length > 0 && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                    ✓ {importCycles.length} ciclo(s) selecionado(s)
+                    {importCycles.length === 2 && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: '0.4rem' }}>
+                        — dias &lt; diaInicio → 1º ciclo · dias ≥ diaInicio → 2º ciclo
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Seleção de Competência MM/YYYY ───────────────────── */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  🗓️ Competência (Mês/Ano de Referência)
+                  {!importCompetencia && (
+                    <span style={{ marginLeft: '0.5rem', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠ obrigatório</span>
+                  )}
+                </label>
+                <select
+                  value={importCompetencia}
+                  onChange={e => setImportCompetencia(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px',
+                    border: `1px solid ${!importCompetencia ? '#ef4444' : 'var(--border-color)'}`,
+                    fontSize: '0.9rem', background: 'var(--card-bg)', color: 'var(--text-primary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">— Selecione o mês/ano —</option>
+                  {generateCompetenciaOptions().map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Os dias do PDF serão associados a este mês e ano. A data impressa no PDF será ignorada.
                 </p>
               </div>
 
@@ -1148,14 +1253,28 @@ export function RequerimentosAdmin({ user }) {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
                     borderBottom: `1px solid ${importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}`
                   }}>
                     <strong style={{ color: importResult.success ? 'var(--success)' : 'var(--danger)' }}>
                       {importResult.success ? '✓ Resultado do Processamento' : '⚠️ Problemas Detectados'}
                     </strong>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {importResult.processed} arquivos lidos
-                    </span>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {importResult.competencia_usada && (
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(59,130,246,0.15)', color: 'var(--primary)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                          📅 {importResult.competencia_usada}
+                        </span>
+                      )}
+                      {importResult.ciclos_usados?.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(16,185,129,0.12)', color: '#059669', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                          {importResult.ciclos_usados.length} ciclo(s)
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {importResult.processed} arquivo(s) lido(s)
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1241,7 +1360,7 @@ export function RequerimentosAdmin({ user }) {
               <button
                 className="btn btn-primary"
                 onClick={handleImportFromFiles}
-                disabled={importing || selectedFiles.length === 0 || (!selectedMonth && !activeCycle)}
+                disabled={importing || selectedFiles.length === 0 || importCycles.length === 0 || !importCompetencia}
                 style={{
                   padding: '0.75rem 2rem',
                   minWidth: '150px',
@@ -1346,8 +1465,9 @@ export function RequerimentosAdmin({ user }) {
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
                       {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
                         const dayStr = String(dayObj.day);
-                        const availabilityData = cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dayStr] || [];
+                        const availabilityData = cancelingItem.availability_completa?.[dateKey] || cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dateKey] || cancelingItem.availability?.[dayStr] || [];
 
                         const isAtivo = Array.isArray(availabilityData)
                           ? availabilityData.some(item => {
@@ -1365,12 +1485,12 @@ export function RequerimentosAdmin({ user }) {
                           })
                           : false;
 
-                        const isSelectedToCancel = cancelingSelection[dayStr]?.includes(shift);
+                        const isSelectedToCancel = (cancelingSelection[dateKey] || cancelingSelection[dayStr])?.includes(shift);
 
                         return (
                           <td
                             key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            onClick={() => isAtivo && toggleCancelShiftSelection(dayObj.day, shift)}
+                            onClick={() => isAtivo && toggleCancelShiftSelection(dateKey, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: isAtivo ? 'pointer' : 'default',
@@ -1476,7 +1596,7 @@ export function RequerimentosAdmin({ user }) {
             </div>
 
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              Dia {String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
+              Dia {String(obsShiftData.day).includes('-') ? obsShiftData.day.split('-').reverse().join('/') : String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
             </p>
 
             <textarea

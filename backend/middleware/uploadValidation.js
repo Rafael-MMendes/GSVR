@@ -5,8 +5,6 @@ const multer = require('multer');
 /** 10MB por arquivo */
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-/** Máximo de arquivos por requisição de importação em lote */
-const MAX_FILES = 50;
 
 /**
  * Middleware multer configurado para upload de PDFs de requerimento.
@@ -19,7 +17,6 @@ const uploadPdf = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: MAX_FILE_SIZE,
-    files:    MAX_FILES,
   },
   fileFilter: (_req, file, cb) => {
     const isValidMime = file.mimetype === 'application/pdf' ||
@@ -46,14 +43,6 @@ function handleUploadError(err, _req, res, next) {
     });
   }
 
-  if (err.code === 'LIMIT_FILE_COUNT') {
-    return res.status(413).json({
-      success: false,
-      error_code: 'TOO_MANY_FILES',
-      error: `Máximo de ${MAX_FILES} arquivos por requisição.`,
-    });
-  }
-
   if (err.message === 'INVALID_FILE_TYPE') {
     return res.status(415).json({
       success: false,
@@ -62,7 +51,12 @@ function handleUploadError(err, _req, res, next) {
     });
   }
 
-  next(err);
+  // Erros não mapeados — retorna JSON genérico (evita resposta HTML do Express)
+  return res.status(500).json({
+    success: false,
+    error_code: 'UPLOAD_ERROR',
+    error: err?.message || 'Erro inesperado no processamento do upload.',
+  });
 }
 
 module.exports = { uploadPdf, handleUploadError };

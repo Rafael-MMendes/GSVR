@@ -532,11 +532,11 @@ export function ServicosExecutadosManager() {
                 <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
                   Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                  Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
                 <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                   Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                </th>
-                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
-                  Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
                 <th style={{ padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
                   Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
@@ -572,11 +572,11 @@ export function ServicosExecutadosManager() {
                     <td style={{ fontWeight: 500 }}>
                       {formatDateDisplay(s.data_execucao)}
                     </td>
+                    <td style={{ fontSize: '0.85rem' }}>{s.posto_graduacao}</td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{s.nome_guerra || s.nome_completo}</div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{s.matricula}</div>
                     </td>
-                    <td style={{ fontSize: '0.85rem' }}>{s.posto_graduacao}</td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
                         {s.carga_horaria}h

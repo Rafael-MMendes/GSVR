@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 def run_ssh():
-    cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', 'vps_9bpm@192.168.1.123', 'docker ps']
+    cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', 'vps_9bpm@192.168.1.119', 'docker ps']
     try:
         # We try to pass password via stdin, though ssh often blocks this
         process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

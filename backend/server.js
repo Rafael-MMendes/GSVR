@@ -675,67 +675,67 @@ app.get('/api/volunteers', async (req, res) => {
             e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             c.data_inicio, c.data_fim,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
-            (SELECT json_object_agg(EXTRACT(DAY FROM dia_mes)::int, turnos) FROM (
-              SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'observacoes', observacoes)) as turnos
-              FROM DISPONIBILIDADE_REQUERIMENTO
-              WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
-              GROUP BY dia_mes
-            ) d) as availability_json,
-            (SELECT json_object_agg(dia_mes_num, turnos_completos) FROM (
-              SELECT dia_mes_num, json_agg(json_build_object(
-                'turno', horario_turno, 
-                'ativo', ativo, 
-                'motorista', motorista, 
-                'observacoes', observacoes,
-                'teve_execucao', teve_execucao
-              )) as turnos_completos
-              FROM (
-                SELECT 
-                  dia_mes_num,
-                  horario_turno,
-                  BOOL_OR(ativo) as ativo,
-                  BOOL_OR(motorista) as motorista,
-                  MAX(observacoes) as observacoes,
-                  BOOL_OR(teve_execucao) as teve_execucao
-                FROM (
-                  SELECT 
-                    EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes_num,
-                    dr.horario_turno, 
-                    dr.ativo, 
-                    dr.motorista, 
-                    dr.observacoes,
-                    EXISTS (
-                      SELECT 1 FROM SERVICOS_EXECUTADOS se
-                      WHERE se.id_militar = r.id_militar
-                        AND se.id_ciclo = r.id_ciclo
-                        AND se.data_execucao = dr.dia_mes
-                    ) as teve_execucao
-                  FROM DISPONIBILIDADE_REQUERIMENTO dr
-                  WHERE dr.id_requerimento = r.id_requerimento AND dr.marcado_disponivel = TRUE
+            (SELECT json_object_agg(TO_CHAR(dia_mes, 'YYYY-MM-DD'), turnos) FROM (
+               SELECT dia_mes, json_agg(json_build_object('turno', horario_turno, 'observacoes', observacoes)) as turnos
+               FROM DISPONIBILIDADE_REQUERIMENTO
+               WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE AND ativo = TRUE
+               GROUP BY dia_mes
+             ) d) as availability_json,
+            (SELECT json_object_agg(dia_mes_date, turnos_completos) FROM (
+               SELECT dia_mes_date, json_agg(json_build_object(
+                 'turno', horario_turno, 
+                 'ativo', ativo, 
+                 'motorista', motorista, 
+                 'observacoes', observacoes,
+                 'teve_execucao', teve_execucao
+               )) as turnos_completos
+               FROM (
+                 SELECT 
+                   dia_mes_date,
+                   horario_turno,
+                   BOOL_OR(ativo) as ativo,
+                   BOOL_OR(motorista) as motorista,
+                   MAX(observacoes) as observacoes,
+                   BOOL_OR(teve_execucao) as teve_execucao
+                 FROM (
+                   SELECT 
+                     TO_CHAR(dr.dia_mes, 'YYYY-MM-DD') as dia_mes_date,
+                     dr.horario_turno, 
+                     dr.ativo, 
+                     dr.motorista, 
+                     dr.observacoes,
+                     EXISTS (
+                       SELECT 1 FROM SERVICOS_EXECUTADOS se
+                       WHERE se.id_militar = r.id_militar
+                         AND se.id_ciclo = r.id_ciclo
+                         AND se.data_execucao = dr.dia_mes
+                     ) as teve_execucao
+                   FROM DISPONIBILIDADE_REQUERIMENTO dr
+                   WHERE dr.id_requerimento = r.id_requerimento AND dr.marcado_disponivel = TRUE
 
-                  UNION ALL
+                   UNION ALL
 
-                  SELECT 
-                    EXTRACT(DAY FROM se.data_execucao)::int as dia_mes_num,
-                    t.turno as horario_turno,
-                    true as ativo,
-                    false as motorista,
-                    '' as observacoes,
-                    true as teve_execucao
-                  FROM SERVICOS_EXECUTADOS se
-                  CROSS JOIN (
-                    SELECT '07:00 ÀS 13:00' as turno
-                    UNION ALL SELECT '13:00 ÀS 19:00'
-                    UNION ALL SELECT '19:00 ÀS 01:00'
-                    UNION ALL SELECT '01:00 ÀS 07:00'
-                  ) t
-                  WHERE se.id_militar = r.id_militar
-                    AND se.id_ciclo = r.id_ciclo
-                ) inner_sub
-                GROUP BY dia_mes_num, horario_turno
-              ) outer_sub
-              GROUP BY dia_mes_num
-            ) d) as availability_completa_json,
+                   SELECT 
+                     TO_CHAR(se.data_execucao, 'YYYY-MM-DD') as dia_mes_date,
+                     t.turno as horario_turno,
+                     true as ativo,
+                     false as motorista,
+                     '' as observacoes,
+                     true as teve_execucao
+                   FROM SERVICOS_EXECUTADOS se
+                   CROSS JOIN (
+                     SELECT '07:00 ÀS 13:00' as turno
+                     UNION ALL SELECT '13:00 ÀS 19:00'
+                     UNION ALL SELECT '19:00 ÀS 01:00'
+                     UNION ALL SELECT '01:00 ÀS 07:00'
+                   ) t
+                   WHERE se.id_militar = r.id_militar
+                     AND se.id_ciclo = r.id_ciclo
+                 ) inner_sub
+                 GROUP BY dia_mes_date, horario_turno
+               ) outer_sub
+               GROUP BY dia_mes_date
+             ) d) as availability_completa_json,
             (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_militar = e.id_militar AND ep.id_ciclo = c.id_ciclo) as service_count,
             (SELECT COUNT(*) FROM SERVICOS_EXECUTADOS se WHERE se.id_militar = e.id_militar AND se.id_ciclo = c.id_ciclo) as executed_count,
             COALESCE((SELECT BOOL_OR(ativo) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento), TRUE) as ativo
@@ -2340,7 +2340,7 @@ app.get('/api/reports/disponibilidade-grid', async (req, res) => {
         BOOL_OR(teve_execucao) as teve_execucao
       FROM (
         SELECT
-          EXTRACT(DAY FROM dr.dia_mes)::int as dia_mes,
+          TO_CHAR(dr.dia_mes, 'YYYY-MM-DD') as dia_mes,
           dr.horario_turno,
           dr.marcado_disponivel,
           dr.ativo,
@@ -2360,7 +2360,7 @@ app.get('/api/reports/disponibilidade-grid', async (req, res) => {
         UNION ALL
 
         SELECT 
-          EXTRACT(DAY FROM se.data_execucao)::int as dia_mes,
+          TO_CHAR(se.data_execucao, 'YYYY-MM-DD') as dia_mes,
           t.turno as horario_turno,
           true as marcado_disponivel,
           true as ativo,
@@ -2798,7 +2798,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
   app.post(
     '/api/import/volunteers/files',
     authenticate,
-    uploadPdf.array('files', 50),
+    uploadPdf.array('files'),
     handleUploadError,
     async (req, res) => {
       if (!req.files || req.files.length === 0) {
@@ -2806,6 +2806,33 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       }
       if (!pdfParser) {
         return res.status(503).json({ success: false, error: 'Módulo pdf-parse não disponível no servidor.' });
+      }
+
+      // ── Valida e parseia os novos campos obrigatórios ──────────────────────
+      let ciclosIds = [];
+      try {
+        const rawCiclos = req.body.ciclos_ids;
+        ciclosIds = typeof rawCiclos === 'string' ? JSON.parse(rawCiclos) : (rawCiclos || []);
+        ciclosIds = ciclosIds.map(Number).filter(n => !isNaN(n) && n > 0);
+      } catch {
+        return res.status(400).json({ success: false, error: 'ciclos_ids inválido. Envie um array JSON com 1 ou 2 IDs de ciclo.' });
+      }
+
+      if (ciclosIds.length < 1 || ciclosIds.length > 2) {
+        return res.status(400).json({ success: false, error: 'Selecione ao menos 1 e no máximo 2 ciclos para a importação.' });
+      }
+
+      const competencia = (req.body.competencia || '').trim();
+      if (!competencia || !/^(0[1-9]|1[0-2])\/20\d{2}$/.test(competencia)) {
+        return res.status(400).json({ success: false, error: 'Competência inválida. Use o formato MM/YYYY (ex: 06/2026).' });
+      }
+
+      // Valida existência dos ciclos no banco antes de processar os arquivos
+      for (const idCiclo of ciclosIds) {
+        const ciclo = await db.get('SELECT id_ciclo FROM CICLOS WHERE id_ciclo = $1', [idCiclo]);
+        if (!ciclo) {
+          return res.status(400).json({ success: false, error: `Ciclo ID ${idCiclo} não encontrado no banco de dados.` });
+        }
       }
 
       const results = [];
@@ -2822,6 +2849,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
             pdfParser,
             idUsuario:    req.user?.id || null,
             dryRun:       false,
+            ciclosIds,
+            competencia,
           });
 
           if (result.success) {
@@ -2838,6 +2867,8 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       res.json({
         success:   true,
         processed: results.length,
+        competencia_usada: competencia,
+        ciclos_usados: ciclosIds,
         results,
         errors:    errors.slice(0, 50),
       });

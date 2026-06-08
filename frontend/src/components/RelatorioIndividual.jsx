@@ -502,7 +502,9 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                               {turno}
                             </td>
                             {cycleDays.map(dayObj => {
-                              const cell = byDay[dayObj.day]?.[turno];
+                              const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                              const dayStr = String(dayObj.day);
+                              const cell = byDay[dateKey]?.[turno] || byDay[dayStr]?.[turno];
                               const cfg = getCfg(cell);
                               return (
                                 <td key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: 0, textAlign: 'center' }}>

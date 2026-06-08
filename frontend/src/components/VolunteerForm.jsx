@@ -16,6 +16,26 @@ const formatDateDisplay = (dateValue) => {
 
 const ranks = MILITARY_RANK_ORDER;
 
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return [];
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
+
 const SHIFTS = [
   "07:00 ÀS 13:00",
   "13:00 ÀS 19:00",
@@ -57,7 +77,7 @@ export function VolunteerForm({ userData }) {
   const [conflictInfo, setConflictInfo] = useState(null); // { id, name, rank }
   const [showConflictModal, setShowConflictModal] = useState(false);
 
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  const cycleDays = getCycleDays(selectedCiclo?.data_inicio, selectedCiclo?.data_fim);
 
   useEffect(() => {
     const fetchCiclos = async () => {
@@ -377,11 +397,15 @@ export function VolunteerForm({ userData }) {
                   <th style={{ padding: '1rem', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', minWidth: '160px', position: 'sticky', left: 0, zIndex: 10, background: 'var(--primary)' }}>
                     TURNO / DATA
                   </th>
-                  {daysInMonth.map(day => (
-                    <th key={day} style={{ padding: '0.5rem 0', width: '32px', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                      {String(day).padStart(2, '0')}
-                    </th>
-                  ))}
+                  {cycleDays.map((dayObj, idx) => {
+                    const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                    return (
+                      <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.5rem 0', width: '32px', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', lineHeight: 1.1 }}>
+                        {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75 }}>{dayObj.monthShort}</div>}
+                        <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -401,21 +425,21 @@ export function VolunteerForm({ userData }) {
                     }}>
                       {shift}
                     </td>
-                    {daysInMonth.map(day => {
-                      const dayStr = String(day);
-                      const isSelected = (formData.availability[dayStr] || []).some(s => 
+                    {cycleDays.map(dayObj => {
+                      const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                      const isSelected = (formData.availability[dateKey] || []).some(s => 
                         (typeof s === 'object' ? s.turno === shift : s === shift)
                       );
-                      const currentShiftData = (formData.availability[dayStr] || []).find(s => 
+                      const currentShiftData = (formData.availability[dateKey] || []).find(s => 
                         (typeof s === 'object' ? s.turno === shift : s === shift)
                       );
                       const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
 
                       return (
                         <td
-                          key={day}
-                          onClick={() => toggleShift(day, shift)}
-                          onContextMenu={(e) => openShiftObsModal(e, day, shift)}
+                          key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                          onClick={() => toggleShift(dateKey, shift)}
+                          onContextMenu={(e) => openShiftObsModal(e, dateKey, shift)}
                           style={{
                             borderRight: '1px solid var(--border-color)',
                             borderTop: '1px solid var(--border-color)',
@@ -472,9 +496,9 @@ export function VolunteerForm({ userData }) {
         }}>
           <div className="glass-panel" style={{ width: '400px', maxWidth: '90%', animation: 'slideUp 0.3s ease-out' }}>
             <h3 style={{ marginTop: 0 }}>Observação do Turno</h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              Dia {String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
-            </p>
+             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Dia {String(obsShiftData.day).includes('-') ? obsShiftData.day.split('-').reverse().join('/') : String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
+             </p>
             <textarea
               className="form-control"
               value={obsShiftData.value}

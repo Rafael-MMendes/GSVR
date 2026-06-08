@@ -1,10 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet, Search } from 'lucide-react';
+import { RefreshCw, TrendingUp, Clock, AlertTriangle, Wallet, Search, FileText, Printer, Download, X } from 'lucide-react';
 import { compareByRank } from '../utils/formatters';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 const MAX_SERVICES = 8;
+
+// Função para formatar data vinda do banco de forma segura
+const formatDateDisplay = (dateValue) => {
+  if (!dateValue) return '---';
+  try {
+    const dateStr = String(dateValue).split('T')[0];
+    const [ano, mes, dia] = dateStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  } catch (e) {
+    return '---';
+  }
+};
 
 export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
@@ -20,6 +34,100 @@ export function AnalyticsDashboard() {
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [tiposServico, setTiposServico] = useState([]);
+
+  // Memorandum Generator States
+  const [showMemoModal, setShowMemoModal] = useState(false);
+  const [memoNumber, setMemoNumber] = useState('124/2026/Secretaria do 9º Batalhão de Polícia Militar');
+  const [memoDate, setMemoDate] = useState('');
+  const [memoSender, setMemoSender] = useState('ADEMAR SIQUEIRA DA SILVA NETO - TEN CEL QOEM PM');
+  const [memoRecipient, setMemoRecipient] = useState('Ilmo. Senhor Cel QOEM - Comandante do CPRS');
+  const [memoPortaria, setMemoPortaria] = useState('Portaria PMAL nº 34/2025');
+  const [memoCprsLimit, setMemoCprsLimit] = useState(85000.00);
+
+  // Initialize Date for Memo
+  useEffect(() => {
+    if (!memoDate) {
+      const now = new Date();
+      const monthsPT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      setMemoDate(`${now.getDate()} de ${monthsPT[now.getMonth()]} de ${now.getFullYear()}`);
+    }
+  }, []);
+
+  // Memoized compilation of SVR services executed outside 9º BPM by 9º BPM militaries
+  const memoData = useMemo(() => {
+    if (!selectedCiclo || servicos.length === 0 || efetivo.length === 0) {
+      return { list: [], OpmDebits: {}, totalValue: 0 };
+    }
+
+    // Filter: native OPM is '9º BPM' (or '9o BPM') and execution OPM is NOT '9º BPM' (or '9o BPM')
+    const filteredServices = servicos.filter(s => {
+      const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
+      const homeOpm = mil?.opm || '';
+      const execOpm = s.opm_origem || '';
+
+      const is9Bpm = (opm) => {
+        if (!opm) return false;
+        const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
+        return norm === '9O BPM' || norm === '9º BPM' || norm === '9BPM';
+      };
+
+      return is9Bpm(homeOpm) && !is9Bpm(execOpm) && execOpm !== '';
+    });
+
+    const groups = {};
+    const OpmDebits = {};
+    let totalValue = 0;
+
+    filteredServices.forEach(s => {
+      const milId = String(s.id_militar);
+      const mil = efetivo.find(e => String(e.id_militar) === milId);
+      if (!groups[milId]) {
+        groups[milId] = {
+          militar_id: milId,
+          nome_guerra: mil?.nome_guerra || s.nome_guerra || 'Desconhecido',
+          nome_completo: mil?.nome_completo || 'Militar Indefinido',
+          posto_graduacao: mil?.posto_graduacao || s.posto_graduacao || '',
+          cpf: mil?.cpf || '---',
+          services: [],
+          count6h: 0,
+          count8h: 0,
+          totalValue: 0
+        };
+      }
+
+      // Resolve Command (CMD) dynamically
+      let cmd = 'CPRS';
+      const opm = s.opm_origem || '';
+      if (opm === '3º BPM' || opm === '9º BPM') {
+        cmd = 'CPRA';
+      } else if (opm === 'CPRM') {
+        cmd = 'CPRM';
+      }
+
+      const val = parseFloat(s.valor_remuneracao || 0);
+      groups[milId].services.push({
+        ...s,
+        cmd,
+        modalidade: 'FORÇA TAREFA',
+        valor: val
+      });
+
+      if (Number(s.carga_horaria) === 8) {
+        groups[milId].count8h += 1;
+      } else {
+        groups[milId].count6h += 1;
+      }
+
+      groups[milId].totalValue += val;
+      totalValue += val;
+
+      OpmDebits[opm] = (OpmDebits[opm] || 0) + val;
+    });
+
+    const list = Object.values(groups).sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+
+    return { list, OpmDebits, totalValue };
+  }, [selectedCiclo, servicos, efetivo, tiposServico]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -256,6 +364,114 @@ export function AnalyticsDashboard() {
     return { text: 'Sem serviços', color: '#94a3b8' };
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('memo-a4-page');
+    if (!element) return;
+    
+    let originalExibitions = [];
+    const createdSpacers = [];
+    
+    try {
+      // 1. Temporarily hide 'no-print' elements
+      const noPrintElements = element.querySelectorAll('.no-print');
+      originalExibitions = Array.from(noPrintElements).map(el => el.style.display);
+      noPrintElements.forEach(el => el.style.display = 'none');
+      
+      // 2. Prevent table/block split across pages dynamically
+      const A4_PAGE_HEIGHT = 1120; // height of A4 page in pixels roughly
+      const blocksToCheck = element.querySelectorAll('.bloco-militar-memo');
+      
+      const getRelativeTop = (el, container) => {
+        const rectEl = el.getBoundingClientRect();
+        const rectContainer = container.getBoundingClientRect();
+        return rectEl.top - rectContainer.top;
+      };
+      
+      blocksToCheck.forEach(block => {
+        const top = getRelativeTop(block, element);
+        const height = block.offsetHeight;
+        
+        const startPage = Math.floor(top / A4_PAGE_HEIGHT);
+        const endPage = Math.floor((top + height) / A4_PAGE_HEIGHT);
+        
+        if (startPage !== endPage) {
+          const remainingSpace = (startPage + 1) * A4_PAGE_HEIGHT - top;
+          
+          const spacer = document.createElement('div');
+          spacer.className = 'pdf-spacer-memo';
+          spacer.style.height = `${remainingSpace}px`;
+          spacer.style.width = '100%';
+          spacer.style.backgroundColor = 'transparent';
+          spacer.style.margin = '0';
+          spacer.style.padding = '0';
+          spacer.style.border = 'none';
+          
+          block.parentNode.insertBefore(spacer, block);
+          createdSpacers.push(spacer);
+        }
+      });
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgWidth = 210;
+      const pageHeight = 295;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      const filename = `Memorando_SVR_${selectedCicloText.replace(/[\s\/]/g, '_')}.pdf`;
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Erro ao gerar PDF: ' + error.message);
+    } finally {
+      // 3. Restore visibility of 'no-print' elements
+      const noPrintElements = element.querySelectorAll('.no-print');
+      noPrintElements.forEach((el, index) => {
+        if (originalExibitions[index] !== undefined) {
+          el.style.display = originalExibitions[index];
+        }
+      });
+      
+      // 4. Remove temporary spacers
+      createdSpacers.forEach(spacer => {
+        if (spacer && spacer.parentNode) {
+          spacer.parentNode.removeChild(spacer);
+        }
+      });
+    }
+  };
+
+  const selectedCicloText = selectedCiclo === 'all'
+    ? 'Todos os Ciclos'
+    : (ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name ||
+      ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.periodo_ciclo ||
+      'Selecione o Ciclo');
 
   return (
     <div className="container analytics-container" style={{ maxWidth: '1350px' }}>
@@ -345,11 +561,7 @@ export function AnalyticsDashboard() {
                 transition: 'all 0.2s',
               }}
             >
-              {selectedCiclo === 'all'
-                ? 'Todos os Ciclos'
-                : (ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name ||
-                  ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.periodo_ciclo ||
-                  'Selecione o Ciclo')}
+              {selectedCicloText}
             </span>
           </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.9rem' }}>
@@ -357,6 +569,26 @@ export function AnalyticsDashboard() {
           </p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowMemoModal(true)}
+            className="btn btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.25rem',
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, #0d3878 0%, #1e3a8a 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 12px rgba(13, 56, 120, 0.2)',
+            }}
+          >
+            <FileText size={18} />
+            <span>Publicar Memorando SVR</span>
+          </button>
           {/* Dropdown de Ciclos Glassmorphism */}
           <div style={{ position: 'relative' }} className="cycle-selector">
             <button
@@ -379,13 +611,7 @@ export function AnalyticsDashboard() {
                 boxShadow: '0 4px 12px rgba(13, 56, 120, 0.1)',
               }}
             >
-              <span>
-                {selectedCiclo === 'all'
-                  ? 'Todos os Ciclos'
-                  : (ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.period_name ||
-                    ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo))?.periodo_ciclo ||
-                    'Selecione o Ciclo')}
-              </span>
+              <span>{selectedCicloText}</span>
               <RefreshCw size={16} className={loading ? 'spin' : ''} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
 
@@ -650,11 +876,373 @@ export function AnalyticsDashboard() {
           )}
         </div>
       )}
-
       {/* Nota de rodapé */}
       <p style={{ textAlign: 'right', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
         * Contagem baseada nas escalas salvas no Painel Admin. Limite: {MAX_SERVICES} serviços/mês por militar.
       </p>
+
+      {/* Print Specific CSS */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #memo-a4-page, #memo-a4-page * {
+            visibility: visible;
+          }
+          #memo-a4-page {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0;
+            padding: 20mm;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+          }
+        }
+      `}</style>
+
+      {/* SVR Memorandum Modal */}
+      {showMemoModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+        }}>
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: '16px',
+            width: '95vw',
+            height: '90vh',
+            maxWidth: '1250px',
+            display: 'flex',
+            flexDirection: 'row',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Sidebar Controls (Left) */}
+            <div style={{
+              width: '340px',
+              padding: '1.5rem',
+              background: 'white',
+              borderRight: '1px solid #e2e8f0',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+                <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={20} color="var(--primary)" />
+                  Gerador SVR
+                </h3>
+                <button
+                  onClick={() => setShowMemoModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Form Inputs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Número do Memorando</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoNumber}
+                    onChange={(e) => setMemoNumber(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Data do Memorando</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoDate}
+                    onChange={(e) => setMemoDate(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Remetente (Comandante)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoSender}
+                    onChange={(e) => setMemoSender(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Destinatário</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoRecipient}
+                    onChange={(e) => setMemoRecipient(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Portaria</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoPortaria}
+                    onChange={(e) => setMemoPortaria(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '4px' }}>Limite CPRS (R$)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    style={{ margin: 0, width: '100%' }}
+                    value={memoCprsLimit}
+                    onChange={(e) => setMemoCprsLimit(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                <button
+                  onClick={handleDownloadPDF}
+                  className="btn btn-primary"
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                  }}
+                >
+                  <Download size={16} />
+                  <span>Baixar PDF Oficial</span>
+                </button>
+
+
+                <button
+                  onClick={() => setShowMemoModal(false)}
+                  className="btn btn-outline"
+                  style={{ width: '100%' }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+
+            {/* A4 Preview Panel (Right) */}
+            <div style={{
+              flex: 1,
+              padding: '2.5rem',
+              overflowY: 'auto',
+              background: '#cbd5e1',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start'
+            }}>
+              <div
+                id="memo-a4-page"
+                style={{
+                  width: '210mm',
+                  minHeight: '297mm',
+                  background: 'white',
+                  padding: '25mm 20mm 20mm 20mm',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: '11pt',
+                  lineHeight: '1.5',
+                  color: '#1e293b',
+                  textAlign: 'justify',
+                  boxSizing: 'border-box',
+                  position: 'relative'
+                }}
+              >
+                {/* PDF Print Instruction */}
+                <div className="no-print" style={{
+                  position: 'absolute',
+                  top: '6px',
+                  right: '12px',
+                  background: '#fef3c7',
+                  color: '#d97706',
+                  fontSize: '0.7rem',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  <span>💡 Clique nos textos pontilhados para editá-los diretamente na folha</span>
+                </div>
+
+                {/* Institution Header */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '25px', textAlign: 'center' }}>
+                  <div style={{
+                    height: '90px',
+                    margin: '0 auto 0.75rem auto',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <img 
+                      src="/pmal.png" 
+                      alt="Brasão PMAL" 
+                      style={{ 
+                        height: '90px',
+                        width: 'auto',
+                        maxWidth: '100%',
+                        objectFit: 'contain'
+                      }} 
+                    />
+                  </div>
+                  <div style={{ fontSize: '11pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#0f172a' }}>Estado de Alagoas</div>
+                  <div style={{ fontSize: '12pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginTop: '2px', color: '#0f172a' }}>Polícia Militar de Alagoas</div>
+                  <div style={{ fontSize: '10pt', fontStyle: 'italic', color: '#475569', marginTop: '2px' }}>Secretaria do 9º Batalhão de Polícia Militar</div>
+                  <div style={{ fontSize: '7.5pt', color: '#64748b', marginTop: '2px' }}>Praça da Independência, 67, - Bairro Centro, Maceió/AL, CEP 57020-000</div>
+                  <div style={{ fontSize: '7.5pt', color: '#64748b' }}>Telefone: (82) 3201-2002 - www.pm.al.gov.br</div>
+                </div>
+
+                <div style={{ borderBottom: '2px solid #0f172a', width: '100%', marginBottom: '20px' }} />
+
+                {/* Metadata */}
+                <div style={{ marginBottom: '20px', fontSize: '11pt', color: '#0f172a', lineHeight: '1.6' }}>
+                  <div style={{ textAlign: 'left', marginBottom: '6px' }}>
+                    <strong>Memorando n.º E:</strong> <span contentEditable suppressContentEditableWarning style={{ borderBottom: '1px dashed #94a3b8', padding: '0 2px', outline: 'none' }} onBlur={(e) => setMemoNumber(e.target.innerText)}>{memoNumber}</span>
+                  </div>
+                  <div style={{ textAlign: 'right', fontSize: '10.5pt', color: '#475569' }}>
+                    Quartel em Delmiro Gouveia/AL, <span contentEditable suppressContentEditableWarning style={{ borderBottom: '1px dashed #94a3b8', padding: '0 2px', outline: 'none' }} onBlur={(e) => setMemoDate(e.target.innerText)}>{memoDate}</span>
+                  </div>
+                </div>
+
+                {/* Sender/Recipient/Subject */}
+                <div style={{ marginBottom: '25px', fontSize: '11pt', lineHeight: '1.6', color: '#1e293b' }}>
+                  <div style={{ marginBottom: '6px' }}><strong>Do:</strong> <span contentEditable suppressContentEditableWarning style={{ borderBottom: '1px dashed #94a3b8', padding: '0 2px', outline: 'none' }} onBlur={(e) => setMemoSender(e.target.innerText)}>{memoSender}</span></div>
+                  <div style={{ marginBottom: '6px' }}><strong>Ao:</strong> <span contentEditable suppressContentEditableWarning style={{ borderBottom: '1px dashed #94a3b8', padding: '0 2px', outline: 'none' }} onBlur={(e) => setMemoRecipient(e.target.innerText)}>{memoRecipient}</span></div>
+                  <div><strong>Assunto:</strong> Policiais Lotados no 9º BPM Que Executaram Serviços de FT em Outras Unidades ({selectedCicloText})</div>
+                </div>
+
+                {/* Body Content */}
+                <div style={{ marginBottom: '20px', fontSize: '10.5pt', lineHeight: '1.6', color: '#334155' }}>
+                  <p>Senhor Comandante,</p>
+                  <p style={{ textIndent: '20mm', marginTop: '10px', textAlign: 'justify' }}>
+                    Sirvo-me do presente expediente para informar a Vossa Senhoria acerca do registro dos serviços executados por militares lotados no 9º BPM em outras unidades, com o objetivo de detalhar a alocação de recursos e assegurar o fiel cumprimento da <strong>{memoPortaria}</strong>.
+                  </p>
+                  <p style={{ textIndent: '20mm', marginTop: '10px', textAlign: 'justify' }}>
+                    Informo ainda que os militares abaixo relacionados, lotados no 9º Batalhão de Polícia Militar de Alagoas, executaram Serviços Voluntários Remunerados, na modalidade Força Tarefa, em outras Unidades operacionais, conforme designações e planejamento operacional das respectivas Unidades, no período do ciclo de referência.
+                  </p>
+                </div>
+
+                {/* Table list */}
+                {memoData.list.length === 0 ? (
+                  <div style={{ border: '1px dashed #cbd5e1', padding: '2rem', textAlign: 'center', color: '#64748b', fontSize: '10pt', borderRadius: '8px', marginBottom: '20px' }}>
+                    Nenhum militar lotado no 9º BPM executou serviços de SVR fora da unidade de origem neste ciclo.
+                  </div>
+                ) : (
+                  memoData.list.map((m, midx) => (
+                    <div key={midx} className="bloco-militar-memo" style={{ marginBottom: '25px', pageBreakInside: 'avoid' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '6px', textTransform: 'uppercase', color: '#0f172a' }}>
+                        {m.posto_graduacao} {m.nome_completo} (CPF: {m.cpf})
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8pt', marginBottom: '6px' }}>
+                        <thead>
+                          <tr style={{ background: '#0f172a' }}>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '40px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>GRAD</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'left', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>NOME</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '90px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>CPF</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '75px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>DATA</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '60px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>OPM</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '85px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>MODALIDADE</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'center', width: '80px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>GUARNIÇÃO</th>
+                            <th style={{ border: '1px solid #0f172a', padding: '6px 4px', textAlign: 'right', width: '65px', fontWeight: '700', color: 'white', textTransform: 'uppercase', fontSize: '7.5pt', letterSpacing: '0.05em' }}>VALOR</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {m.services.map((s, sidx) => (
+                            <tr key={sidx}>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{m.posto_graduacao}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', color: '#334155' }}>{m.nome_guerra}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{m.cpf}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{formatDateDisplay(s.data_execucao)}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{s.opm_origem}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{s.modalidade}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'center', color: '#334155' }}>{s.guarnicao}</td>
+                              <td style={{ border: '1px solid #e2e8f0', padding: '6px 4px', textAlign: 'right', fontWeight: 600, color: '#334155' }}>{formatarValor(s.valor)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ fontSize: '9pt', fontWeight: 'bold', fontStyle: 'italic', textAlign: 'right', paddingRight: '4px', color: '#475569' }}>
+                        - SENDO {m.services.length} SERVIÇO(S) DE FORÇA TAREFA DE {m.services[0]?.carga_horaria}h, TOTALIZANDO UM VALOR DE {formatarValor(m.totalValue)}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                {/* Final Block (Distribution + Summary + Closing + Signature) - Kept together on a single page */}
+                <div className="bloco-militar-memo" style={{ pageBreakInside: 'avoid' }}>
+                  {/* Budget Distribution Paragraph */}
+                  {Object.keys(memoData.OpmDebits).length > 0 && (
+                    <div style={{ marginTop: '25px', marginBottom: '20px', fontSize: '10.5pt', lineHeight: '1.6', color: '#334155' }}>
+                      <p style={{ textAlign: 'justify' }}>
+                        Em conformidade com o §1º do Art. 3º da <strong>{memoPortaria}</strong>, que estabelece que o valor correspondente ao SVR executado por militar fora de sua Unidade de origem, deverá ser debitado da cota orçamentária da Unidade que autorizou a execução, informamos a distribuição dos valores conforme segue:
+                      </p>
+                      <ul style={{ listStyleType: 'none', paddingLeft: '20mm', marginTop: '10px' }}>
+                        {Object.entries(memoData.OpmDebits).map(([opm, val]) => (
+                          <li key={opm} style={{ marginBottom: '6px' }}>
+                            <strong>{opm}:</strong> {formatarValor(val)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Additional Summary Paragraph */}
+                  <div style={{ marginBottom: '30px', fontSize: '10.5pt', lineHeight: '1.6', color: '#334155' }}>
+                    <p style={{ textAlign: 'justify' }}>
+                      Adicionalmente, informamos que, no mesmo período, a execução da Força Tarefa por militares no 9º BPM e militares de outras unidades que executaram serviços de FT no âmbito de nossa área de atuação, gerou o montante de {formatarValor(recursoUtilizado)} valor este compatível com o limite orçamentário que é de {formatarValor(memoCprsLimit)} estabelecido por este Grande Comando CPRS.
+                    </p>
+                  </div>
+
+                  {/* Closing & Signatures */}
+                  <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '11pt', color: '#0f172a' }}>
+                    <p>Respeitosamente,</p>
+                    <div style={{ marginTop: '30px', fontWeight: 'bold' }}>
+                      <span contentEditable suppressContentEditableWarning style={{ borderBottom: '1px dashed #94a3b8', padding: '0 2px', outline: 'none' }} onBlur={(e) => setMemoSender(e.target.innerText)}>{memoSender}</span>
+                    </div>
+                    <p>Comandante do 9º BPM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

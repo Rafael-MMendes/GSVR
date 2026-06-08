@@ -94,10 +94,10 @@ export function HistoricoMilitar() {
         (m.matricula || '').includes(search) ||
         (m.posto_graduacao || '').toLowerCase().includes(search);
     }).sort((a, b) =>
-      // Primário: quem mais trabalhou
-      b.executados - a.executados ||
-      // Secundário: maior hierarquia primeiro
-      compareByRank(a.posto_graduacao, b.posto_graduacao)
+      // Primário: maior hierarquia primeiro
+      compareByRank(a.posto_graduacao, b.posto_graduacao) ||
+      // Secundário: quem mais trabalhou
+      b.executados - a.executados
     );
   }, [data, filter]);
 

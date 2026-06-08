@@ -27,6 +27,10 @@
 - [x] Implement Cycle Selector in `AdminDashboardV2.jsx` sidebar
 - [x] Implement "Mostrar Indisponíveis" toggle in `AdminDashboardV2.jsx`
 - [x] Add empty state feedback in `AdminDashboardV2.jsx` volunteer pool
+- [x] Add the "Publicar Memorando SVR" button to the header
+- [x] Build the premium modal markup and A4 preview layout
+- [x] Implement print-specific CSS styles for pixel-perfect printing
+- [x] Integrate jsPDF/html2canvas for PDF download
 - [x] Verify `recalculateMetas` trigger in `server.js`
 - [x] Perform final checks and version bump
 - [x] Implementar `GET /api/permissions` (agrupadas por módulo)
