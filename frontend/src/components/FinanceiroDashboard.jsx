@@ -42,6 +42,20 @@ export function FinanceiroDashboard() {
     return mediaDiaria * 30; // Estimando para 30 dias de ciclo
   }, [resumo, detalhado]);
 
+  const custoMedioMilitar = useMemo(() => {
+    if (!resumo?.detalhes_por_tipo) return 0;
+    
+    const tiposAlvo = resumo.detalhes_por_tipo.filter(tipo => 
+      tipo.descricao.includes('6h') || tipo.descricao.includes('8h')
+    );
+    
+    const somaValores = tiposAlvo.reduce((acc, curr) => acc + (parseFloat(curr.total_gasto_tipo) || 0), 0);
+    const qtdServicosAlvo = tiposAlvo.reduce((acc, curr) => acc + (parseInt(curr.qtd_servicos) || 0), 0);
+    
+    const divisor = qtdServicosAlvo * 3;
+    return divisor > 0 ? (somaValores / divisor) : 0;
+  }, [resumo]);
+
   const user = useMemo(() => {
     try {
       const userRaw = localStorage.getItem('ft_user');
@@ -61,16 +75,66 @@ export function FinanceiroDashboard() {
     return cycle ? `${cycle.period_name} - ${cycle.opm_sigla}` : 'Nenhum Ciclo Selecionado';
   }, [months, selectedCycleId]);
 
+  const activeOpmSigla = useMemo(() => {
+    const cycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
+    return cycle ? cycle.opm_sigla : '';
+  }, [months, selectedCycleId]);
+
   const handleDownloadReportPDF = async () => {
     const element = document.getElementById('relatorio-executivo-container');
     if (!element) return;
     setPdfLoading(true);
+    const createdSpacers = [];
+    
+    // Guardar estilos originais de largura para restauração
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
+    
     try {
+      // Forçar largura exata de 900px para garantir cálculos idênticos ao do html2canvas
+      element.style.width = '900px';
+      element.style.maxWidth = '900px';
+
+      // Evitar quebra de blocos entre páginas dinamicamente
+      const A4_PAGE_HEIGHT = 1270; // altura aproximada de uma página A4 em pixels no canvas para 900px de largura
+      const blocksToCheck = element.querySelectorAll('.bloco-relatorio');
+      
+      const getRelativeTop = (el, container) => {
+        const rectEl = el.getBoundingClientRect();
+        const rectContainer = container.getBoundingClientRect();
+        return rectEl.top - rectContainer.top;
+      };
+      
+      blocksToCheck.forEach(block => {
+        const top = getRelativeTop(block, element);
+        const height = block.offsetHeight;
+        
+        const startPage = Math.floor(top / A4_PAGE_HEIGHT);
+        const endPage = Math.floor((top + height) / A4_PAGE_HEIGHT);
+        
+        if (startPage !== endPage) {
+          const MARGEM_TOPO_NOVA_PAGINA = 35; // Pequena margem de segurança no topo da nova página
+          const remainingSpace = (startPage + 1) * A4_PAGE_HEIGHT - top + MARGEM_TOPO_NOVA_PAGINA;
+          
+          const spacer = document.createElement('div');
+          spacer.style.height = `${remainingSpace}px`;
+          spacer.style.width = '100%';
+          spacer.style.backgroundColor = 'transparent';
+          spacer.style.margin = '0';
+          spacer.style.padding = '0';
+          spacer.style.border = 'none';
+          
+          block.parentNode.insertBefore(spacer, block);
+          createdSpacers.push(spacer);
+        }
+      });
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        windowWidth: 900 // Force fixed width to match A4 rendering exactly
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
@@ -101,6 +165,16 @@ export function FinanceiroDashboard() {
       console.error('Erro ao gerar PDF do relatório:', error);
       alert('Erro ao gerar PDF do relatório: ' + error.message);
     } finally {
+      // Restaurar largura original do container
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
+      
+      // Remover os espaçadores temporários
+      createdSpacers.forEach(spacer => {
+        if (spacer && spacer.parentNode) {
+          spacer.parentNode.removeChild(spacer);
+        }
+      });
       setPdfLoading(false);
     }
   };
@@ -514,11 +588,11 @@ export function FinanceiroDashboard() {
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Custo Médio por Militar</div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)' }}>
-                    {formatCurrency(resumo.total_militares_unicos > 0 ? (resumo.total_gasto / resumo.total_militares_unicos) : 0)}
+                    {formatCurrency(custoMedioMilitar)}
                   </div>
                 </div>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Valor total pago ÷ militares ativos que atuaram nas escalas</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Soma dos valores (8h e 6h) ÷ (quantidade de serviços × 3)</div>
             </div>
 
             <div className="glass-panel" style={{ padding: '1.25rem' }}>
@@ -682,7 +756,7 @@ export function FinanceiroDashboard() {
           }}>
             
             {/* CAPA */}
-            <div style={{ minHeight: '800px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderBottom: '2px solid #0d3878', paddingBottom: '40px', marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ minHeight: '800px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderBottom: '2px solid #0d3878', paddingBottom: '40px', marginBottom: '40px' }}>
               <div style={{ textAlign: 'center', marginTop: '40px' }}>
                 <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" style={{ height: '100px', marginBottom: '20px' }} />
                 <h3 style={{ margin: '0', color: '#0d3878', letterSpacing: '1px', fontWeight: '700' }}>POLÍCIA MILITAR DE ALAGOAS</h3>
@@ -699,14 +773,13 @@ export function FinanceiroDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', marginBottom: '6px' }}>
                   <strong>Ciclo/Período:</strong> <span>{activeCycleName}</span>
                   <strong>Data de Emissão:</strong> <span>{reportDate}</span>
-                  <strong>Responsável:</strong> <span>{user ? `${user.posto_graduacao || ''} ${user.nome_guerra || user.nome_completo}` : 'Gestão Financeira GSVR'}</span>
-                  <strong>Órgão:</strong> <span>Seção de Finanças / Comando do 9º BPM</span>
+                  <strong>Setor:</strong> <span>P1 - {activeOpmSigla}</span>
                 </div>
               </div>
             </div>
 
             {/* SUMÁRIO */}
-            <div style={{ marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>Sumário</h2>
               <ul style={{ listStyle: 'none', paddingLeft: '0', fontSize: '0.95rem' }}>
                 {[
@@ -727,7 +800,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 1. RESUMO EXECUTIVO */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>1. Resumo Executivo</h2>
               <p style={{ fontSize: '0.95rem', textAlign: 'justify' }}>
                 Este relatório apresenta a análise financeira executiva referente à execução do Serviço Voluntário Remunerado (SVR) no âmbito da unidade, consolidando dados orçamentários, distribuição de escalas e aplicação de verbas do ciclo <strong>{activeCycleName}</strong>. A análise visa dar subsídio para a tomada de decisão gerencial, assegurando a transparência e a eficiência na aplicação dos recursos públicos direcionados à segurança pública local.
@@ -748,7 +821,7 @@ export function FinanceiroDashboard() {
                   <ul style={{ margin: '0', paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
                     <li>Saldo Disponível: <strong>{formatCurrency(resumo.saldo_restante)}</strong>.</li>
                     <li>Total de Horas Trabalhadas: <strong>{totalHorasTrabalhadas} h</strong>.</li>
-                    <li>Custo Médio: <strong>{formatCurrency(resumo.total_militar_servicos > 0 ? (resumo.total_gasto / resumo.total_militar_servicos) : 0)}</strong>/serviço • <strong>{formatCurrency(resumo.total_militares_unicos > 0 ? (resumo.total_gasto / resumo.total_militares_unicos) : 0)}</strong>/PM.</li>
+                    <li>Custo Médio: <strong>{formatCurrency(resumo.total_militar_servicos > 0 ? (resumo.total_gasto / resumo.total_militar_servicos) : 0)}</strong>/serviço • <strong>{formatCurrency(custoMedioMilitar)}</strong>/PM.</li>
                   </ul>
                 </div>
               </div>
@@ -773,7 +846,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 2. VISÃO GERAL CONSOLIDADA */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>2. Visão Geral Consolidada</h2>
               <p style={{ fontSize: '0.95rem', textAlign: 'justify', marginBottom: '15px' }}>
                 A apresentação sintética dos dados demonstra o equilíbrio entre o recurso previsto e a sua execução real. A distribuição dos recursos e a destinação final da verba por modalidade de serviço encontram-se resumidas na tabela abaixo:
@@ -805,7 +878,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 3. ANÁLISE DETALHADA */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>3. Análise Detalhada</h2>
               <p style={{ fontSize: '0.95rem', textAlign: 'justify', marginBottom: '15px' }}>
                 A análise cronológica da evolução diária dos gastos demonstra o fluxo de escala e a constância operacional do batalhão. A tabela de evolução diária consolida os dias de maior demanda e o acúmulo financeiro ao longo do período selecionado:
@@ -834,7 +907,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 4. ACHADOS RELEVANTES */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>4. Achados Relevantes</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
                 <div style={{ borderLeft: '3px solid #009c3b', paddingLeft: '12px' }}>
@@ -865,7 +938,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 5. RECOMENDAÇÕES */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>5. Recomendações Estratégicas</h2>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                 <thead>
@@ -896,7 +969,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 6. CONCLUSÃO */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>6. Conclusão</h2>
               <p style={{ fontSize: '0.95rem', textAlign: 'justify' }}>
                 Conclui-se que o ciclo operacional analisado apresenta uma execução orçamentária e financeira {resumo.percentual_utilizado > 95 ? 'crítica, demandando atenção operacional imediata' : 'estável e dentro dos limites regulamentares planejados'}. A gestão integrada e o monitoramento em tempo real fornecido pelo módulo GSVR garantem a tomada de decisão ágil e segura pelo escalão superior, potencializando o policiamento preventivo nas divisas de Alagoas.
@@ -904,7 +977,7 @@ export function FinanceiroDashboard() {
             </div>
 
             {/* 7. ANEXOS */}
-            <div style={{ marginBottom: '40px' }}>
+            <div className="bloco-relatorio" style={{ marginBottom: '40px' }}>
               <h2 style={{ color: '#0d3878', fontSize: '1.5rem', borderBottom: '2px solid #0d3878', paddingBottom: '8px' }}>7. Anexos</h2>
               <p style={{ fontSize: '0.9rem', marginBottom: '10px' }}><strong>Tabela A: Militares com maior frequência operacional (Top Militares no ciclo)</strong></p>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>

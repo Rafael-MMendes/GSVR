@@ -1,3 +1,37 @@
+## v1.32.39 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Duplicação e Alinhamento de Páginas no PDF do Relatório Executivo**:
+  - **[Frontend]** Corrigido o bug que causava a duplicação ou corte errôneo de títulos e elementos nas quebras de página do PDF em `FinanceiroDashboard.jsx`.
+  - **[Frontend]** Ajustada a geração para forçar uma largura fixa temporária de `900px` (`windowWidth: 900`) e sincronizada a constante de altura de página A4 para `1270` pixels, garantindo um cálculo de espaçadores dinâmicos 100% alinhado com o renderizador `html2canvas`.
+
+---
+
+## v1.32.38 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Nova Fórmula de Custo Médio por Militar**:
+  - **[Frontend]** Implementada nova fórmula de cálculo para o Custo Médio por Militar no Dashboard e no PDF do Relatório Executivo: `(Soma dos valores dos serviços de 8h e 6h) ÷ (Quantidade de serviços executados × 3)`.
+  - **[Frontend]** Atualizado o subtítulo explicativo do card para refletir a nova fórmula matemática de forma explícita.
+
+---
+
+## v1.32.37 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajustes de Layout e Metadados do Relatório Executivo SVR**:
+  - **[Frontend]** Implementado algoritmo de cálculo de espaçadores dinâmicos no PDF em `FinanceiroDashboard.jsx` (adicionando a classe `bloco-relatorio` a todas as seções) para prevenir quebras e cortes de elementos entre páginas.
+  - **[Frontend]** Removido o campo "Responsável:" dos metadados da capa.
+  - **[Frontend]** Alterado o campo "Órgão:" para "Setor: P1 - {OPM do ciclo}", utilizando a sigla da unidade do ciclo ativo dinamicamente.
+
+---
+
 ## v1.32.36 — 2026-06-11
 **Autor:** pmal-daten
 **Email:** unknown
