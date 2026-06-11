@@ -1,3 +1,73 @@
+## v1.32.36 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção dos Indicadores Financeiros e Quantidade de Serviços**:
+  - **[Backend]** Ajustados os endpoints `/api/financeiro/resumo` e `/api/financeiro/detalhado` para realizar a divisão por 3 da quantidade de serviços e nos detalhes por tipo, mantendo o valor total pago inalterado. A listagem de militares individuais manteve a contagem original de escalas.
+  - **[Frontend]** Atualizadas as fórmulas dos cartões de custo médio: Custo Médio por Serviço (`total_gasto ÷ (total_registros ÷ 3)`) e Custo Médio por Militar (`total_gasto ÷ militares_unicos`), acompanhados de subtítulos descritivos e coerentes.
+  - **[Frontend]** Revisado o painel de visualização e exportação do Relatório Executivo e o PDF exportado, garantindo o recálculo automático e a consistência de todas as contagens de serviço divididas por 3.
+
+---
+
+## v1.32.35 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Validação de Cadastro e Status de Atividade na Importação de SVR**:
+  - **[Backend]** Adicionadas validações no processamento de planilhas de SVR em `server.js` para rejeitar escalas direcionadas a militares inativos (`status_ativo = false`) ou não cadastrados (CPF inexistente).
+  - **[Frontend]** Desenvolvido o resumo executivo detalhado de importação (processados, importados, inativos rejeitados, não cadastrados rejeitados, erros gerais) com banners informativos em `ServicosImport.jsx`.
+  - **[Frontend]** Criado o Relatório de Inconsistências oficial na tela de resultados da importação, exibindo de forma clara o nome do militar, matrícula, unidade de origem, data e o motivo da rejeição do registro descartado.
+
+---
+
+## v1.32.34 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Exibição Integral dos Gastos Diários no Relatório Executivo**:
+  - **[Frontend]** Modificado o Relatório Executivo no `FinanceiroDashboard.jsx` para apresentar a totalidade da evolução diária dos gastos no ciclo, eliminando o limite anterior de 10 dias.
+  - **[Frontend]** Integradas as novas métricas estratégicas (Horas Totais, Custo Médio e Projeção de Gastos) diretamente nas conclusões e tabelas do Relatório Executivo.
+
+---
+
+## v1.32.33 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução da Limitação de Serviços de 6 Horas e Melhorias Financeiras**:
+  - **[Banco de Dados]** Adicionado script de migração corretivo que mapeia retroativamente a `carga_horaria` e resolve o `id_tipo_servico` correspondente na tabela `SERVICOS_EXECUTADOS` (corrigindo o vínculo errôneo que marcava escalas de 8h como tipo 6h).
+  - **[Backend]** Corrigidos os endpoints de importação, inserção manual e edição de serviços para resolver dinamicamente o `id_tipo_servico` a partir da `carga_horaria` informada.
+  - **[Frontend]** Enriquecida a visualização da aba "Visão Geral" do painel financeiro com gráficos CSS de distribuição das modalidades, projeção do final do ciclo com balanço estimado (economia/déficit previsto) e alertas gerenciais automatizados.
+  - **[Frontend]** Adicionados novos indicadores estratégicos de Custo Médio por Serviço, Custo Médio por Militar e Horas Totais Trabalhadas.
+
+---
+
+## v1.32.32 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção na Exclusão de Militares (CRUD Efetivo)**:
+  - **[Backend]** Corrigida a rota `DELETE /api/efetivo/:id` em `server.js` para de fato executar a deleção na tabela `EFETIVO` após excluir o login correspondente da tabela `users`.
+
+---
+
+## v1.32.31 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Relatório Executivo Financeiro do SVR**:
+  - **[Frontend]** Adicionado o novo painel de visualização e exportação "Relatório Executivo" no `FinanceiroDashboard.jsx`.
+  - **[Frontend]** Implementado layout A4 institucional contendo Capa, Sumário, Resumo Executivo, Visão Geral Consolidada, Análise Detalhada, Achados Relevantes, Recomendações Estratégicas, Conclusão e Anexos.
+  - **[Frontend]** Adicionada funcionalidade de exportação dinâmica em PDF de alta qualidade e com quebras de página controladas via `html2canvas` e `jsPDF`.
+
+---
+
 ## v1.32.30 — 2026-06-05
 **Autor:** pmal-daten
 **Email:** unknown

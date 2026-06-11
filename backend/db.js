@@ -820,6 +820,8 @@ async function setupDB() {
         if (parseInt(tiposCheck.rows[0].count) === 0) {
           await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 6h', 6, 192.03)");
           await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 8h', 8, 250.00)");
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 12h', 12, 384.06)");
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 24h', 24, 768.12)");
         }
 
         // ============================================================
@@ -935,6 +937,25 @@ async function setupDB() {
               AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id)
           ON CONFLICT DO NOTHING
         `);
+
+        // Migração: Corrigir id_tipo_servico dos registros em SERVICOS_EXECUTADOS baseado na carga_horaria
+        await client.query(`
+          UPDATE SERVICOS_EXECUTADOS se
+          SET id_tipo_servico = (
+            SELECT ts.id_tipo_servico
+            FROM TIPOS_SERVICO ts
+            WHERE ts.carga_horaria = se.carga_horaria
+            AND ts.ativo = true
+            LIMIT 1
+          )
+          WHERE se.id_tipo_servico IS NULL 
+             OR se.id_tipo_servico NOT IN (
+               SELECT ts2.id_tipo_servico 
+               FROM TIPOS_SERVICO ts2 
+               WHERE ts2.carga_horaria = se.carga_horaria
+             );
+        `);
+        console.log('[DB] Migração e correção de id_tipo_servico executada com sucesso.');
 
         console.log('[DB] Schema RBAC + Perfil inicializado com sucesso.');
 

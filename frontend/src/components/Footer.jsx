@@ -47,7 +47,7 @@ export function Footer({ isPdf = false }) {
             <Code size={isPdf ? 12 : 16} />
             <span>Desenvolvido por:</span>
           </div>
-          <div style={devItemStyle}>2º Sgt Rafael Monteiro Mendes</div>
+          <div style={devItemStyle}>2º Sgt Rafael Monteiro Mendes - </div>
           {!isPdf && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }} />}
           <div style={devItemStyle}>3º Sgt Alan Kleber de Menezes Soares</div>
         </div>

@@ -1046,6 +1046,7 @@ app.get('/api/efetivo/lookup/:matricula', async (req, res) => {
 app.delete('/api/efetivo/:id', async (req, res) => {
   try {
     await db.run('DELETE FROM users WHERE numero_ordem = (SELECT matricula FROM EFETIVO WHERE id_militar = $1)', [req.params.id]);
+    await db.run('DELETE FROM EFETIVO WHERE id_militar = $1', [req.params.id]);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1601,9 +1602,15 @@ app.post('/api/servicos', async (req, res) => {
     const cargaCalc = carga_horaria || (isExtras ? 8 : 6);
     const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
 
+    // Obter Tipo correspondente à carga horária
+    const resolvedTipo = await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = true LIMIT 1', [cargaCalc])
+      || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = 6 AND ativo = true LIMIT 1')
+      || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO LIMIT 1');
+    const idTipoServico = resolvedTipo ? resolvedTipo.id_tipo_servico : null;
+
     const r = await db.run(
-      'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-      [id_ciclo, id_militar, data_execucao, v_diaSemana, v_ehFeriado, cargaCalc, valorCalc, status_presenca]
+      'INSERT INTO SERVICOS_EXECUTADOS (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, id_tipo_servico) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [id_ciclo, id_militar, data_execucao, v_diaSemana, v_ehFeriado, cargaCalc, valorCalc, status_presenca, idTipoServico]
     );
 
     // Automacao: Recalcular metas dinamicas
@@ -1623,9 +1630,15 @@ app.put('/api/servicos/:id', async (req, res) => {
     const cargaCalc = carga_horaria || (isExtras ? 8 : 6);
     const valorCalc = valor_remuneracao || (isExtras ? 250.00 : 192.03);
     
+    // Obter Tipo correspondente à carga horária
+    const resolvedTipo = await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = true LIMIT 1', [cargaCalc])
+      || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = 6 AND ativo = true LIMIT 1')
+      || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO LIMIT 1');
+    const idTipoServico = resolvedTipo ? resolvedTipo.id_tipo_servico : null;
+
     await db.run(
-      'UPDATE SERVICOS_EXECUTADOS SET data_execucao=$1, dia_semana=$2, eh_feriado=$3, carga_horaria=$4, valor_remuneracao=$5, status_presenca=$6 WHERE id_execucao=$7',
-      [data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca, req.params.id]
+      'UPDATE SERVICOS_EXECUTADOS SET data_execucao=$1, dia_semana=$2, eh_feriado=$3, carga_horaria=$4, valor_remuneracao=$5, status_presenca=$6, id_tipo_servico=$7 WHERE id_execucao=$8',
+      [data_execucao, diaSemana, ehFeriado, cargaCalc, valorCalc, status_presenca, idTipoServico, req.params.id]
     );
 
     // Automacao: Recalcular metas dinamicas
@@ -1811,14 +1824,14 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
     const headers = rows[headerIndex].map(h => normalizeKey(h));
     const dataRows = rows.slice(headerIndex + 1);
 
-    let stats = { imported: 0, skipped: 0, errors: 0 };
+    let stats = { imported: 0, skipped: 0, errors: 0, inactive: 0, not_registered: 0 };
     let errorDetails = [];
     const affectedCiclos = new Set();
 
     for (const row of dataRows) {
       if (!row || row.length === 0 || !row.some(c => c !== '')) continue;
 
-      let cpfRaw = '', dataServico = '', pg = '', nome = '', cmd = '', opm = '', modalidade = '', guarnicao = '';
+      let cpfRaw = '', dataServico = '', pg = '', nome = '', cmd = '', opm = '', modalidade = '', guarnicao = '', cargaRaw = '', valorRaw = '';
 
       try {
         headers.forEach((k, i) => {
@@ -1834,6 +1847,8 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
           else if (['OPM', 'UNIDADE', 'UNID', 'REPARTICAO', 'SIGLA'].includes(k)) opm = val;
           else if (k === 'MODALIDADE') modalidade = val;
           else if (['GUARNICAO', 'DESCRICAO'].includes(k)) guarnicao = val;
+          else if (['CARGA', 'CARGAHORARIA', 'HORAS', 'DURACAO', 'CARGA_HORARIA'].includes(k)) cargaRaw = val;
+          else if (['VALOR', 'REMUNERACAO', 'VALOR_REMUNERACAO', 'RECEBIDO'].includes(k)) valorRaw = val;
         });
 
         const cpf = padCpf(cpfRaw);
@@ -1843,10 +1858,32 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
         }
 
         // 1. Localizar Militar
-        const military = await db.get('SELECT id_militar FROM EFETIVO WHERE cpf = $1', [cpf]);
+        const military = await db.get('SELECT id_militar, status_ativo, nome_completo, matricula, opm FROM EFETIVO WHERE cpf = $1', [cpf]);
         if (!military) {
-          stats.errors++;
-          errorDetails.push({ militar: nome || cpf, error: "Militar não cadastrado no sistema (CPF não encontrado)." });
+          stats.not_registered++;
+          errorDetails.push({
+            militar: nome || 'Desconhecido',
+            matricula: 'N/A',
+            opm: opm || 'N/A',
+            data: dataServico,
+            error: "Militar não cadastrado no sistema (CPF não encontrado).",
+            reason: "not_registered"
+          });
+          console.warn(`[IMPORT] Militar não cadastrado rejeitado: CPF=${cpf}, Nome=${nome}`);
+          continue;
+        }
+
+        if (military.status_ativo === false || military.status_ativo === 0) {
+          stats.inactive++;
+          errorDetails.push({
+            militar: military.nome_completo || nome || 'Desconhecido',
+            matricula: military.matricula || 'N/A',
+            opm: military.opm || opm || 'N/A',
+            data: dataServico,
+            error: "Militar inativo no sistema.",
+            reason: "inactive"
+          });
+          console.warn(`[IMPORT] Militar inativo rejeitado: CPF=${cpf}, Nome=${military.nome_completo}`);
           continue;
         }
 
@@ -1914,21 +1951,32 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
             continue;
         }
 
-        // 4. Obter Tipo e Orçamento
-        const defaultTipo = await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO WHERE descricao LIKE '%6h%' AND ativo = true LIMIT 1") || await db.get("SELECT id_tipo_servico, carga_horaria, valor_remuneracao FROM TIPOS_SERVICO LIMIT 1");
+        const diaSemana = dateObj.getDay();
+        const feriado = isFeriado(dateObj);
+        const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || feriado);
+        
+        let cargaHoraria = cargaRaw ? parseInt(String(cargaRaw).replace(/\D/g, '')) : (isExtras ? 8 : 6);
+        if (isNaN(cargaHoraria) || cargaHoraria <= 0) {
+          cargaHoraria = isExtras ? 8 : 6;
+        }
 
-        if (!defaultTipo) {
+        let valorRemuneracao = valorRaw ? parseFloat(String(valorRaw).replace(/[^0-9,.-]/g, '').replace(',', '.')) : (isExtras ? 250.00 : 192.03);
+        if (isNaN(valorRemuneracao) || valorRemuneracao <= 0) {
+          valorRemuneracao = isExtras ? 250.00 : 192.03;
+        }
+
+        // 4. Obter Tipo correspondente à carga horária real
+        const resolvedTipo = await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = $1 AND ativo = true LIMIT 1', [cargaHoraria])
+          || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO WHERE carga_horaria = 6 AND ativo = true LIMIT 1')
+          || await db.get('SELECT id_tipo_servico FROM TIPOS_SERVICO LIMIT 1');
+
+        if (!resolvedTipo) {
           stats.errors++;
           errorDetails.push({ militar: nome || cpf, error: `Nenhum Tipo de Serviço cadastrado.` });
           continue;
         }
 
-        const idTipoServico = defaultTipo.id_tipo_servico;
-        const diaSemana = dateObj.getDay();
-        const feriado = isFeriado(dateObj);
-        const isExtras = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || feriado);
-        const cargaHoraria = isExtras ? 8 : 6;
-        const valorRemuneracao = isExtras ? 250.00 : 192.03;
+        const idTipoServico = resolvedTipo.id_tipo_servico;
 
         // Validar Orçamento - Apenas para a unidade (OPM) do ciclo
         const { rows: somaRows } = await db.query(
@@ -1980,7 +2028,7 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: "Importação concluída.", stats, errorDetails: errorDetails.slice(0, 50) });
+    res.json({ success: true, message: "Importação concluída.", stats, errorDetails });
   } catch (e) {
     console.error('[FATAL IMPORT ERROR]', e);
     res.status(500).json({ error: "Falha processar arquivo: " + e.message });
@@ -2713,15 +2761,22 @@ app.get('/api/financeiro/resumo', async (req, res) => {
 
       const stats = resGlobal.rows[0] || { militares_unicos: 0, total_militar_servicos: 0, total_gasto: 0 };
       const total_gasto = parseFloat(stats.total_gasto || 0);
+      const total_militar_servicos = Math.round(parseInt(stats.total_militar_servicos || 0) / 3);
+
+      const detalhes_por_tipo = resTipos.rows.map(tipo => ({
+        ...tipo,
+        qtd_servicos: Math.round(parseInt(tipo.qtd_servicos || 0) / 3),
+        total_gasto_tipo: parseFloat(tipo.total_gasto_tipo || 0)
+      }));
 
       res.json({
         verba_ciclo,
         total_gasto,
         saldo_restante: verba_ciclo - total_gasto,
         percentual_utilizado: verba_ciclo > 0 ? (total_gasto / verba_ciclo) * 100 : 0,
-        total_militar_servicos: parseInt(stats.total_militar_servicos),
+        total_militar_servicos,
         total_militares_unicos: parseInt(stats.militares_unicos),
-        detalhes_por_tipo: resTipos.rows,
+        detalhes_por_tipo,
         mes_selecionado: ciclo?.desc_referencia || '---'
       });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -2759,7 +2814,7 @@ app.get('/api/financeiro/resumo', async (req, res) => {
       const detalhes_diarios = resDiario.rows.map(row => {
         const gasto = parseFloat(row.gasto);
         acumuladoTotal += gasto;
-        return { data: row.data, servicos: parseInt(row.servicos), gasto, acumulado: acumuladoTotal };
+        return { data: row.data, servicos: Math.round(parseInt(row.servicos || 0) / 3), gasto, acumulado: acumuladoTotal };
       });
 
       const qTop = `
