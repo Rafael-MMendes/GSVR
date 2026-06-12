@@ -199,8 +199,8 @@ export function AdminDashboardV2() {
 
   const filteredPool = useMemo(() => {
     return state.pool.filter(p => {
-      // Regra: Exibir apenas militares com até 7 serviços (limite de 8 atingido oculta do pool)
-      if (p.service_count >= 8) return false;
+      // Regra: Exibir apenas militares com até 7 serviços executados (limite de 8 atingido oculta do pool)
+      if (p.executed_count >= 8) return false;
 
       const isSearchActive = searchTerm.length > 1;
       const matchesSearch = isSearchActive

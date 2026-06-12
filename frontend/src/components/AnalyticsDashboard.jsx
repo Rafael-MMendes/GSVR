@@ -37,12 +37,126 @@ export function AnalyticsDashboard() {
 
   // Memorandum Generator States
   const [showMemoModal, setShowMemoModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [memoNumber, setMemoNumber] = useState('124/2026/Secretaria do 9º Batalhão de Polícia Militar');
   const [memoDate, setMemoDate] = useState('');
   const [memoSender, setMemoSender] = useState('ADEMAR SIQUEIRA DA SILVA NETO - TEN CEL QOEM PM');
   const [memoRecipient, setMemoRecipient] = useState('Ilmo. Senhor Cel QOEM - Comandante do CPRS');
   const [memoPortaria, setMemoPortaria] = useState('Portaria PMAL nº 34/2025');
   const [memoCprsLimit, setMemoCprsLimit] = useState(85000.00);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const reportDate = useMemo(() => {
+    const now = new Date();
+    return now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  }, []);
+
+  const voluntariosConsolidado = useMemo(() => {
+    if (volunteers.length === 0) return [];
+    return volunteers
+      .filter(v => v.ativo !== false)
+      .map(v => {
+        const idKey = String(v.id_militar || v.militar_id || v.id);
+        const stat = stats.find(s => String(s.militar_id) === idKey);
+        return {
+          numero_ordem: v.numero_ordem || v.matricula || idKey,
+          rank: v.rank || v.posto_graduacao || '',
+          name: v.name || v.nome_guerra || v.nome_completo || 'Militar Indefinido',
+          motorista: v.motorista_req !== undefined ? v.motorista_req : v.motorista,
+          total_servicos: stat ? stat.total : 0,
+          valor_total: stat ? stat.valorTotal : 0
+        };
+      }).sort((a, b) => compareByRank(a.rank, b.rank));
+  }, [volunteers, stats]);
+
+
+
+  const handleDownloadReportPDF = async () => {
+    const element = document.getElementById('relatorio-analitico-container');
+    if (!element) return;
+    setPdfLoading(true);
+    const createdSpacers = [];
+
+    try {
+      element.classList.add('generating-pdf');
+
+      const A4_PAGE_HEIGHT = element.offsetWidth * (297 / 210);
+      const blocksToCheck = element.querySelectorAll('.bloco-relatorio-analitico');
+
+      const getRelativeTop = (el, container) => {
+        const rectEl = el.getBoundingClientRect();
+        const rectContainer = container.getBoundingClientRect();
+        return rectEl.top - rectContainer.top;
+      };
+
+      blocksToCheck.forEach(block => {
+        const top = getRelativeTop(block, element);
+        const height = block.offsetHeight;
+
+        const startPage = Math.floor(top / A4_PAGE_HEIGHT);
+        const endPage = Math.floor((top + height) / A4_PAGE_HEIGHT);
+        const marginPixels = element.offsetWidth * (20 / 210); // 20mm margin
+
+        if (startPage !== endPage && height < A4_PAGE_HEIGHT - marginPixels * 2) {
+          const remainingSpace = (startPage + 1) * A4_PAGE_HEIGHT - top + marginPixels;
+
+          const spacer = document.createElement('div');
+          spacer.style.height = `${remainingSpace}px`;
+          spacer.style.width = '100%';
+          spacer.style.backgroundColor = 'transparent';
+          spacer.style.margin = '0';
+          spacer.style.padding = '0';
+          spacer.style.border = 'none';
+
+          block.parentNode.insertBefore(spacer, block);
+          createdSpacers.push(spacer);
+        }
+      });
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgWidth = 210;
+      const pageHeight = 297;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const filename = `Relatorio_Analitico_Gestao_${selectedCicloText.replace(/[\s\/]/g, '_')}.pdf`;
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Erro ao gerar PDF do relatório:', error);
+      alert('Erro ao gerar PDF do relatório: ' + error.message);
+    } finally {
+      element.classList.remove('generating-pdf');
+      createdSpacers.forEach(spacer => {
+        if (spacer && spacer.parentNode) {
+          spacer.parentNode.removeChild(spacer);
+        }
+      });
+      setPdfLoading(false);
+    }
+  };
 
   // Initialize Date for Memo
   useEffect(() => {
@@ -235,19 +349,19 @@ export function AnalyticsDashboard() {
     volunteersData.forEach(v => {
       const id = v.id_militar || v.militar_id || v.id;
       if (!id) return;
-      
+
       const idKey = String(id);
       const mil = fullEfetivo.find(e => String(e.id_militar) === idKey || String(e.id) === idKey);
-      
+
       // Definição da OPM de exibição baseada na aba
       let displayOPM = 'OPM Indefinida';
       if (activeTab === 'cpm') displayOPM = 'CPM/I-Faz';
       else if (activeTab === 'unidade') displayOPM = targetOpm || 'OPM Unidade';
       else displayOPM = 'Geral'; // No Geral, consolidamos tudo do militar
-      
+
       // Quando na aba geral, usamos apenas o idKey para somar tudo do militar em uma linha só
       const uniqueKey = activeTab === 'geral' ? idKey : `${idKey}_${displayOPM}`;
-      
+
       if (!map[uniqueKey]) {
         map[uniqueKey] = {
           id: uniqueKey,
@@ -281,16 +395,16 @@ export function AnalyticsDashboard() {
       if (!map[uniqueKey]) {
         const mil = fullEfetivo.find(e => String(e.id_militar) === idKey || String(e.id) === idKey);
         map[uniqueKey] = {
-            id: uniqueKey,
-            militar_id: idKey,
-            numero_ordem: mil?.matricula || s.matricula || idKey,
-            rank: mil?.posto_graduacao || s.posto_graduacao || '',
-            name: mil?.nome_guerra || s.nome_guerra || mil?.nome_completo || 'Desconhecido',
-            opm: displayOPM,
-            home_opm: mil?.opm || 'OPM Base',
-            motorista: mil?.motorista || false,
-            count6h: 0,
-            count8h: 0,
+          id: uniqueKey,
+          militar_id: idKey,
+          numero_ordem: mil?.matricula || s.matricula || idKey,
+          rank: mil?.posto_graduacao || s.posto_graduacao || '',
+          name: mil?.nome_guerra || s.nome_guerra || mil?.nome_completo || 'Desconhecido',
+          opm: displayOPM,
+          home_opm: mil?.opm || 'OPM Base',
+          motorista: mil?.motorista || false,
+          count6h: 0,
+          count8h: 0,
         };
       }
 
@@ -333,13 +447,133 @@ export function AnalyticsDashboard() {
   const totalHoras6 = stats.reduce((acc, s) => acc + s.count6h, 0);
   const totalHoras8 = stats.reduce((acc, s) => acc + s.count8h, 0);
   const matchingCycle = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
-  
-  const orcamentoCiclo = selectedCiclo === 'all' 
+
+  const orcamentoCiclo = selectedCiclo === 'all'
     ? ciclos.reduce((acc, c) => acc + parseFloat(c.valor_total_previsto || 0), 0)
     : parseFloat(matchingCycle?.valor_total_previsto || 0);
 
   const recursoUtilizado = stats.reduce((acc, s) => acc + s.valorTotal, 0);
   const recursoRestante = orcamentoCiclo - recursoUtilizado;
+
+  const militaresPertoLimite = useMemo(() => {
+    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
+    const isTargetOpm = (opm) => {
+      if (!opm) return false;
+      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
+      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
+      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
+    };
+
+    const targetOpmCounts = {};
+    servicos.forEach(s => {
+      const milId = String(s.id_militar);
+      const execOpm = s.opm_origem || '';
+      if (isTargetOpm(execOpm)) {
+        if (!targetOpmCounts[milId]) {
+          targetOpmCounts[milId] = { total: 0 };
+        }
+        targetOpmCounts[milId].total += 1;
+      }
+    });
+
+    const pertoLimite = [];
+    Object.entries(targetOpmCounts).forEach(([milId, data]) => {
+      if (data.total >= 7) {
+        const mil = efetivo.find(e => String(e.id_militar) === milId);
+        if (mil) {
+          pertoLimite.push({
+            rank: mil.posto_graduacao || '',
+            name: mil.nome_guerra || mil.nome_completo || 'Militar Indefinido',
+            total: data.total,
+            remaining: Math.max(0, MAX_SERVICES - data.total)
+          });
+        }
+      }
+    });
+    return pertoLimite.sort((a, b) => b.total - a.total);
+  }, [servicos, efetivo, matchingCycle]);
+
+  const outrasOpmData = useMemo(() => {
+    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
+    if (!selectedCiclo || servicos.length === 0 || efetivo.length === 0) {
+      return { list: [], totalValue: 0 };
+    }
+
+    const isTargetOpm = (opm) => {
+      if (!opm) return false;
+      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
+      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
+      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
+    };
+
+    const filteredServices = servicos.filter(s => {
+      const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
+      const homeOpm = mil?.opm || '';
+      const execOpm = s.opm_origem || '';
+
+      return isTargetOpm(execOpm) && !isTargetOpm(homeOpm) && homeOpm !== '';
+    });
+
+    const groups = {};
+    let totalValue = 0;
+
+    filteredServices.forEach(s => {
+      const milId = String(s.id_militar);
+      const mil = efetivo.find(e => String(e.id_militar) === milId);
+      if (!groups[milId]) {
+        groups[milId] = {
+          militar_id: milId,
+          nome_guerra: mil?.nome_guerra || s.nome_guerra || 'Desconhecido',
+          nome_completo: mil?.nome_completo || 'Militar Indefinido',
+          posto_graduacao: mil?.posto_graduacao || s.posto_graduacao || '',
+          home_opm: mil?.opm || 'Outra OPM',
+          cpf: mil?.cpf || '---',
+          servicesCount: 0,
+          totalValue: 0
+        };
+      }
+
+      const val = parseFloat(s.valor_remuneracao || 0);
+      groups[milId].servicesCount += 1;
+      groups[milId].totalValue += val;
+      totalValue += val;
+    });
+
+    const list = Object.values(groups).sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+
+    return { list, totalValue };
+  }, [selectedCiclo, servicos, efetivo, matchingCycle]);
+
+
+  const reportOpmDebits = useMemo(() => {
+    const debits = { ...memoData.OpmDebits };
+    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
+    const isTargetOpm = (opm) => {
+      if (!opm) return false;
+      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
+      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
+      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
+    };
+
+    let targetOpmValue = 0;
+    servicos.forEach(s => {
+      const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
+      const homeOpm = mil?.opm || '';
+      const execOpm = s.opm_origem || '';
+      if (isTargetOpm(homeOpm) && isTargetOpm(execOpm)) {
+        targetOpmValue += parseFloat(s.valor_remuneracao || 0);
+      }
+    });
+
+    if (targetOpmValue > 0) {
+      debits[targetOpm] = targetOpmValue;
+    }
+    return debits;
+  }, [memoData.OpmDebits, servicos, efetivo, matchingCycle]);
+
+  const reportTotalDebitsValue = useMemo(() => {
+    return Object.values(reportOpmDebits).reduce((sum, v) => sum + v, 0);
+  }, [reportOpmDebits]);
 
   // Lista dinâmica de OPMs para as abas
   const availableOpms = Array.from(new Set(servicos.map(s => s.opm_origem).filter(Boolean))).sort();
@@ -371,36 +605,39 @@ export function AnalyticsDashboard() {
   const handleDownloadPDF = async () => {
     const element = document.getElementById('memo-a4-page');
     if (!element) return;
-    
+
     let originalExibitions = [];
     const createdSpacers = [];
-    
+
     try {
       // 1. Temporarily hide 'no-print' elements
       const noPrintElements = element.querySelectorAll('.no-print');
       originalExibitions = Array.from(noPrintElements).map(el => el.style.display);
       noPrintElements.forEach(el => el.style.display = 'none');
-      
+
+      element.classList.add('generating-pdf');
+
       // 2. Prevent table/block split across pages dynamically
-      const A4_PAGE_HEIGHT = 1120; // height of A4 page in pixels roughly
+      const A4_PAGE_HEIGHT = element.offsetWidth * (297 / 210);
       const blocksToCheck = element.querySelectorAll('.bloco-militar-memo');
-      
+
       const getRelativeTop = (el, container) => {
         const rectEl = el.getBoundingClientRect();
         const rectContainer = container.getBoundingClientRect();
         return rectEl.top - rectContainer.top;
       };
-      
+
       blocksToCheck.forEach(block => {
         const top = getRelativeTop(block, element);
         const height = block.offsetHeight;
-        
+
         const startPage = Math.floor(top / A4_PAGE_HEIGHT);
         const endPage = Math.floor((top + height) / A4_PAGE_HEIGHT);
-        
-        if (startPage !== endPage) {
-          const remainingSpace = (startPage + 1) * A4_PAGE_HEIGHT - top;
-          
+        const marginPixels = element.offsetWidth * (20 / 210); // 20mm margin
+
+        if (startPage !== endPage && height < A4_PAGE_HEIGHT - marginPixels * 2) {
+          const remainingSpace = (startPage + 1) * A4_PAGE_HEIGHT - top + marginPixels;
+
           const spacer = document.createElement('div');
           spacer.className = 'pdf-spacer-memo';
           spacer.style.height = `${remainingSpace}px`;
@@ -409,7 +646,7 @@ export function AnalyticsDashboard() {
           spacer.style.margin = '0';
           spacer.style.padding = '0';
           spacer.style.border = 'none';
-          
+
           block.parentNode.insertBefore(spacer, block);
           createdSpacers.push(spacer);
         }
@@ -427,9 +664,9 @@ export function AnalyticsDashboard() {
         unit: 'mm',
         format: 'a4'
       });
-      
+
       const imgWidth = 210;
-      const pageHeight = 295;
+      const pageHeight = 297;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       let position = 0;
@@ -443,7 +680,7 @@ export function AnalyticsDashboard() {
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
       }
-      
+
       const filename = `Memorando_SVR_${selectedCicloText.replace(/[\s\/]/g, '_')}.pdf`;
       pdf.save(filename);
     } catch (error) {
@@ -457,7 +694,9 @@ export function AnalyticsDashboard() {
           el.style.display = originalExibitions[index];
         }
       });
-      
+
+      element.classList.remove('generating-pdf');
+
       // 4. Remove temporary spacers
       createdSpacers.forEach(spacer => {
         if (spacer && spacer.parentNode) {
@@ -569,6 +808,26 @@ export function AnalyticsDashboard() {
           </p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="btn btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.65rem 1.25rem',
+              cursor: 'pointer',
+              background: 'linear-gradient(135deg, #0d3878 0%, #1e3a8a 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 12px rgba(13, 56, 120, 0.2)',
+            }}
+          >
+            <TrendingUp size={18} />
+            <span>Publicar Relatório Analítico</span>
+          </button>
           <button
             onClick={() => setShowMemoModal(true)}
             className="btn btn-primary"
@@ -876,6 +1135,8 @@ export function AnalyticsDashboard() {
           )}
         </div>
       )}
+
+
       {/* Nota de rodapé */}
       <p style={{ textAlign: 'right', marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
         * Contagem baseada nas escalas salvas no Painel Admin. Limite: {MAX_SERVICES} serviços/mês por militar.
@@ -902,6 +1163,36 @@ export function AnalyticsDashboard() {
             box-shadow: none !important;
             background: white !important;
           }
+        }
+        
+        /* Styles applied during PDF generation to scale down fonts and spacing */
+        .generating-pdf {
+          font-size: 9.5pt !important;
+          line-height: 1.4 !important;
+        }
+        .generating-pdf table {
+          font-size: 7.5pt !important;
+        }
+        .generating-pdf th, .generating-pdf td {
+          padding: 4px 3px !important;
+        }
+        .generating-pdf .bloco-militar-memo {
+          margin-bottom: 12px !important;
+        }
+        .generating-pdf .bloco-relatorio-analitico {
+          margin-bottom: 15px !important;
+        }
+        .generating-pdf h1 {
+          font-size: 18pt !important;
+        }
+        .generating-pdf h2 {
+          font-size: 11pt !important;
+        }
+        .generating-pdf h3 {
+          font-size: 10pt !important;
+        }
+        .generating-pdf h4 {
+          font-size: 9pt !important;
         }
       `}</style>
 
@@ -1110,15 +1401,15 @@ export function AnalyticsDashboard() {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    <img 
-                      src="/pmal.png" 
-                      alt="Brasão PMAL" 
-                      style={{ 
+                    <img
+                      src="/pmal.png"
+                      alt="Brasão PMAL"
+                      style={{
                         height: '90px',
                         width: 'auto',
                         maxWidth: '100%',
                         objectFit: 'contain'
-                      }} 
+                      }}
                     />
                   </div>
                   <div style={{ fontSize: '11pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#0f172a' }}>Estado de Alagoas</div>
@@ -1237,6 +1528,336 @@ export function AnalyticsDashboard() {
                     </div>
                     <p>Comandante do 9º BPM</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SVR Report Modal */}
+      {showReportModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1.5rem',
+        }}>
+          <div style={{
+            background: '#f8fafc',
+            borderRadius: '16px',
+            width: '95vw',
+            height: '90vh',
+            maxWidth: '1250px',
+            display: 'flex',
+            flexDirection: 'row',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #e2e8f0',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Sidebar Controls (Left) */}
+            <div style={{
+              width: '340px',
+              padding: '1.5rem',
+              background: 'white',
+              borderRight: '1px solid #e2e8f0',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              flexShrink: 0
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+                <h3 style={{ margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TrendingUp size={20} color="var(--primary)" />
+                  Relatório Analítico
+                </h3>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
+                Visualize e publique o relatório analítico de gestão contendo o resumo operacional, limites regulamentares, débitos por OPM e relação nominal completa.
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: 'auto', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
+                <button
+                  onClick={handleDownloadReportPDF}
+                  className="btn btn-primary"
+                  disabled={pdfLoading}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #0d3878 0%, #1e3a8a 100%)',
+                    border: 'none',
+                    boxShadow: '0 4px 12px rgba(13, 56, 120, 0.2)'
+                  }}
+                >
+                  <Download size={16} />
+                  <span>{pdfLoading ? 'Gerando PDF...' : 'Salvar em PDF'}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="btn btn-outline"
+                  style={{ width: '100%' }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+
+            {/* A4 Preview Panel (Right) */}
+            <div style={{
+              flex: 1,
+              padding: '2.5rem',
+              overflowY: 'auto',
+              background: '#cbd5e1',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'flex-start'
+            }}>
+              <div
+                id="relatorio-analitico-container"
+                style={{
+                  width: '210mm',
+                  minHeight: '297mm',
+                  background: 'white',
+                  padding: '25mm 20mm 20mm 20mm',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: '11pt',
+                  lineHeight: '1.5',
+                  color: '#1e293b',
+                  textAlign: 'justify',
+                  boxSizing: 'border-box',
+                  position: 'relative'
+                }}
+              >
+                {/* 1. CAPA */}
+                <div className="bloco-relatorio-analitico" style={{ minHeight: '250mm', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderBottom: '2px solid #0d3878', paddingBottom: '40px', marginBottom: '40px' }}>
+                  <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                    <div style={{ height: '90px', margin: '0 auto 0.75rem auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" style={{ height: '90px', width: 'auto', objectFit: 'contain' }} />
+                    </div>
+                    <h3 style={{ margin: '0', color: '#0d3878', letterSpacing: '1px', fontWeight: '700', fontSize: '12pt' }}>POLÍCIA MILITAR DE ALAGOAS</h3>
+                    <h4 style={{ margin: '5px 0 0 0', color: '#475569', fontWeight: '500', fontSize: '10pt' }}>9º Batalhão de Polícia Militar — Batalhão de Divisas</h4>
+                  </div>
+
+                  <div style={{ textAlign: 'center', margin: '60px 0' }}>
+                    <h1 style={{ fontSize: '24pt', color: '#0d3878', margin: '0 0 10px 0', fontWeight: '800' }}>RELATÓRIO ANALÍTICO DE GESTÃO</h1>
+                    <h2 style={{ fontSize: '14pt', color: '#009c3b', margin: '0', fontWeight: '600' }}>Controle de Limites, Distribuição por OPM e Efetivo Voluntário</h2>
+                    <div style={{ width: '80px', height: '4px', background: '#ffdf00', margin: '20px auto 0 auto' }}></div>
+                  </div>
+
+                  <div style={{ fontSize: '10pt', color: '#475569', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '8px', marginBottom: '6px' }}>
+                      <strong>Ciclo/Período:</strong> <span>{selectedCicloText}</span>
+                      <strong>Data de Emissão:</strong> <span>{reportDate}</span>
+                      <strong>Setor:</strong> <span>P1 - {matchingCycle?.opm_sigla || '9º BPM'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. SUMÁRIO */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>Sumário</h2>
+                  <ul style={{ listStyle: 'none', paddingLeft: '0', fontSize: '10pt' }}>
+                    {[
+                      { t: '1. Controle e Alertas de Limite Regulamentar', p: '01' },
+                      { t: '2. Débitos Consolidados por OPM Destinatária', p: '02' },
+                      { t: `3. Militares de Outras OPMs em Serviço na ${matchingCycle?.opm_sigla || 'OPM'} do ${selectedCicloText}`, p: '03' },
+                      { t: '4. Relação Nominal Completa do Efetivo Voluntário', p: '04' },
+                      { t: '5. Recomendações Estratégicas para Gestão de Escalas', p: '05' }
+                    ].map((item, idx) => (
+                      <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px dotted #cbd5e1' }}>
+                        <span>{item.t}</span>
+                        <span>Pág. {item.p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* 1. CONTROLE E ALERTAS DE LIMITE */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>1. Controle e Alertas de Limite Regulamentar</h2>
+                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
+                    Abaixo estão listados os militares que atingiram ou estão na iminência de atingir o teto de <strong>{MAX_SERVICES}</strong> serviços voluntários executados na OPM de referência (<strong>{matchingCycle?.opm_sigla || '9º BPM'}</strong>) neste ciclo. Recomenda-se cautela na distribuição de novas escalas a estes integrantes.
+                  </p>
+                  {militaresPertoLimite.length === 0 ? (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '15px', color: '#166534', fontSize: '9pt' }}>
+                      <strong>Excelente!</strong> Nenhum militar ativo do 9º BPM atingiu o limite de {MAX_SERVICES} escalas no período selecionado.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>Posto/Grad</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>Nome Militar</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>Total Escalas</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'center' }}>Restantes</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right' }}>Situação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {militaresPertoLimite.map((mil, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '6px 10px' }}>{mil.rank}</td>
+                            <td style={{ padding: '6px 10px', fontWeight: '500' }}>{mil.name}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '700', color: mil.total >= MAX_SERVICES ? '#ef4444' : '#f59e0b' }}>{mil.total}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'center', fontWeight: '600' }}>{mil.remaining}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: '600', color: mil.total >= MAX_SERVICES ? '#ef4444' : '#f59e0b' }}>
+                              {mil.total >= MAX_SERVICES ? 'Limite Atingido' : 'Quase no Limite'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* 2. DEBITOS POR OPM */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>2. Débitos Consolidados por OPM Destinatária</h2>
+                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
+                    Relação consolidada dos valores devidos pelas OPMs destinatárias onde policiais prestaram escalas voluntárias, incluindo a própria unidade do ciclo ativo. Estes valores representam o custo de empenho operacional da respectiva unidade:
+                  </p>
+                  {Object.keys(reportOpmDebits).length === 0 ? (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', color: '#64748b', fontSize: '9pt' }}>
+                      Nenhuma escala externa foi registrada neste ciclo.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '700' }}>OPM Destinatária</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700' }}>Valor Total a Compensar</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(reportOpmDebits).map(([opm, val]) => (
+                          <tr key={opm} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '8px 12px', fontWeight: '500' }}>{opm}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', color: '#0d3878' }}>{formatarValor(val)}</td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: '#f8fafc', borderTop: '2px solid #cbd5e1', fontWeight: '700' }}>
+                          <td style={{ padding: '8px 12px' }}>Total Geral Consolidado</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10b981' }}>{formatarValor(reportTotalDebitsValue)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* 3. MILITARES DE OUTRAS OPMS EM SERVIÇO NA OPM DO CICLO */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>3. Militares de Outras OPMs que executaram SVR no {matchingCycle?.opm_sigla || 'OPM'}</h2>
+                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
+                    Relação nominal de militares pertencentes a outras unidades (OPMs) que executaram Serviço Voluntário Remunerado (SVR) na área de atuação da OPM do ciclo ativo ({matchingCycle?.opm_sigla || '9º BPM'}):
+                  </p>
+                  {outrasOpmData.list.length === 0 ? (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', color: '#64748b', fontSize: '9pt' }}>
+                      Nenhum militar de outra OPM executou serviços nesta unidade durante este ciclo.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>Ordem/Matrícula</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>Posto/Grad</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>Nome Guerra</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left' }}>OPM Origem</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center' }}>Total Escalas</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'right' }}>Valor Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {outrasOpmData.list.map((vol, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '6px 8px' }}>{vol.numero_ordem}</td>
+                            <td style={{ padding: '6px 8px' }}>{vol.posto_graduacao}</td>
+                            <td style={{ padding: '6px 8px', fontWeight: '500' }}>{vol.nome_guerra}</td>
+                            <td style={{ padding: '6px 8px' }}>{vol.home_opm}</td>
+                            <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700' }}>{vol.servicesCount}</td>
+                            <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '600', color: '#10b981' }}>
+                              {formatarValor(vol.totalValue)}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: '#f8fafc', borderTop: '2px solid #cbd5e1', fontWeight: '700' }}>
+                          <td colSpan={4} style={{ padding: '8px 8px' }}>Total de Outras OPMs</td>
+                          <td style={{ padding: '8px 8px', textAlign: 'center' }}>
+                            {outrasOpmData.list.reduce((sum, item) => sum + item.servicesCount, 0)}
+                          </td>
+                          <td style={{ padding: '8px 8px', textAlign: 'right', color: '#10b981' }}>
+                            {formatarValor(outrasOpmData.totalValue)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* 4. RELAÇÃO NOMINAL COMPLETA */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>4. Relação Nominal Completa do Efetivo Voluntário</h2>
+                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
+                    Apresentação de toda a relação nominal de voluntários inscritos no ciclo de escalas, indicando a quantidade de serviços executados e a compensação financeira gerada:
+                  </p>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Ordem</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Posto</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left' }}>Nome Guerra</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center' }}>Total Escalas</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'right' }}>Total Recebido</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {voluntariosConsolidado.map((vol, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '6px 8px' }}>{vol.numero_ordem}</td>
+                          <td style={{ padding: '6px 8px' }}>{vol.rank}</td>
+                          <td style={{ padding: '6px 8px', fontWeight: '500' }}>{vol.name}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: '700', color: vol.total_servicos > 0 ? 'var(--primary)' : '#94a3b8' }}>
+                            {vol.total_servicos}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: '600', color: vol.total_servicos > 0 ? '#10b981' : '#94a3b8' }}>
+                            {formatarValor(vol.valor_total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 5. RECOMENDAÇÕES */}
+                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
+                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>5. Recomendações Estratégicas para Gestão de Escalas</h2>
+                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
+                    Com base no comportamento estatístico deste ciclo operacional, orienta-se a adoção das seguintes medidas:
+                  </p>
+                  <ul style={{ paddingLeft: '1.5rem', fontSize: '9.5pt', lineHeight: '1.7', color: '#334155' }}>
+                    <li style={{ marginBottom: '8px' }}><strong>Remanejamento de Efetivo Voluntário:</strong> Incentivar e direcionar voluntários que possuem 0 escalas ativas para turnos com maior carência operacional, equilibrando a fadiga da tropa.</li>
+                    <li style={{ marginBottom: '8px' }}><strong>Gestão de Teto Limite:</strong> Criar uma trava ou barreira preventiva para militares que atingirem 7 escalas, alertando a Seção de Planejamento antes do estouro do limite máximo de 8.</li>
+                    <li style={{ marginBottom: '8px' }}><strong>Compensação entre Unidades:</strong> Acionar formalmente as OPMs destinatárias listadas na seção 3 para compensação e conciliação dos débitos fiscais de Força Tarefa.</li>
+                  </ul>
                 </div>
               </div>
             </div>

@@ -1,3 +1,110 @@
+## v1.32.49 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Título Dinâmico para Seção de Outras OPMs**:
+  - **[Frontend]** Ajustados os títulos da Seção 3 tanto no Sumário quanto no corpo do Relatório Analítico (`AnalyticsDashboard.jsx`) para exibir dinamicamente a sigla da OPM do ciclo ativo e o nome do ciclo (ex: "3. Militares de Outras OPMs em Serviço na 9º BPM do Maio / Junho de 2026").
+
+---
+
+## v1.32.48 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Páginas em Branco no Relatório PDF**:
+  - **[Frontend]** Ajustadas as funções `handleDownloadReportPDF` e `handleDownloadPDF` em `AnalyticsDashboard.jsx` para evitar a inserção de espaçadores (que geravam páginas em branco) antes de blocos ou tabelas que possuem altura maior que o limite de uma única página A4.
+
+---
+
+## v1.32.47 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Erro de Inicialização (ReferenceError)**:
+  - **[Frontend]** Movida a definição de `outrasOpmData` para depois da declaração de `matchingCycle` em `AnalyticsDashboard.jsx`, corrigindo o erro de acesso a variável antes da inicialização.
+
+---
+
+## v1.32.46 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Seção de Militares de Outras OPMs no Relatório Analítico**:
+  - **[Frontend]** Adicionada a seção "Militares de Outras OPMs em Serviço na OPM do Ciclo" no Relatório Analítico de Gestão (`AnalyticsDashboard.jsx`), exibindo nominalmente a lista de militares externos com seus respectivos valores individuais e o valor total acumulado.
+
+---
+
+## v1.32.45 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajuste na Filtragem do Pool de Voluntários**:
+  - **[Frontend]** Modificado o filtro do pool de voluntários em `AdminDashboardV2.jsx` para limitar a exibição dos militares com base nos serviços executados (`executed_count`) em vez dos serviços planejados (`service_count`).
+
+---
+
+## v1.32.44 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Filtragem da Relação Nominal por Requerimentos Ativos**:
+  - **[Frontend]** Ajustada a `voluntariosConsolidado` no `AnalyticsDashboard.jsx` para filtrar e listar apenas os militares que possuem requerimentos cadastrados e ativos no ciclo operacional correspondente (`v.ativo !== false`), ocultando integrantes com requerimentos inativos/cancelados.
+
+---
+
+## v1.32.43 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Alinhamento do Exportador do Relatório Analítico**:
+  - **[Frontend]** Alinhada a lógica de exportação de PDF do Relatório Analítico (`handleDownloadReportPDF`) com as mesmas configurações de tamanho natural (`210mm`) e opções do exportador do Memorando (`handleDownloadPDF`) que está funcionando normalmente.
+  - **[Frontend]** Removida a alteração temporária forçada de largura para `900px` e a propriedade `windowWidth` no `html2canvas` do Relatório Analítico, permitindo que ambos os layouts gerem PDFs uniformes e consistentes.
+
+---
+
+## v1.32.42 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da escala de fontes e quebras de página na exportação de PDF**:
+  - **[Frontend]** Substituída a constante fixa de altura de página A4 por um cálculo dinâmico baseado na largura do contêiner e na proporção real da página A4 (`offsetWidth * (297 / 210)`).
+  - **[Frontend]** Ajustada a altura de corte de página no jsPDF de `295` para `297` mm.
+  - **[Frontend]** Aplicado recuo dinâmico de margem de `20mm` nas quebras de página para manter consistência visual com a primeira página.
+  - **[Frontend]** Implementada a classe temporária `generating-pdf` aplicada aos contêineres antes da captura com `html2canvas`, reduzindo o tamanho de fontes, títulos, tabelas e paddings para uma diagramação de PDF mais profissional e compacta.
+
+---
+
+## v1.32.41 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Refinamento do Relatório Analítico de Gestão**:
+  - **[Frontend]** Ajustado o quadro de limites para exibir apenas serviços executados na OPM do ciclo ativo.
+  - **[Frontend]** Adicionada a OPM do ciclo ativo ao quadro de débitos consolidados.
+  - **[Frontend]** Removida a seção de Resumo Executivo Operacional do relatório e atualizado o Sumário.
+
+---
+
+## v1.32.40 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Modulação do Relatório Analítico de Gestão em Modal**:
+  - **[Frontend]** Removida a aba do Relatório Analítico da navegação principal de `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Adicionado o botão "Publicar Relatório Analítico" ao cabeçalho principal, que dispara um modal com a pré-visualização A4 e controle direto de exportação para PDF.
+
+---
+
 ## v1.32.39 — 2026-06-11
 **Autor:** pmal-daten
 **Email:** unknown
