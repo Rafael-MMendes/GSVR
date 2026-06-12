@@ -1,5 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+html {
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  html { font-size: 15px; }
+}
+@media (min-width: 1200px) {
+  html { font-size: 16px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+}
+@media (min-width: 2560px) {
+  html { font-size: 19px; }
+}
+
 :root {
   --bg-dark: #F1F5F9;           /* Slate 100 - Light Background */
   --bg-panel: #F8FAFC;          /* Slate 50 - Panels */
@@ -60,14 +76,40 @@ h3 { font-size: 1.25rem; }
 }
 
 .container {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+  transition: max-width 0.3s ease;
 }
 
 @media (min-width: 768px) {
   .container {
     padding: 2rem 1.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1350px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1550px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1750px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .container {
+    max-width: 2200px;
   }
 }
 

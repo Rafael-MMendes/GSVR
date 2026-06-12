@@ -518,7 +518,7 @@ export function RequerimentosAdmin({ user }) {
   const cycleDays = getCycleDays(activeCycle?.data_inicio, activeCycle?.data_fim);
 
   return (
-    <div className="container" style={{ maxWidth: '1400px' }}>
+    <div className="container">
       <div className="admin-controls-header" style={{
         display: 'flex',
         justifyContent: 'space-between',

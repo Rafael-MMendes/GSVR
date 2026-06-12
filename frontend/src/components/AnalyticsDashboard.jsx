@@ -713,7 +713,7 @@ export function AnalyticsDashboard() {
       'Selecione o Ciclo');
 
   return (
-    <div className="container analytics-container" style={{ maxWidth: '1350px' }}>
+    <div className="container analytics-container">
       <style>{`
         .analytics-container {
           padding: 1rem;
@@ -1681,8 +1681,7 @@ export function AnalyticsDashboard() {
                       { t: '1. Controle e Alertas de Limite Regulamentar', p: '01' },
                       { t: '2. Débitos Consolidados por OPM Destinatária', p: '02' },
                       { t: `3. Militares de Outras OPMs em Serviço na ${matchingCycle?.opm_sigla || 'OPM'} do ${selectedCicloText}`, p: '03' },
-                      { t: '4. Relação Nominal Completa do Efetivo Voluntário', p: '04' },
-                      { t: '5. Recomendações Estratégicas para Gestão de Escalas', p: '05' }
+                      { t: '4. Relação Nominal Completa do Efetivo Voluntário', p: '04' }
                     ].map((item, idx) => (
                       <li key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px dotted #cbd5e1' }}>
                         <span>{item.t}</span>
@@ -1847,18 +1846,6 @@ export function AnalyticsDashboard() {
                   </table>
                 </div>
 
-                {/* 5. RECOMENDAÇÕES */}
-                <div className="bloco-relatorio-analitico" style={{ marginBottom: '40px' }}>
-                  <h2 style={{ color: '#0d3878', fontSize: '14pt', borderBottom: '2px solid #0d3878', paddingBottom: '8px', fontWeight: '750' }}>5. Recomendações Estratégicas para Gestão de Escalas</h2>
-                  <p style={{ fontSize: '10pt', textAlign: 'justify', marginBottom: '15px' }}>
-                    Com base no comportamento estatístico deste ciclo operacional, orienta-se a adoção das seguintes medidas:
-                  </p>
-                  <ul style={{ paddingLeft: '1.5rem', fontSize: '9.5pt', lineHeight: '1.7', color: '#334155' }}>
-                    <li style={{ marginBottom: '8px' }}><strong>Remanejamento de Efetivo Voluntário:</strong> Incentivar e direcionar voluntários que possuem 0 escalas ativas para turnos com maior carência operacional, equilibrando a fadiga da tropa.</li>
-                    <li style={{ marginBottom: '8px' }}><strong>Gestão de Teto Limite:</strong> Criar uma trava ou barreira preventiva para militares que atingirem 7 escalas, alertando a Seção de Planejamento antes do estouro do limite máximo de 8.</li>
-                    <li style={{ marginBottom: '8px' }}><strong>Compensação entre Unidades:</strong> Acionar formalmente as OPMs destinatárias listadas na seção 3 para compensação e conciliação dos débitos fiscais de Força Tarefa.</li>
-                  </ul>
-                </div>
               </div>
             </div>
           </div>

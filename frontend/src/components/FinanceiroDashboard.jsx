@@ -305,7 +305,7 @@ export function FinanceiroDashboard() {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '1rem', maxWidth: '1400px' }}>
+    <div className="container" style={{ paddingTop: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h2 style={{ margin: 0, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

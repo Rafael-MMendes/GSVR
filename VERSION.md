@@ -1,3 +1,24 @@
+## v1.32.51 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Remoção da Seção de Recomendações Estratégicas**:
+  - **[Frontend]** Removida a Seção 5 ("Recomendações Estratégicas para Gestão de Escalas") do Relatório Analítico de Gestão (`AnalyticsDashboard.jsx`), tanto no Sumário quanto no corpo do relatório.
+
+---
+
+## v1.32.50 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Escala de Responsividade Global para Monitores**:
+  - **[Frontend]** Adicionadas regras de escala tipográfica baseadas no root font-size (`html`) em media queries de múltiplos breakpoints.
+  - **[Frontend]** Modificada a classe `.container` em `index.css` para escalar fluidamente até `2200px` em monitores de alta resolução.
+
+---
+
 ## v1.32.49 — 2026-06-12
 **Autor:** pmal-daten
 **Email:** unknown
