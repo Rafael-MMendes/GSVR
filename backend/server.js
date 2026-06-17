@@ -1941,6 +1941,20 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 
         const idCiclo = cycle.id_ciclo;
 
+        // Validação: se o militar for de outra OPM e o serviço também for executado em outra OPM, ignorar
+        const normalizeOpm = (o) => {
+          if (!o) return '';
+          return String(o).trim().toUpperCase().replace(/º/g, 'O').replace(/\s/g, '');
+        };
+        const homeOpmNorm = normalizeOpm(military.opm);
+        const execOpmNorm = normalizeOpm(opm);
+        const targetOpmNorm = normalizeOpm(cycle.sigla_opm);
+
+        if (homeOpmNorm !== targetOpmNorm && execOpmNorm !== targetOpmNorm) {
+          stats.skipped++;
+          continue;
+        }
+
         // 3. Verificar Duplicados
         const exists = await db.get(
           'SELECT 1 FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',

@@ -1,3 +1,13 @@
+## v1.32.55 — 2026-06-17
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Validação de OPM na Importação de SVR**:
+  - **[Backend]** Adicionada validação em `server.js` para ignorar a importação de escalas onde o militar e o local do serviço sejam de OPMs diferentes do ciclo operacional ativo.
+
+---
+
 ## v1.32.54 — 2026-06-16
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
