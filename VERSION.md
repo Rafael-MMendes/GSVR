@@ -1,3 +1,44 @@
+## v1.32.60 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Contagem Total de Equipes no Sumário**:
+  - **[Frontend]** Ajustada a fórmula da variável `totalTeams` no componente `MetasAlocacaoManager.jsx` para somar a estimativa de equipes executadas no passado (calculada dividindo `custo_executado` pelo custo médio da equipe do ciclo) com as equipes planejadas para o futuro (`totalTeamsRemaining`). Isso corrige a inconsistência onde equipes planejadas em dias passados sem execução real inflavam o total exibido no card azul em relação ao custo.
+
+---
+
+## v1.32.59 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção do Cálculo do Planejado Total (Ciclo)**:
+  - **[Frontend]** Corrigida a fórmula de `totalPlannedCost` em `MetasAlocacaoManager.jsx` para somar o custo real executado (`custo_executado`) com o custo planejado para o futuro (`totalPlannedRemaining`), evitando que metas planejadas no passado (que não foram executadas) inflem artificialmente o valor total planejado e superem o saldo disponível ou teto do ciclo.
+
+---
+
+## v1.32.58 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Redesenho do Sumário de Metas de Alocação**:
+  - **[Frontend]** Movido o card de resumo do planejamento da barra lateral para a barra horizontal de indicadores no topo em `MetasAlocacaoManager.jsx`.
+  - **[Frontend]** Renomeado o card para "Planejado Total (Ciclo)" e atualizado para exibir o custo planejado acumulado de todo o ciclo (passado + futuro) e o volume total de equipes (131), eliminando a redundância com o card de metas futuras e expandindo a barra de resumo para 6 colunas.
+
+---
+
+## v1.32.57 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Exibição de Equipes no Planejamento de Metas**:
+  - **[Frontend]** Corrigida a inconsistência no card "Resumo do Planejamento" do componente `MetasAlocacaoManager.jsx`, que exibia o total de equipes do ciclo inteiro (131) em vez do total de equipes restantes futuras (127), alinhando o indicador de equipes com o "Custo Restante".
+
+---
+
 ## v1.32.56 — 2026-06-17
 **Autor:** pmal-daten
 **Email:** unknown

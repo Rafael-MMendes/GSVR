@@ -117,7 +117,14 @@ export function MetasAlocacaoManager() {
     const totalTeamsRemaining = metasFuturas
         .reduce((acc, m) => acc + parseInt(m.qtd_equipes_planejadas), 0);
 
-    const totalTeams = metas.reduce((acc, m) => acc + parseInt(m.qtd_equipes_planejadas), 0);
+    const rawTotalTeams = metas.reduce((acc, m) => acc + parseInt(m.qtd_equipes_planejadas), 0);
+    const rawTotalCost = metas.reduce((acc, m) => acc + parseFloat(m.custo_estimado), 0);
+    const avgTeamCost = rawTotalTeams > 0 ? (rawTotalCost / rawTotalTeams) : 640;
+
+    const custoExecutadoVal = parseFloat(currentCiclo?.custo_executado) || 0;
+    const executedTeams = custoExecutadoVal > 0 ? Math.round(custoExecutadoVal / avgTeamCost) : 0;
+    const totalTeams = executedTeams + totalTeamsRemaining;
+    const totalPlannedCost = custoExecutadoVal + totalPlannedRemaining;
 
     const formatCurrency = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
@@ -132,7 +139,7 @@ export function MetasAlocacaoManager() {
 
             {/* Sumário do Ciclo - Premium Cards */}
             {currentCiclo && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1.5rem', marginBottom: '2.5rem' }}>
                     <div className="card" style={{ 
                         padding: '1.5rem', 
                         background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', 
@@ -204,6 +211,22 @@ export function MetasAlocacaoManager() {
                             <div style={{ position: 'absolute', top: '-10px', right: '10px', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '0.6rem', fontWeight: 'bold' }}>ESTOURADO</div>
                         )}
                     </div>
+
+                    <div className="card" style={{ 
+                        padding: '1.5rem', 
+                        background: '#1e3a5f', 
+                        color: 'white',
+                        border: 'none',
+                        boxShadow: '0 10px 15px -3px rgba(30, 58, 95, 0.2)'
+                    }}>
+                        <div style={{ opacity: 0.8, fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Planejado Total (Ciclo)</div>
+                        <div style={{ fontSize: '1.75rem', fontWeight: '800' }}>
+                            {formatCurrency(totalPlannedCost)}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: 0.8, fontSize: '0.85rem', marginTop: '0.5rem', fontWeight: '500' }}>
+                            <Users size={16} /> {totalTeams} equipes planejadas
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -227,7 +250,7 @@ export function MetasAlocacaoManager() {
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyItem: 'space-between' }}>
                                         <div style={{ fontWeight: '700', color: selectedCiclo === c.id_ciclo ? '#2563eb' : '#334155' }}>
                                             {c.period_name || formatDate(c.data_inicio)}
                                         </div>
@@ -249,24 +272,6 @@ export function MetasAlocacaoManager() {
                             ))}
                         </div>
                     </div>
-
-                    {selectedCiclo && (
-                        <div className="card" style={{ marginTop: '1.5rem', background: '#1e3a5f', color: 'white' }}>
-                            <div style={{ padding: '1.5rem' }}>
-                                <h4 style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', opacity: 0.8 }}>RESUMO DO PLANEJAMENTO</h4>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <div>
-                                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>CUSTO RESTANTE</div>
-                                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>R$ {totalPlannedRemaining.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                                    </div>
-                                    <div>
-                                        <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>TOTAL DE EQUIPES</div>
-                                        <div style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>{totalTeams}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </aside>
 
                 {/* Principal: Tabela de Metas */}
