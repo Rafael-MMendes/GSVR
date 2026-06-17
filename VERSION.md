@@ -1,3 +1,13 @@
+## v1.32.56 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Projeção de Gastos no Dashboard Financeiro**:
+  - **[Frontend]** Corrigida a fórmula de `projecaoGastos` em `FinanceiroDashboard.jsx` para evitar que a projeção fique menor do que o total gasto real quando o ciclo possui mais de 30 dias com registros. A projeção agora utiliza o máximo entre 30 dias e a quantidade de dias reais registrados, garantindo consistência com o total gasto.
+
+---
+
 ## v1.32.55 — 2026-06-17
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

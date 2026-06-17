@@ -39,7 +39,9 @@ export function FinanceiroDashboard() {
     const diasRegistrados = detalhado.detalhes_diarios.length;
     const gastoAteAgora = resumo.total_gasto;
     const mediaDiaria = gastoAteAgora / diasRegistrados;
-    return mediaDiaria * 30; // Estimando para 30 dias de ciclo
+    const diasProjecao = Math.max(30, diasRegistrados);
+    const projecao = mediaDiaria * diasProjecao;
+    return Math.max(gastoAteAgora, projecao);
   }, [resumo, detalhado]);
 
   const custoMedioMilitar = useMemo(() => {
