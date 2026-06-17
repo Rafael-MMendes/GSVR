@@ -560,7 +560,7 @@ export function AnalyticsDashboard() {
       const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
       const homeOpm = mil?.opm || '';
       const execOpm = s.opm_origem || '';
-      if (isTargetOpm(homeOpm) && isTargetOpm(execOpm)) {
+      if (isTargetOpm(execOpm)) {
         targetOpmValue += parseFloat(s.valor_remuneracao || 0);
       }
     });
@@ -1515,8 +1515,11 @@ export function AnalyticsDashboard() {
 
                   {/* Additional Summary Paragraph */}
                   <div style={{ marginBottom: '30px', fontSize: '10.5pt', lineHeight: '1.6', color: '#334155' }}>
-                    <p style={{ textAlign: 'justify' }}>
-                      Adicionalmente, informamos que, no mesmo período, a execução da Força Tarefa por militares no 9º BPM e militares de outras unidades que executaram serviços de FT no âmbito de nossa área de atuação, gerou o montante de {formatarValor(recursoUtilizado)} valor este compatível com o limite orçamentário que é de {formatarValor(memoCprsLimit)} estabelecido por este Grande Comando CPRS.
+                    <p style={{ textIndent: '20mm', textAlign: 'justify' }}>
+                      Solicitamos, assim, a adoção das providências administrativas necessárias para que os valores acima sejam abatidos das cotas orçamentárias das respectivas Unidades de execução, conforme previsto na referida Portaria.
+                    </p>
+                    <p style={{ textIndent: '20mm', marginTop: '10px', textAlign: 'justify' }}>
+                      Adicionalmente, informamos que, no mesmo período de {selectedCicloText}, a execução da Força Tarefa por militares no 9º BPM e militares de outras unidades que executaram serviços de FT no âmbito de nossa área de atuação, gerou o montante de {formatarValor(recursoUtilizado)} valor este compatível com o limite orçamentário que é de {formatarValor(memoCprsLimit)} estabelecido por este Grande Comando CPRS.
                     </p>
                   </div>
 

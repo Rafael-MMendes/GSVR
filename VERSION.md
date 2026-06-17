@@ -1,3 +1,33 @@
+## v1.32.54 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Débitos Consolidados por OPM Destinatária**:
+  - **[Frontend]** Ajustado o cálculo de `targetOpmValue` em `AnalyticsDashboard.jsx` para somar todos os serviços executados na OPM de destino do ciclo ativo, independente do militar ser nativo ou de outra unidade.
+
+---
+
+## v1.32.53 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Período Dinâmico no Memorando SVR**:
+  - **[Frontend]** Substituído o período hardcoded de datas no memorando SVR por uma referência dinâmica ao nome do ciclo operacional ativo (`{selectedCicloText}`).
+
+---
+
+## v1.32.52 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Atualização do Memorando SVR**:
+  - **[Frontend]** Substituído o último parágrafo do memorando SVR no componente `AnalyticsDashboard.jsx` para incluir solicitação de abatimento de cotas orçamentárias e detalhar o período de 16/04 a 15/05 de 2026 com os valores dinâmicos de montante gerado e limite orçamentário.
+
+---
+
 ## v1.32.51 — 2026-06-12
 **Autor:** pmal-daten
 **Email:** unknown
