@@ -1,3 +1,268 @@
+## v1.32.60 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Contagem Total de Equipes no Sumário**:
+  - **[Frontend]** Ajustada a fórmula da variável `totalTeams` no componente `MetasAlocacaoManager.jsx` para somar a estimativa de equipes executadas no passado (calculada dividindo `custo_executado` pelo custo médio da equipe do ciclo) com as equipes planejadas para o futuro (`totalTeamsRemaining`). Isso corrige a inconsistência onde equipes planejadas em dias passados sem execução real inflavam o total exibido no card azul em relação ao custo.
+
+---
+
+## v1.32.59 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção do Cálculo do Planejado Total (Ciclo)**:
+  - **[Frontend]** Corrigida a fórmula de `totalPlannedCost` em `MetasAlocacaoManager.jsx` para somar o custo real executado (`custo_executado`) com o custo planejado para o futuro (`totalPlannedRemaining`), evitando que metas planejadas no passado (que não foram executadas) inflem artificialmente o valor total planejado e superem o saldo disponível ou teto do ciclo.
+
+---
+
+## v1.32.58 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Redesenho do Sumário de Metas de Alocação**:
+  - **[Frontend]** Movido o card de resumo do planejamento da barra lateral para a barra horizontal de indicadores no topo em `MetasAlocacaoManager.jsx`.
+  - **[Frontend]** Renomeado o card para "Planejado Total (Ciclo)" e atualizado para exibir o custo planejado acumulado de todo o ciclo (passado + futuro) e o volume total de equipes (131), eliminando a redundância com o card de metas futuras e expandindo a barra de resumo para 6 colunas.
+
+---
+
+## v1.32.57 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Exibição de Equipes no Planejamento de Metas**:
+  - **[Frontend]** Corrigida a inconsistência no card "Resumo do Planejamento" do componente `MetasAlocacaoManager.jsx`, que exibia o total de equipes do ciclo inteiro (131) em vez do total de equipes restantes futuras (127), alinhando o indicador de equipes com o "Custo Restante".
+
+---
+
+## v1.32.56 — 2026-06-17
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Projeção de Gastos no Dashboard Financeiro**:
+  - **[Frontend]** Corrigida a fórmula de `projecaoGastos` em `FinanceiroDashboard.jsx` para evitar que a projeção fique menor do que o total gasto real quando o ciclo possui mais de 30 dias com registros. A projeção agora utiliza o máximo entre 30 dias e a quantidade de dias reais registrados, garantindo consistência com o total gasto.
+
+---
+
+## v1.32.55 — 2026-06-17
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Validação de OPM na Importação de SVR**:
+  - **[Backend]** Adicionada validação em `server.js` para ignorar a importação de escalas onde o militar e o local do serviço sejam de OPMs diferentes do ciclo operacional ativo.
+
+---
+
+## v1.32.54 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Débitos Consolidados por OPM Destinatária**:
+  - **[Frontend]** Ajustado o cálculo de `targetOpmValue` em `AnalyticsDashboard.jsx` para somar todos os serviços executados na OPM de destino do ciclo ativo, independente do militar ser nativo ou de outra unidade.
+
+---
+
+## v1.32.53 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Período Dinâmico no Memorando SVR**:
+  - **[Frontend]** Substituído o período hardcoded de datas no memorando SVR por uma referência dinâmica ao nome do ciclo operacional ativo (`{selectedCicloText}`).
+
+---
+
+## v1.32.52 — 2026-06-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Atualização do Memorando SVR**:
+  - **[Frontend]** Substituído o último parágrafo do memorando SVR no componente `AnalyticsDashboard.jsx` para incluir solicitação de abatimento de cotas orçamentárias e detalhar o período de 16/04 a 15/05 de 2026 com os valores dinâmicos de montante gerado e limite orçamentário.
+
+---
+
+## v1.32.51 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Remoção da Seção de Recomendações Estratégicas**:
+  - **[Frontend]** Removida a Seção 5 ("Recomendações Estratégicas para Gestão de Escalas") do Relatório Analítico de Gestão (`AnalyticsDashboard.jsx`), tanto no Sumário quanto no corpo do relatório.
+
+---
+
+## v1.32.50 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Escala de Responsividade Global para Monitores**:
+  - **[Frontend]** Adicionadas regras de escala tipográfica baseadas no root font-size (`html`) em media queries de múltiplos breakpoints.
+  - **[Frontend]** Modificada a classe `.container` em `index.css` para escalar fluidamente até `2200px` em monitores de alta resolução.
+
+---
+
+## v1.32.49 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Título Dinâmico para Seção de Outras OPMs**:
+  - **[Frontend]** Ajustados os títulos da Seção 3 tanto no Sumário quanto no corpo do Relatório Analítico (`AnalyticsDashboard.jsx`) para exibir dinamicamente a sigla da OPM do ciclo ativo e o nome do ciclo (ex: "3. Militares de Outras OPMs em Serviço na 9º BPM do Maio / Junho de 2026").
+
+---
+
+## v1.32.48 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Páginas em Branco no Relatório PDF**:
+  - **[Frontend]** Ajustadas as funções `handleDownloadReportPDF` e `handleDownloadPDF` em `AnalyticsDashboard.jsx` para evitar a inserção de espaçadores (que geravam páginas em branco) antes de blocos ou tabelas que possuem altura maior que o limite de uma única página A4.
+
+---
+
+## v1.32.47 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Erro de Inicialização (ReferenceError)**:
+  - **[Frontend]** Movida a definição de `outrasOpmData` para depois da declaração de `matchingCycle` em `AnalyticsDashboard.jsx`, corrigindo o erro de acesso a variável antes da inicialização.
+
+---
+
+## v1.32.46 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Seção de Militares de Outras OPMs no Relatório Analítico**:
+  - **[Frontend]** Adicionada a seção "Militares de Outras OPMs em Serviço na OPM do Ciclo" no Relatório Analítico de Gestão (`AnalyticsDashboard.jsx`), exibindo nominalmente a lista de militares externos com seus respectivos valores individuais e o valor total acumulado.
+
+---
+
+## v1.32.45 — 2026-06-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajuste na Filtragem do Pool de Voluntários**:
+  - **[Frontend]** Modificado o filtro do pool de voluntários em `AdminDashboardV2.jsx` para limitar a exibição dos militares com base nos serviços executados (`executed_count`) em vez dos serviços planejados (`service_count`).
+
+---
+
+## v1.32.44 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Filtragem da Relação Nominal por Requerimentos Ativos**:
+  - **[Frontend]** Ajustada a `voluntariosConsolidado` no `AnalyticsDashboard.jsx` para filtrar e listar apenas os militares que possuem requerimentos cadastrados e ativos no ciclo operacional correspondente (`v.ativo !== false`), ocultando integrantes com requerimentos inativos/cancelados.
+
+---
+
+## v1.32.43 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Alinhamento do Exportador do Relatório Analítico**:
+  - **[Frontend]** Alinhada a lógica de exportação de PDF do Relatório Analítico (`handleDownloadReportPDF`) com as mesmas configurações de tamanho natural (`210mm`) e opções do exportador do Memorando (`handleDownloadPDF`) que está funcionando normalmente.
+  - **[Frontend]** Removida a alteração temporária forçada de largura para `900px` e a propriedade `windowWidth` no `html2canvas` do Relatório Analítico, permitindo que ambos os layouts gerem PDFs uniformes e consistentes.
+
+---
+
+## v1.32.42 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da escala de fontes e quebras de página na exportação de PDF**:
+  - **[Frontend]** Substituída a constante fixa de altura de página A4 por um cálculo dinâmico baseado na largura do contêiner e na proporção real da página A4 (`offsetWidth * (297 / 210)`).
+  - **[Frontend]** Ajustada a altura de corte de página no jsPDF de `295` para `297` mm.
+  - **[Frontend]** Aplicado recuo dinâmico de margem de `20mm` nas quebras de página para manter consistência visual com a primeira página.
+  - **[Frontend]** Implementada a classe temporária `generating-pdf` aplicada aos contêineres antes da captura com `html2canvas`, reduzindo o tamanho de fontes, títulos, tabelas e paddings para uma diagramação de PDF mais profissional e compacta.
+
+---
+
+## v1.32.41 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Refinamento do Relatório Analítico de Gestão**:
+  - **[Frontend]** Ajustado o quadro de limites para exibir apenas serviços executados na OPM do ciclo ativo.
+  - **[Frontend]** Adicionada a OPM do ciclo ativo ao quadro de débitos consolidados.
+  - **[Frontend]** Removida a seção de Resumo Executivo Operacional do relatório e atualizado o Sumário.
+
+---
+
+## v1.32.40 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Modulação do Relatório Analítico de Gestão em Modal**:
+  - **[Frontend]** Removida a aba do Relatório Analítico da navegação principal de `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Adicionado o botão "Publicar Relatório Analítico" ao cabeçalho principal, que dispara um modal com a pré-visualização A4 e controle direto de exportação para PDF.
+
+---
+
+## v1.32.39 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Duplicação e Alinhamento de Páginas no PDF do Relatório Executivo**:
+  - **[Frontend]** Corrigido o bug que causava a duplicação ou corte errôneo de títulos e elementos nas quebras de página do PDF em `FinanceiroDashboard.jsx`.
+  - **[Frontend]** Ajustada a geração para forçar uma largura fixa temporária de `900px` (`windowWidth: 900`) e sincronizada a constante de altura de página A4 para `1270` pixels, garantindo um cálculo de espaçadores dinâmicos 100% alinhado com o renderizador `html2canvas`.
+
+---
+
+## v1.32.38 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Nova Fórmula de Custo Médio por Militar**:
+  - **[Frontend]** Implementada nova fórmula de cálculo para o Custo Médio por Militar no Dashboard e no PDF do Relatório Executivo: `(Soma dos valores dos serviços de 8h e 6h) ÷ (Quantidade de serviços executados × 3)`.
+  - **[Frontend]** Atualizado o subtítulo explicativo do card para refletir a nova fórmula matemática de forma explícita.
+
+---
+
+## v1.32.37 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajustes de Layout e Metadados do Relatório Executivo SVR**:
+  - **[Frontend]** Implementado algoritmo de cálculo de espaçadores dinâmicos no PDF em `FinanceiroDashboard.jsx` (adicionando a classe `bloco-relatorio` a todas as seções) para prevenir quebras e cortes de elementos entre páginas.
+  - **[Frontend]** Removido o campo "Responsável:" dos metadados da capa.
+  - **[Frontend]** Alterado o campo "Órgão:" para "Setor: P1 - {OPM do ciclo}", utilizando a sigla da unidade do ciclo ativo dinamicamente.
+
+---
+
+## v1.32.36 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção dos Indicadores Financeiros e Quantidade de Serviços**:
+  - **[Backend]** Ajustados os endpoints `/api/financeiro/resumo` e `/api/financeiro/detalhado` para realizar a divisão por 3 da quantidade de serviços e nos detalhes por tipo, mantendo o valor total pago inalterado. A listagem de militares individuais manteve a contagem original de escalas.
+  - **[Frontend]** Atualizadas as fórmulas dos cartões de custo médio: Custo Médio por Serviço (`total_gasto ÷ (total_registros ÷ 3)`) e Custo Médio por Militar (`total_gasto ÷ militares_unicos`), acompanhados de subtítulos descritivos e coerentes.
+  - **[Frontend]** Revisado o painel de visualização e exportação do Relatório Executivo e o PDF exportado, garantindo o recálculo automático e a consistência de todas as contagens de serviço divididas por 3.
+
+---
+
 ## v1.32.35 — 2026-06-11
 **Autor:** pmal-daten
 **Email:** unknown

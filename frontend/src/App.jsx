@@ -19,13 +19,12 @@ import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
 import { TiposServicoManager } from './components/TiposServicoManager';
-import { ConferenciaOperacional } from './components/ConferenciaOperacional';
 import { Footer } from './components/Footer';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet, Target, GitCompareArrows
+  FileSpreadsheet, Target
 } from 'lucide-react';
 
 // ============================================================
