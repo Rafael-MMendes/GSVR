@@ -62,7 +62,9 @@ export function CicloManager() {
     data_inicio: '',
     data_fim: '',
     status: 'Aberto',
-    valor_total_previsto: ''
+    valor_total_previsto: '',
+    valor_contingencia: '',
+    limite_equipes_diario: 6
   });
 
   useEffect(() => {
@@ -108,6 +110,23 @@ export function CicloManager() {
     }
   };
 
+  const handleDateChange = (field, value) => {
+    const newFormData = { ...formData, [field]: value };
+    
+    // Se mudar a data de início, tenta sugerir a data de fim (dia 15 do próximo mês)
+    if (field === 'data_inicio' && value) {
+      const start = new Date(value + 'T12:00:00');
+      if (start.getDate() === 16) {
+        const end = new Date(start);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(15);
+        newFormData.data_fim = end.toISOString().split('T')[0];
+      }
+    }
+    
+    setFormData(newFormData);
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Deseja realmente excluir este ciclo? Todos os dados vinculados podem ser afetados.')) return;
     try {
@@ -118,13 +137,48 @@ export function CicloManager() {
     }
   };
 
+  const toggleStatus = async (ciclo) => {
+    const newStatus = ciclo.status === 'Aberto' ? 'Fechado' : 'Aberto';
+    try {
+      await axios.put(`${API_URL}/ciclos/${ciclo.id_ciclo}`, {
+        ...ciclo,
+        status: newStatus
+      });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao alterar status do Ciclo');
+    }
+  };
+
+  const calculateCycleDates = () => {
+    const today = new Date();
+    let startYear = today.getFullYear();
+    let startMonth = today.getMonth(); // 0-11
+    
+    // Se hoje for depois do dia 15, o próximo ciclo começa no dia 16 do mês atual.
+    // Caso contrário, talvez eles queiram o ciclo que já está correndo (16 do mês anterior).
+    // Para um "Novo Ciclo", geralmente queremos o próximo disponível.
+    
+    // Vamos sugerir o ciclo que começa no dia 16 deste mês.
+    const startDate = new Date(startYear, startMonth, 16);
+    const endDate = new Date(startYear, startMonth + 1, 15);
+    
+    return {
+      inicio: startDate.toISOString().split('T')[0],
+      fim: endDate.toISOString().split('T')[0]
+    };
+  };
+
   const resetForm = () => {
+    const suggested = calculateCycleDates();
     setFormData({
       id_opm: opms.length > 0 ? opms[0].id_opm : '',
-      data_inicio: '',
-      data_fim: '',
+      data_inicio: suggested.inicio,
+      data_fim: suggested.fim,
       status: 'Aberto',
-      valor_total_previsto: ''
+      valor_total_previsto: '',
+      valor_contingencia: '',
+      limite_equipes_diario: 6
     });
   };
 
@@ -141,7 +195,9 @@ export function CicloManager() {
       data_inicio: formatParaInput(ciclo.data_inicio),
       data_fim: formatParaInput(ciclo.data_fim),
       status: ciclo.status,
-      valor_total_previsto: ciclo.valor_total_previsto || ''
+      valor_total_previsto: ciclo.valor_total_previsto || '',
+      valor_contingencia: ciclo.valor_contingencia || '',
+      limite_equipes_diario: ciclo.limite_equipes_diario || 6
     });
     setIsModalOpen(true);
   };
@@ -170,34 +226,32 @@ export function CicloManager() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
           {ciclos.map(ciclo => (
             <div key={ciclo.id_ciclo} className="card" style={{ position: 'relative', borderTop: `4px solid ${getStatusColor(ciclo.status)}`, transition: 'all 0.3s ease' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#1e3a5f', lineHeight: '1.2' }}>
-                              {formatPeriodoHumanizado(ciclo.data_inicio, ciclo.data_fim)}
-                            </span>
-                            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
-                              {formatDateShort(ciclo.data_inicio)} a {formatDateDisplay(ciclo.data_fim)}
-                            </span>
-                        </div>
-                        <span style={{ 
-                            padding: '2px 8px', 
-                            borderRadius: '12px', 
-                            fontSize: '0.7rem', 
-                            background: getStatusColor(ciclo.status) + '20', 
-                            color: getStatusColor(ciclo.status),
-                            fontWeight: 'bold',
-                            border: `1px solid ${getStatusColor(ciclo.status)}40`
-                        }}>
-                            {ciclo.status.toUpperCase()}
-                        </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
-                        <Building2 size={14} />
-                        <span>{ciclo.opm_sigla} - {ciclo.opm_descricao}</span>
-                    </div>
+              {/* Linha Superior: Status e Ações */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.75rem', 
+                      background: getStatusColor(ciclo.status) + '15', 
+                      color: getStatusColor(ciclo.status),
+                      fontWeight: 'bold',
+                      border: `1px solid ${getStatusColor(ciclo.status)}30`,
+                      letterSpacing: '0.02em'
+                  }}>
+                      {ciclo.status.toUpperCase()}
+                  </span>
+                  
+                  <label className="switch" title={ciclo.status === 'Aberto' ? 'Desativar Ciclo' : 'Ativar Ciclo'}>
+                    <input 
+                      type="checkbox" 
+                      checked={ciclo.status === 'Aberto'} 
+                      onChange={() => toggleStatus(ciclo)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
                 </div>
+
                 <div className="action-btn-group">
                   <button className="action-btn action-btn-primary" onClick={() => openEdit(ciclo)} title="Editar">
                     <Edit2 size={16} />
@@ -208,7 +262,21 @@ export function CicloManager() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
+              {/* Conteúdo Principal */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.4rem', fontWeight: 'bold', color: '#1e3a5f', lineHeight: '1.2' }}>
+                  {formatPeriodoHumanizado(ciclo.data_inicio, ciclo.data_fim)}
+                </h3>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 500, marginBottom: '10px' }}>
+                  {formatDateShort(ciclo.data_inicio)} a {formatDateDisplay(ciclo.data_fim)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '0.85rem' }}>
+                    <Building2 size={14} />
+                    <span>{ciclo.opm_sigla} - {ciclo.opm_descricao}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1rem', background: '#f8fafc', padding: '10px', borderRadius: '8px' }}>
                 <div>
                     <label style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 'bold' }}>Início</label>
                     <div style={{ color: '#334155', fontWeight: 500 }}>
@@ -222,6 +290,15 @@ export function CicloManager() {
                     </div>
                 </div>
               </div>
+
+              {parseFloat(ciclo.valor_contingencia) > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem', background: '#fff7ed', padding: '8px 12px', borderRadius: '8px', border: '1px solid #ffedd5' }}>
+                  <AlertCircle size={14} color="#f97316" />
+                  <span style={{ fontSize: '0.8rem', color: '#c2410c', fontWeight: 600 }}>
+                    Contingência: R$ {parseFloat(ciclo.valor_contingencia).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               
               <div style={{ display: 'flex', justifyContent: 'space-around', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
                 <div style={{ textAlign: 'center' }}>
@@ -291,7 +368,35 @@ export function CicloManager() {
                   onChange={e => setFormData({ ...formData, valor_total_previsto: e.target.value })} 
                   placeholder="R$ 0,00"
                 />
-                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução. Preencha zero para não estabelecer teto.</small>
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Orçamento financeiro disponível para validação da execução.</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Valor de Contingência (Reserva)</label>
+                <input 
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="form-control" 
+                  value={formData.valor_contingencia} 
+                  onChange={e => setFormData({ ...formData, valor_contingencia: e.target.value })} 
+                  placeholder="R$ 0,00"
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Valor que será abatido do teto para margem de segurança no planejamento.</small>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Limite de Equipes por Dia</label>
+                <input 
+                  type="number"
+                  min="1"
+                  max="100"
+                  className="form-control" 
+                  value={formData.limite_equipes_diario} 
+                  onChange={e => setFormData({ ...formData, limite_equipes_diario: e.target.value })} 
+                  required
+                />
+                <small style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Quantidade máxima de guarnições físicas que podem ser escaladas simultaneamente.</small>
               </div>
 
               <div style={{ 
@@ -311,7 +416,7 @@ export function CicloManager() {
                         type="date"
                         className="form-control" 
                         value={formData.data_inicio} 
-                        onChange={e => setFormData({ ...formData, data_inicio: e.target.value })} 
+                        onChange={e => handleDateChange('data_inicio', e.target.value)} 
                         required 
                     />
                     </div>
@@ -321,7 +426,7 @@ export function CicloManager() {
                         type="date"
                         className="form-control" 
                         value={formData.data_fim} 
-                        onChange={e => setFormData({ ...formData, data_fim: e.target.value })} 
+                        onChange={e => handleDateChange('data_fim', e.target.value)} 
                         required 
                     />
                     </div>

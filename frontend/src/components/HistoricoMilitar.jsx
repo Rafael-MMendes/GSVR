@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Calendar, Search, Shield, Filter, Clock, ChevronDown, User, CheckCircle, AlertTriangle, XCircle, Info, BarChart3, ExternalLink, CalendarCheck } from 'lucide-react';
 import { RelatorioIndividual } from './RelatorioIndividual';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -61,6 +62,7 @@ export function HistoricoMilitar() {
           planejado_nao_executado: 0,
           executado_nao_planejado: 0,
           desistencia: 0,
+          desistenciaDays: new Set(),
           dias_disponiveis: parseInt(item.dias_disponiveis) || 0
         });
       }
@@ -72,6 +74,8 @@ export function HistoricoMilitar() {
         m.executados++;
         m.planejados++;
         m.planejado_executado++;
+      } else if (item.status_op === 'Planejado') {
+        m.planejados++;
       } else if (item.status_op === 'Planejado e não Executado') {
         m.planejados++;
         m.planejado_nao_executado++;
@@ -79,7 +83,8 @@ export function HistoricoMilitar() {
         m.executados++;
         m.executado_nao_planejado++;
       } else if (item.status_op === 'Desistência de Requerimento') {
-        m.desistencia++;
+        m.desistenciaDays.add(item.data_ref);
+        m.desistencia = m.desistenciaDays.size;
       }
     });
 
@@ -88,11 +93,16 @@ export function HistoricoMilitar() {
       return (m.nome_guerra || '').toLowerCase().includes(search) ||
         (m.matricula || '').includes(search) ||
         (m.posto_graduacao || '').toLowerCase().includes(search);
-    }).sort((a, b) => b.executados - a.executados); // Ordena por quem mais trabalhou
+    }).sort((a, b) =>
+      // Primário: maior hierarquia primeiro
+      compareByRank(a.posto_graduacao, b.posto_graduacao) ||
+      // Secundário: quem mais trabalhou
+      b.executados - a.executados
+    );
   }, [data, filter]);
 
   const ColumnHeader = ({ label, icon, color }) => (
-    <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
+    <th style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.025em' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
         <span style={{ color }}>{icon}</span>
         {label}
@@ -136,16 +146,19 @@ export function HistoricoMilitar() {
             <ChevronDown size={16} color="#64748b" style={{ position: 'absolute', top: '12px', right: '12px', pointerEvents: 'none' }} />
           </div>
 
-          <div style={{ position: 'relative', width: '280px' }}>
-            <Search size={18} color="#94a3b8" style={{ position: 'absolute', top: '12px', left: '12px' }} />
-            <input
-              type="text"
-              placeholder="Buscar por nome ou matrícula..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              style={{ width: '100%', padding: '0.65rem 1rem 0.65rem 2.5rem', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '0.9rem' }}
-            />
-          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container search-container-fixed">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar por nome ou matrícula..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
         </div>
       </div>
 
@@ -155,16 +168,16 @@ export function HistoricoMilitar() {
           <div>Processando estatísticas militares...</div>
         </div>
       ) : (
-        <div style={{ background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+        <div className="table-premium-wrapper">
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'center' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#475569', textAlign: 'left' }}>Nome</th>
+              <tr style={{ background: '#0D3878', borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700, textAlign: 'left', color: '#ffffff' }}>Nome</th>
                 <ColumnHeader label="Dias Disponíveis" icon={<CalendarCheck size={14} />} color="#0891b2" />
                 <ColumnHeader label="Executados" icon={<CheckCircle size={14} />} color="#059669" />
                 <ColumnHeader label="Planejados" icon={<Shield size={14} />} color="#2563eb" />
                 <ColumnHeader label="Planejado e Executado" icon={<BarChart3 size={14} />} color="#0D3878" />
-                <ColumnHeader label="Faltas" icon={<XCircle size={14} />} color="#dc2626" />
+                <ColumnHeader label="Planejado e Não Executado" icon={<XCircle size={14} />} color="#dc2626" />
                 <ColumnHeader label="Executado não Planejado" icon={<Info size={14} />} color="#7c3aed" />
                 <ColumnHeader label="Desistência" icon={<AlertTriangle size={14} />} color="#d97706" />
                 <th style={{ padding: '1rem', width: '56px' }} />

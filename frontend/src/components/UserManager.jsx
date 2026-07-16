@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2, Key, Save } from 'lucide-react';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -15,7 +16,7 @@ export function UserManager() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userPermissions, setUserPermissions] = useState([]);
   const [newUserData, setNewUserData] = useState({ matricula: '', is_admin: false });
-  const [sortConfig, setSortConfig] = useState({ key: 'nome_guerra', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'posto_graduacao', direction: 'asc' });
 
   useEffect(() => {
     fetchUsuarios();
@@ -150,11 +151,16 @@ export function UserManager() {
     u.numero_ordem?.includes(searchTerm)
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
-    
+
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
-    // Tratamento especial para números
     if (sortConfig.key === 'numero_ordem') {
         aVal = parseInt(String(aVal || '0').replace(/\D/g, '')) || 0;
         bVal = parseInt(String(bVal || '0').replace(/\D/g, '')) || 0;
@@ -188,17 +194,6 @@ export function UserManager() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar usuário..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '34px', width: '220px', fontSize: '0.85rem' }}
-            />
-          </div>
           <button className="btn btn-primary" onClick={() => setShowModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} /> Novo Usuário
           </button>
@@ -212,10 +207,23 @@ export function UserManager() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <StatCard label="Total de Contas" value={usuarios.length} color="#1e3a5f" />
         <StatCard label="Administradores" value={usuarios.filter(u => u.is_admin).length} color="#ef4444" />
         <StatCard label="Militares (Acesso)" value={usuarios.filter(u => !u.is_admin).length} color="#10b981" />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container" style={{ width: '300px' }}>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar usuário..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
+        </div>
       </div>
 
       {loading && usuarios.length === 0 ? (
@@ -228,21 +236,21 @@ export function UserManager() {
           <div>
             <SectionTitle icon={<Shield size={16} />} title={`Administradores (${admins.length})`} color="#ef4444" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div className="responsive-table-container">
-                <table className="admin-table">
+              <div className="table-premium-wrapper">
+                <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                   <thead>
-                    <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                    <tr>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Nível</th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>
+                      <th style={{ textAlign: 'center' }}>Nível</th>
+                      <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -267,21 +275,21 @@ export function UserManager() {
           <div>
             <SectionTitle icon={<User size={16} />} title={`Acesso Padrão (${regulares.length})`} color="#64748b" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div className="responsive-table-container">
-                <table className="admin-table">
+              <div className="table-premium-wrapper">
+                <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
                   <thead>
-                    <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                    <tr>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                      <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Nível</th>
-                      <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Ações</th>
+                      <th style={{ textAlign: 'center' }}>Nível</th>
+                      <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>

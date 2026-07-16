@@ -1,3 +1,804 @@
+## v1.32.35 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Validação de Cadastro e Status de Atividade na Importação de SVR**:
+  - **[Backend]** Adicionadas validações no processamento de planilhas de SVR em `server.js` para rejeitar escalas direcionadas a militares inativos (`status_ativo = false`) ou não cadastrados (CPF inexistente).
+  - **[Frontend]** Desenvolvido o resumo executivo detalhado de importação (processados, importados, inativos rejeitados, não cadastrados rejeitados, erros gerais) com banners informativos em `ServicosImport.jsx`.
+  - **[Frontend]** Criado o Relatório de Inconsistências oficial na tela de resultados da importação, exibindo de forma clara o nome do militar, matrícula, unidade de origem, data e o motivo da rejeição do registro descartado.
+
+---
+
+## v1.32.34 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Exibição Integral dos Gastos Diários no Relatório Executivo**:
+  - **[Frontend]** Modificado o Relatório Executivo no `FinanceiroDashboard.jsx` para apresentar a totalidade da evolução diária dos gastos no ciclo, eliminando o limite anterior de 10 dias.
+  - **[Frontend]** Integradas as novas métricas estratégicas (Horas Totais, Custo Médio e Projeção de Gastos) diretamente nas conclusões e tabelas do Relatório Executivo.
+
+---
+
+## v1.32.33 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução da Limitação de Serviços de 6 Horas e Melhorias Financeiras**:
+  - **[Banco de Dados]** Adicionado script de migração corretivo que mapeia retroativamente a `carga_horaria` e resolve o `id_tipo_servico` correspondente na tabela `SERVICOS_EXECUTADOS` (corrigindo o vínculo errôneo que marcava escalas de 8h como tipo 6h).
+  - **[Backend]** Corrigidos os endpoints de importação, inserção manual e edição de serviços para resolver dinamicamente o `id_tipo_servico` a partir da `carga_horaria` informada.
+  - **[Frontend]** Enriquecida a visualização da aba "Visão Geral" do painel financeiro com gráficos CSS de distribuição das modalidades, projeção do final do ciclo com balanço estimado (economia/déficit previsto) e alertas gerenciais automatizados.
+  - **[Frontend]** Adicionados novos indicadores estratégicos de Custo Médio por Serviço, Custo Médio por Militar e Horas Totais Trabalhadas.
+
+---
+
+## v1.32.32 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção na Exclusão de Militares (CRUD Efetivo)**:
+  - **[Backend]** Corrigida a rota `DELETE /api/efetivo/:id` em `server.js` para de fato executar a deleção na tabela `EFETIVO` após excluir o login correspondente da tabela `users`.
+
+---
+
+## v1.32.31 — 2026-06-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Relatório Executivo Financeiro do SVR**:
+  - **[Frontend]** Adicionado o novo painel de visualização e exportação "Relatório Executivo" no `FinanceiroDashboard.jsx`.
+  - **[Frontend]** Implementado layout A4 institucional contendo Capa, Sumário, Resumo Executivo, Visão Geral Consolidada, Análise Detalhada, Achados Relevantes, Recomendações Estratégicas, Conclusão e Anexos.
+  - **[Frontend]** Adicionada funcionalidade de exportação dinâmica em PDF de alta qualidade e com quebras de página controladas via `html2canvas` e `jsPDF`.
+
+---
+
+## v1.32.30 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Formatação Monetária no Memorando SVR**:
+  - **[Frontend]** Substituídas as formatações manuais de valor por chamadas à função `formatarValor` no layout A4 do memorando em `AnalyticsDashboard.jsx`. Isso assegura que todos os montantes financeiros (valores individuais de serviço, total acumulado de cada militar, débitos por OPM, recurso geral utilizado e limite orçamentário) sejam exibidos no formato oficial de Real Brasileiro (`R$ 1.234,56`) com separadores de milhares e decimais corretos.
+
+---
+
+## v1.32.29 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Sobreposição nos Metadados do Memorando SVR**:
+  - **[Frontend]** Reestruturado o cabeçalho de metadados em `AnalyticsDashboard.jsx` (Número do Memorando e Data/Localização) para ocupar linhas individuais sequenciais em vez de colunas flexíveis horizontais. Isso evita completamente a colisão e sobreposição de textos quando o número do memorando é muito extenso.
+
+---
+
+## v1.32.28 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Prevenção de Quebras de Página no Bloco Final do Memorando SVR**:
+  - **[Frontend]** Envelopado todo o bloco final do memorando (relação de débitos, parágrafo orçamentário adicional, termo de encerramento e assinaturas) em uma única `div` com a classe `bloco-militar-memo`. Isso garante que o bloco final seja analisado em conjunto pelo script de cálculo de limites da folha A4 e seja empurrado para a próxima página integralmente caso ultrapasse a borda, evitando a quebra indesejada do encerramento e da assinatura como mostrado na imagem.
+
+---
+
+## v1.32.27 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Refinamento do Memorando SVR**:
+  - **[Frontend]** Removida a coluna `CMD` da tabela de serviços executados no memorando SVR em `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Removido o botão "Imprimir Memorando" dos controles laterais do gerador.
+  - **[Frontend]** Implementado algoritmo de quebra de página dinâmico no `handleDownloadPDF` para calcular a altura dos blocos militares (`bloco-militar-memo`) e inserir espaçadores transparentes temporários, prevenindo que uma tabela fique cortada ao meio entre duas páginas no arquivo PDF final.
+
+---
+
+## v1.32.26 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Visual do Memorando SVR**:
+  - **[Frontend]** Padronizado o estilo visual, fontes (`Inter`), linhas e tabelas do gerador de memorando em `AnalyticsDashboard.jsx` para seguir os padrões do módulo de publicação de escala (`EscalaPublicacaoOficial.jsx`).
+  - **[Frontend]** Substituído o logotipo provisório em CSS do memorando pelo brasão oficial da Polícia Militar (`/pmal.png`).
+
+---
+
+## v1.32.25 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Identificação de OPM no Memorando SVR**:
+  - **[Frontend]** Normalizado o filtro de OPMs no `AnalyticsDashboard.jsx` para aceitar tanto a grafia com o caractere "º" (`9º BPM`) quanto com o caractere "o" (`9o BPM`). Isso corrige a listagem de militares no memorando SVR quando executam serviço em outras unidades.
+
+---
+
+## v1.32.24 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Erro de Execução no Print do Memorando**:
+  - **[Frontend]** Corrigido erro de referência `handlePrint is not defined` no componente `AnalyticsDashboard.jsx` ao declarar a função `handlePrint` que aciona a impressão da folha.
+
+---
+
+## v1.32.23 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resolução de Tela Branca no Publicador de Memorando**:
+  - **[Frontend]** Corrigido erro de referência `selectedCicloText is not defined` no componente `AnalyticsDashboard.jsx` ao declarar e unificar a constante com os seletores da interface.
+
+---
+
+## v1.32.22 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Publicador de Memorando SVR Oficial**:
+  - **[Frontend]** Adicionado botão "Publicar Memorando SVR" no cabeçalho do `AnalyticsDashboard.jsx`.
+  - **[Frontend]** Desenvolvido modal interativo com painel de visualização A4 do memorando oficial para consolidação de serviços executados fora do 9º BPM.
+  - **[Frontend]** Implementado suporte a edição in-line (contentEditable) das informações no próprio layout da folha, geração de PDF nativa (via jsPDF/html2canvas) e formatação otimizada para impressão.
+
+---
+
+## v1.32.21 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Reorganização de Colunas em Serviços Executados**:
+  - **[Frontend]** Invertidas as posições das colunas "Militar" (Nome) e "Posto" em `ServicosExecutadosManager.jsx` para exibir a patente primeiro, renomeando o cabeçalho para "Posto/Grad".
+
+---
+
+## v1.32.20 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ordenação padrão por Posto/Graduação**:
+  - **[Frontend]** Alterada a ordenação padrão inicial da grade de requerimentos em `RequerimentosAdmin.jsx` para ordenar por senioridade militar (Posto/Grad).
+  - **[Frontend]** Ajustada a ordenação primária no `HistoricoMilitar.jsx` para priorizar a senioridade militar (Posto/Grad) e usar a quantidade de serviços executados como critério secundário.
+
+---
+
+## v1.32.19 — 2026-06-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Ajuste na contagem e exibição de disponibilidade**:
+  - **[Frontend]** Modificado o grid no componente RequerimentosAdmin.jsx para exibir "Dias Disponíveis" no cabeçalho.
+  - **[Frontend]** Alterada a lógica de contagem e ordenação da grade para considerar dias únicos de disponibilidade (cada dia com 1 a 4 turnos selecionados conta como exatamente 1 dia de disponibilidade).
+
+---
+
+## v1.32.18 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Exibição de Serviços Executados sem Disponibilidade Registrada**:
+  - **[Backend]** Modificado o endpoint `/api/reports/disponibilidade-grid` para gerar sinteticamente os 4 turnos diários na cor verde para qualquer dia contendo serviços executados (planejados ou não planejados), mesmo que o militar não tenha cadastrado disponibilidade para esse dia.
+  - **[Backend]** Atualizado o campo `availability_completa_json` no relatório de voluntários para incluir turnos gerados dinamicamente para dias com serviço executado sem disponibilidade registrada.
+
+---
+
+## v1.32.17 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção da Grade de Disponibilidade**:
+  - **[Database/Backend]** Correção do script de migração em `backend/db.js` para alinhar as datas de disponibilidade com os limites de início/fim do ciclo operacional correspondente.
+  - **[Database]** Executado script corretivo `corrigir_datas.sql` diretamente no contêiner do banco de dados no servidor VPS, corrigindo retroativamente **621 registros** de disponibilidade com datas corrompidas.
+
+---
+
+## v1.32.16 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Resolução de Requerimentos Duplicados**:
+  - **[Database]** Adicionada a constraint de unicidade `uq_requerimentos_militar_ciclo` (`UNIQUE(id_militar, id_ciclo)`) na tabela `REQUERIMENTOS` para impedir a existência de múltiplas grades de disponibilidade para o mesmo militar no mesmo ciclo.
+  - **[Database]** Executado script de migração para fundir automaticamente as disponibilidades e redirecionar escalas planejadas dos requerimentos duplicados existentes para o registro principal, eliminando as redundâncias no banco de dados.
+
+---
+
+## v1.32.15 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Refatoração estrutural de datas de disponibilidade (SVR)**:
+  - **[Database] Migração para data completa**: Alterado o tipo de `disponibilidade_requerimento.dia_mes` de `INTEGER` para `DATE` para representação temporal absoluta de cada turno de disponibilidade. Criado script de migração segura e automatizada que converte os inteiros legados para datas reais baseado no `mes_referencia` e data de solicitação dos requerimentos existentes.
+  - **[Database] Remoção da coluna redundante**: Removida a coluna `requerimentos.mes_referencia` do banco de dados, eliminando dados duplicados.
+  - **[Backend] Motor de ciclos absoluto**: `CycleEngine.js` e `RequirementImporter.js` atualizados para trabalhar nativamente com chaves de data absoluta (`YYYY-MM-DD`).
+  - **[Backend] Adaptação de Queries e APIs**: Atualizadas as queries de desistências, relatórios operacionais, grade de disponibilidade e cadastro manual para realizar comparações nativas de data (`DATE`), mantendo as agregações retrocompatíveis com chaves de dia do mês para o frontend.
+  - **[Database] Views atualizadas**: Ajustado `db_views_relacionais.sql` para suportar o novo tipo de dado das views.
+
+---
+
+## v1.32.14 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Redesenho completo do módulo de importação de Requerimentos SVR via PDF**:
+  - **[NEW] `backend/services/CycleEngine.js`**: Motor parametrizável de ciclos operacionais. Implementa a regra de fragmentação de disponibilidade entre ciclos (dias 01–15 → ciclo anterior; dias 16–31 → ciclo corrente) sem hardcode. Configurável via tabela `CICLO_CONFIG` no banco.
+  - **[NEW] `backend/services/PdfExtractor.js`**: Extrator resiliente com 4 estratégias de detecção do mês de referência em cascata e 2 estratégias de parsing de marcações de disponibilidade. Elimina a dependência de regex única frágil.
+  - **[NEW] `backend/services/RequirementImporter.js`**: Orquestrador de pipeline de 7 estágios (validação, extração, parsing, disponibilidade, negócio, fragmentação, auditoria). Implementa auto-registro **removido** por segurança, validação de ciclos fechados e deduplicação via SHA-256.
+  - **[NEW] `backend/middleware/uploadValidation.js`**: Middleware multer restrito a PDFs (MIME type, 10MB, 50 arquivos/req) com handler de erro padronizado.
+  - **[MOD] `backend/server.js`**: Rotas de importação PDF completamente refatoradas. Adicionadas: `POST /api/import/volunteers/files` (com autenticação), `POST /api/import/preview` (dry-run), `GET /api/import/logs` (auditoria), `GET /api/ciclo-config`, `PUT /api/ciclo-config` (admin). Removido código legado (`parseRequerimentoPDF`, `processMarksLine`, `distribuirDisponibilidadeEmCiclos`, `upsertRequerimentoFragmento`).
+  - **[MOD] `backend/db.js`**: Adicionadas tabelas `CICLO_CONFIG` (motor parametrizável, seed com `dia_inicio=16`) e `IMPORTACAO_LOG` (rastreabilidade completa de importações com índices).
+
+---
+
+## v1.32.13 — 2026-06-03
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Duplicação de Guarnições**:
+  - **Backend (server.js)**: Corrigido o bug na rota `GET /api/schedules` que causava a duplicação de guarnições no painel administrativo (`AdminDashboardV2`). A duplicação ocorria porque a junção com a tabela de requerimentos (`LEFT JOIN REQUERIMENTOS`) gerava registros duplicados quando um militar possuía mais de um requerimento ativo no mesmo ciclo operacional. A consulta foi otimizada para utilizar um `LEFT JOIN LATERAL` limitando o resultado a 1 registro por militar, e foi adicionada uma validação de unicidade (`seenEscalas`) durante o agrupamento de escalas no JavaScript.
+
+---
+
+## v1.32.12 — 2026-05-18
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Controle de Publicação de Guarnições**:
+  - **Interface Administrativa (AdminDashboardV2)**: Adicionado um botão interativo (ícones `Eye` / `EyeOff`) e um status pill ("Publicada" / "Não Publicada") em cada cartão de guarnição no painel de planejamento. Guarnições marcadas como não publicadas ganham um estilo visual diferenciado (borda tracejada vermelha e leve transparência) para feedback visual imediato.
+  - **Publicação Oficial (EscalaPublicacaoOficial)**: Filtrada a lista de patrulhas para ocultar automaticamente equipes marcadas com `publicado === false` do layout de publicação oficial e da geração do PDF.
+  - **Persistência de Dados (Backend & DB)**: Adicionada a coluna `publicado` na tabela `ESCALA_PLANEJAMENTO` no banco de dados PostgreSQL (via schema inicial e script de migração no `db.js`) e ajustados os endpoints de listagem e salvamento no `server.js` para garantir que o estado de publicação seja persistido no banco de dados.
+
+---
+
+## v1.32.11 — 2026-05-18
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Exportação e Diagramação de Escalas em PDF**:
+  - **Identidade Visual**: Refatorada o brasão oficial da Polícia Militar de Alagoas (`pmal.png`) no cabeçalho do documento de publicação de escalas, com proporções nativas preservadas (`objectFit: 'contain'`) para evitar achatamento.
+  - **Paginação Dinâmica e Precisa**: Refatorada a função `handleExportPDF` para aplicar temporariamente `width: '900px'` no contêiner durante a exportação, alinhando de forma 100% precisa os cálculos de `getBoundingClientRect()` e `offsetHeight` com o motor de renderização do `html2canvas` independente da resolução ou zoom do navegador do usuário.
+  - **Recuo de Margem Superior**: Implementado recuo dinâmico de `35px` no topo da segunda e terceira páginas do PDF para garantir que o título do turno (`TURNO: DIURNO...`) não fique colado no corte físico superior da folha, mantendo a harmonia visual idêntica à da primeira página.
+
+---
+
+## v1.32.10 — 2026-05-12
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Renderização (White Screen)**: Identificada e resolvida a causa da tela branca no index do sistema. O erro ocorria devido ao cabeçalho restritivo de Content Security Policy (`default-src 'none'`) injetado por padrão pelo middleware `helmet` no backend, que bloqueava a aplicação de estilos inline e a execução de scripts do React/Vite.
+  - **Backend**: Desativada a diretiva `contentSecurityPolicy` nas configurações do `helmet` em `backend/server.js`.
+  - **Infraestrutura**: Reinicializados os contêineres `ft-backend` e `ft-frontend` via Portainer para aplicar as alterações em ambiente Docker sem suporte nativo a polling de arquivos do host.
+- **Identidade Visual**: Confirmada a reinserção e o correto dimensionamento do brasão oficial da Polícia Militar de Alagoas (`pmal.png`) no cabeçalho institucional da publicação oficial de escalas.
+
+---
+
+## v1.32.9 — 2026-05-12
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Sanitização de Dados (Database)**: Implementada conversão automática de strings vazias (`''`) para `NULL` no campo `observacoes` em todas as rotas de criação e cancelamento de requerimentos. Isso garante que filtros de banco de dados (`IS NOT NULL`) funcionem conforme o esperado.
+- **Resiliência de Infraestrutura**: Atualização do sistema para o novo IP do servidor (`192.168.1.119`).
+  - **Nginx Proxy Manager**: Reconfiguração dos Proxy Hosts para os novos domínios `nip.io`.
+  - **Configuração**: Sincronização do `.env` do frontend com o novo endpoint da API.
+- **Identidade Visual (Escala Oficial)**: Adicionado o brasão oficial da Polícia Militar de Alagoas (`pmal.png`) ao cabeçalho do componente de exportação de escalas, reforçando o padrão institucional dos documentos gerados.
+
+---
+
+## v1.32.8 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Reversão de Mudanças (v1.32.4)**: Revertida a lógica de UPSERT na importação de PDFs e a validação de segurança na exclusão de requerimentos, retornando ao modelo de "Excluir e Reinserir" físico.
+
+---
+
+## v1.32.7 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Resiliência na Sincronização (AdminDashboardV2)**: Resolvida inconsistência onde dados desapareciam após refresh ou troca de ciclo.
+  - **Sincronização de Data**: Agora o dashboard ajusta automaticamente a `selectedDate` para o início do ciclo caso a data atual (Hoje) esteja fora do intervalo permitido.
+  - **Prevenção de Race Conditions**: Implementada atualização de estado funcional (`setState(prev => ...)`) no carregamento de escalas para evitar que atualizações simultâneas de voluntários e patrulhas se sobreponham.
+  - **Estabilidade no Seletor**: O seletor de ciclos agora garante que a data seja validada e ajustada imediatamente após a troca manual.
+
+---
+
+## v1.32.6 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Sincronização de Estado (AdminDashboard)**: Corrigido problema onde novas escalas salvas não apareciam imediatamente na interface.
+  - **Backend**: Refatorada a rota `POST /api/schedules` para utilizar `db.transaction`, garantindo que todas as operações (delete/insert) ocorram na mesma conexão do PostgreSQL e sejam confirmadas corretamente no pool.
+  - **Frontend**: Removida restrição na função `loadSchedule` que impedia o carregamento de escalas se a lista de voluntários estivesse vazia (útil para escalas compulsórias ou ciclos novos).
+
+---
+
+## v1.32.5 — 2026-05-12
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Seletor de Ciclo Dinâmico**: Adicionado seletor de ciclos no `AdminDashboardV2.jsx`, permitindo que o gestor alterne manualmente entre ciclos operacionais para planejar escalas futuras ou auditar passadas.
+- **Filtro 'Mostrar Todos'**: Implementada funcionalidade de exibir voluntários indisponíveis no dia selecionado. Isso permite localizar militares que não marcaram disponibilidade no requerimento original, mas que podem ser escalados manualmente.
+- **Melhoria UX no Pool**: Novo design para o cabeçalho do pool de voluntários e mensagens de "Empty State" orientando o usuário sobre como encontrar militares.
+- **Hardening no Backend**: Adicionados logs de auditoria e conversão explícita de tipos no gatilho de recálculo de metas diárias, garantindo que a ativação de um ciclo gere corretamente o planejamento financeiro/equipes.
+
+---
+
+## v1.32.3 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Busca Multicritério**: Expandida a funcionalidade de busca no `ServicosExecutadosManager.jsx` para incluir a coluna **Guarnição**. Agora o gestor pode localizar registros pesquisando simultaneamente por Nome de Guerra, Matrícula ou Nome da Equipe.
+
+---
+
+## v1.32.2 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Filtro por OPM no Agrupamento**: A visão de guarnições agrupadas agora filtra automaticamente os resultados para exibir apenas as equipes vinculadas à OPM do ciclo operacional selecionado.
+- **Precisão Operacional**: Garantia de que guarnições de unidades distintas (ex: CPM/I-Faz vs 9º BPM) não sejam misturadas na visualização quando múltiplos contextos de serviço coexistem no mesmo período.
+
+---
+
+## v1.32.1 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Visão por Guarnição**: Implementado sistema de abas no `ServicosExecutadosManager.jsx`, permitindo alternar entre a lista individual de serviços e uma nova visão agrupada por equipe (guarnição).
+- **Agrupamento Dinâmico**: Nova lógica de processamento que agrupa militares que prestaram serviço na mesma guarnição e data, facilitando a conferência de equipes formadas.
+- **Tabela de Equipes**: Exibição consolidada com lista de integrantes, quantidade de militares por equipe, carga horaria comum e valor total de remuneração da guarnição.
+- **UX/UI**: Adição de indicadores visuais para militares ausentes/justificados dentro do agrupamento de guarnição (nome tachado).
+
+---
+
+## v1.32.0 — 2026-05-11
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Contingência de Orçamento**: Implementada a funcionalidade de definir um valor de contingência (reserva de segurança) por ciclo operacional.
+- **Cálculo de Saldo Real**: Atualizada a lógica do sistema para que o saldo disponível para planejamento seja calculado como `Teto - Contingência - Executado`, garantindo maior transparência e segurança financeira.
+- **Automação de Metas**: O motor de otimização (`ScaleOptimizationService.js`) agora abate automaticamente o valor contingenciado antes de distribuir as metas diárias, evitando o empenho total do orçamento previsto.
+- **Interface de Gestão**: Inclusão de campo específico para Valor de Contingência no cadastro de ciclos (`CicloManager.jsx`) com indicadores visuais nos cards de resumo.
+- **Painel de Planejamento**: Adicionado card de "Contingência" no `MetasAlocacaoManager.jsx` e expansão do sumário financeiro para 5 colunas, detalhando a composição do saldo.
+
+---
+
+## v1.31.0 — 2026-05-09
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Global de Grids (Premium)**: Implementação de um novo sistema de contêiner para tabelas (`.table-premium-wrapper`) em todo o sistema.
+- **Sticky Headers**: Todos os cabeçalhos das tabelas administrativas e dashboards agora permanecem fixos no topo durante a rolagem, garantindo a visibilidade do contexto das colunas em grandes volumes de dados.
+- **Rolagem Interna & UX**: Implementação de rolagem vertical interna (`overflow-y: auto`) com altura máxima otimizada (`65vh`), permitindo que a navegação principal e o rodapé institucional permaneçam sempre visíveis.
+- **Scrollbar Premium**: Adição de barra de rolagem customizada, minimalista e com estética institucional, melhorando o acabamento visual das tabelas.
+- **Refatoração de Componentes**: Atualização de 11 módulos operacionais, incluindo `HistoricoMilitar`, `EfetivoManager`, `RequerimentosAdmin`, `ServicosExecutadosManager`, `UserManager`, `MetasAlocacaoManager`, `TiposServicoManager`, `RelatorioOperacional`, `AnalyticsDashboard` e `FinanceiroDashboard`.
+- **Integridade de Documentos**: Exclusão explícita de componentes de impressão/PDF da lógica de sticky headers para preservar a fidelidade na geração de documentos oficiais.
+
+---
+
+## v1.30.0 — 2026-05-08
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Trava de Segurança Financeira**: Implementada lógica de bloqueio no `MetasAlocacaoManager.jsx` que impede o salvamento de metas que excedam o saldo disponível do ciclo, garantindo a integridade orçamentária.
+- **Métricas Operacionais**: Inclusão da contagem de "Equipes Planejadas (Restante)" no card de resumo financeiro, permitindo visualizar o potencial de escala dentro do orçamento.
+- **Admin Dashboard Pro**: Integração da "Meta do Dia" no sidebar do `AdminDashboardV2.jsx`, com indicadores visuais de progresso (escalado vs meta) e alertas de estouro em tempo real.
+- **Navegação Inteligente**: Reorganização do menu global (`App.jsx`), movendo a gestão de Metas de Alocação para a categoria de "Dashboards" para facilitar o monitoramento financeiro.
+- **Identidade Visual Premium**: Integração do componente `Footer` em todo o sistema e no gerador de PDF oficial, padronizando os créditos de desenvolvimento e informações institucionais.
+- **Layout & UX**: Ajustes finos de grid e espaçamento nas tabelas administrativas para eliminar espaços em branco laterais e melhorar a legibilidade em alta resolução.
+
+---
+
+## v1.29.0 — 2026-05-08
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Automação de Metas**: Implementação de motor de otimização guloza que realiza o 'upsert' automático na tabela `METAS_ALOCACAO` sempre que um ciclo é criado ou atualizado.
+- **Backend**: Criação do `ScaleOptimizationService.js` e adição de helper de transações no `db.js` para garantir a integridade referencial dos dados planejados.
+- **Frontend**: Inclusão do campo "Limite de Equipes por Dia" no `CicloManager.jsx`, permitindo que o gestor ajuste a capacidade operacional do ciclo.
+- **Frontend**: Novo módulo "Metas de Alocação" (`MetasAlocacaoManager.jsx`) para visualização detalhada, edição manual e exclusão de metas diárias.
+- **Database**: Adição da coluna `limite_equipes_diario` na tabela `CICLOS`.
+
+---
+
+## v1.28.51 — 2026-05-07
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Padronização Hierárquica**: Centralização da lógica de hierarquia militar no utilitário `formatters.js`, definindo uma ordem canônica (`MILITARY_RANK_ORDER`) do Coronel ao Soldado.
+- **Ordenação Global**: Implementação de ordenação baseada em postos e graduações em todo o sistema. Militares agora são listados e agrupados respeitando a senioridade por padrão nos módulos de Efetivo, Requerimentos, Gestão de Escalas e Relatórios.
+- **UI/UX**: O gerenciador de efetivo (`EfetivoManager.jsx`) e a gestão de usuários (`UserManager.jsx`) agora iniciam ordenados por hierarquia (índice 0 = CEL PM), facilitando a localização de oficiais e praças.
+- **UI/UX**: A barra de navegação principal (`App.jsx`) tornou-se dinâmica, exibindo a sigla da OPM (`opm.sigla`) vinda do banco de dados no título do sistema, em substituição ao texto estático.
+
+---
+
+## v1.28.50 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Reorganização das ações principais na tela de gerenciamento de guarnições (`AdminDashboardV2.jsx`). O botão "Imprimir Escala", que usava a função nativa do navegador, foi removido da barra lateral de ações.
+- **UI/UX**: O botão que leva à view oficial da escala foi transferido do cabeçalho principal para o final da lista de "Ações de Escala" na barra lateral e renomeado de "Publicação Oficial" para "Publicar Escala". O botão foi estilizado com o tom escuro institucional, agilizando o fluxo de trabalho do administrador (Nova Guarnição -> Salvar -> Publicar).
+
+---
+
+## v1.28.49 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Funcionalidade**: Ajuste no padrão de nomenclatura do arquivo PDF exportado. A data no nome do arquivo foi alterada do formato ISO (`AAAA-MM-DD`) para o padrão brasileiro (`DD-MM-AAAA`), facilitando a organização e identificação dos arquivos pelos usuários.
+
+---
+
+## v1.28.48 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: O botão e a função de impressão padrão ("Imprimir Escala") foram removidos da tela `EscalaPublicacaoOficial.jsx`. A exportação direta em PDF passa a ser o fluxo primário e exclusivo para salvar e imprimir o documento oficial, garantindo que o padrão visual não sofra interferência dos navegadores.
+
+---
+
+## v1.28.47 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Funcionalidade**: Adicionada a funcionalidade de "Exportar PDF" diretamente na tela de Publicação Oficial da Escala.
+- **Frontend**: Instalação das bibliotecas `html2canvas` e `jspdf` no projeto React para permitir a renderização perfeita da DOM em formato PDF.
+- **UI/UX**: O botão de exportação foi posicionado estrategicamente ao lado do botão de impressão tradicional. O novo gerador de PDF clona todo o bloco oficial da escala, oculta os seletores de cores (`.no-print`) e força a resolução e dimensões adequadas ao papel A4, preservando fielmente todas as fontes, cores e tabelas centralizadas.
+
+---
+
+## v1.28.46 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Alinhamento de todos os dados e cabeçalhos da tabela de guarnições ao centro (`textAlign: 'center'`) na visualização de `EscalaPublicacaoOficial.jsx`, proporcionando um visual mais simétrico e padronizado para a impressão.
+
+---
+
+## v1.28.45 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Inclusão do local e horário de embarque na tela de publicação oficial (`EscalaPublicacaoOficial.jsx`). A informação agora é renderizada logo à frente do turno de cada guarnição, consumindo o dado do banco (`horario_embarque`) ou exibindo o texto padrão, garantindo que o local de encontro esteja claramente visível no momento da impressão da escala.
+
+---
+
+## v1.28.44 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Inserção do campo de texto `horario_embarque` diretamente no card da guarnição dentro do componente `AdminDashboardV2`. 
+- **Funcionalidade**: O campo já vem pré-preenchido com o texto padrão de embarque ("local de embarque; 30 minutios de antecedencia na sede do 9º BPM") caso esteja vazio. Os dados inseridos ou editados neste campo são vinculados ao estado da guarnição e preparados para serem persistidos na tabela `escala_planejamento` durante o salvamento da escala.
+
+---
+
+## v1.28.43 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Ajustes no layout de impressão e visualização da tela `EscalaPublicacaoOficial`.
+- **UI/UX**: O cabeçalho de "TURNO" deixou de ser um agrupador genérico e passou a ser exibido isoladamente **acima de cada tabela** de guarnição, facilitando a identificação rápida e o recorte da escala, caso necessário.
+- **UI/UX**: Substituição da coluna "Matrícula" pela coluna "Telefone" nas tabelas de serviço, permitindo o acionamento direto e facilitado do efetivo escalado através da visualização impressa ou digital.
+
+---
+
+## v1.28.42 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Aprimoramento da tabela de guarnições no componente `EscalaPublicacaoOficial` para incluir novas informações vitais para a operação.
+- **Frontend**: Adicionada a coluna "Função", que identifica automaticamente o papel do militar na guarnição (Comandante, Motorista ou Patrulheiro) com base em seu índice de alocação.
+- **UI/UX**: Incluído o "Número de Ordem" de cada voluntário. Este dado é agora renderizado abaixo do Nome de Guerra com uma tipografia atenuada, evitando a criação de novas colunas e mantendo a legibilidade da escala para o formato A4.
+- **UI/UX**: Rebalanceamento automático das larguras percentuais do cabeçalho da tabela para comportar perfeitamente a nova coluna de Função.
+
+---
+
+## v1.28.41 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Refatoração estrutural da tela `EscalaPublicacaoOficial`. As guarnições deixaram de ser agrupadas em uma única tabela por turno e passaram a ser renderizadas em tabelas individuais e isoladas para cada equipe.
+- **Frontend**: O seletor de cores da tabela foi transferido do nível de "Turno" para o nível de "Guarnição", permitindo que cada equipe tenha uma cor de fundo estritamente independente.
+- **UI/UX**: Remoção da coluna lateral "Guarnição" (`rowSpan`) da tabela, substituindo-a por um cabeçalho exclusivo para cada tabela contendo o nome da equipe, duração e as ferramentas de cor.
+- **UI/UX**: Implementada propriedade de layout (`page-break-inside: avoid`) para garantir que as novas tabelas individuais não sejam cortadas em páginas diferentes durante a impressão.
+
+---
+
+## v1.28.40 — 2026-05-06
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Refatorada a customização de cores no componente `EscalaPublicacaoOficial` para permitir cores independentes por turno (tabela).
+- **Frontend**: Implementados seletores de cores individuais nos cabeçalhos de cada bloco de turno.
+- **UI/UX**: Migrada a aplicação de cores para estilos inline, garantindo suporte a múltiplas cores na mesma página de visualização e impressão.
+
+---
+
+## v1.28.39 — 2026-05-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Frontend**: Criado o componente `EscalaPublicacaoOficial` para visualização e impressão de escalas em layout institucional (A4), com agrupamento inteligente por turnos.
+- **Frontend**: Adicionado botão de acesso rápido à "Publicação Oficial" no cabeçalho do `AdminDashboardV2`.
+- **UI/UX**: Aumentado o tamanho da fonte e melhorada a legibilidade das tags de horário e duração nos cartões de serviço do painel administrativo.
+- **Fix**: Corrigido erro de referência e crash de "tela branca" ao abrir o banco de voluntários no AdminDashboardV2.
+- **Fix**: Normalizada a busca de ciclos operacionais para garantir compatibilidade entre tipos de dados (String/Number).
+
+---
+
+## v1.28.38 — 2026-05-05
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Backend**: Refatorada a rota de cancelamento de disponibilidade (`/api/volunteers/:id/cancel-availability`) para suportar operações cirúrgicas por turno e dia, eliminando o bug de persistência que causava modificações indesejadas em registros vizinhos.
+- **Backend**: Adicionado suporte ao campo `availability_completa` no endpoint de voluntários, garantindo a integridade dos dados históricos de turnos ativos e inativos.
+- **Frontend**: Corrigida a lógica de envio de parâmetros no componente `RequerimentosAdmin`, assegurando que o `dia_mes` e `horario_turno` sejam propagados corretamente para a API de cancelamento.
+- **Frontend**: Ajustada a lógica de contagem de desistências nos componentes `HistoricoMilitar` e `RelatorioIndividual` para considerar dias únicos em vez de somar turnos individuais (ex: múltiplos turnos cancelados no mesmo dia agora contam como apenas 1 dia de desistência).
+- **UI/UX**: Implementada sinalização visual distinta para turnos cancelados na grade de disponibilidade (fundo vermelho e ícone de exclusão), melhorando o feedback para o gestor de escalas.
+
+---
+
+## v1.28.37 — 2026-05-01
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Backend**: Atualizada a rota `/api/usuarios` para retornar o campo `opm` do efetivo, permitindo a visualização da unidade vinculada no painel de Gestão de Usuários.
+- **Frontend**: O grid de usuários agora exibe corretamente a OPM do militar (administradores e usuários padrão).
+
+---
+
+## v1.28.36 — 2026-05-01
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **UI/UX**: Adicionados filtros manuais de "Data Início" e "Data Fim" no componente `ServicosExecutadosManager`, permitindo maior flexibilidade na consulta de serviços além do intervalo automático do ciclo.
+- **Iconografia**: Implementados ícones de calendário nos novos campos de data para manter a consistência visual premium do sistema.
+
+---
+
+## v1.28.35 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Analytics Dashboard**: Implementadas abas de navegação dinâmicas que se adaptam automaticamente às OPMs de origem encontradas nos dados de serviços executados.
+- **Filtragem Inteligente**: O grid de estatísticas agora pode ser filtrado clicando na aba respectiva de cada OPM (ex: 9º BPM, CPM/I-Faz, etc.), enquanto a aba "Geral" mantém a visão consolidada por militar para controle do limite de serviços.
+- **UX**: Melhorada a navegabilidade do painel analítico com suporte a múltiplas unidades operacionais de forma automática, eliminando botões estáticos e hardcoded.
+
+---
+
+## v1.28.34 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **UX/UI**: Refinamento da barra de filtros no `ServicosExecutadosManager`. Removidos os seletores manuais de "Data Início" e "Data Fim" para simplificar a interface, mantendo a filtragem automática baseada no Ciclo Operacional selecionado.
+- **Ajuste de Layout**: O campo de busca no módulo de serviços executados foi movido de volta para a barra de filtros principal (após o ciclo/militar) para melhor ergonomia de uso local.
+- **Estabilidade**: Correção de erro de sintaxe JSX no componente de serviços executados, restaurando a funcionalidade do módulo.
+
+---
+
+## v1.28.33 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Design System Global**: Implementação de um padrão visual premium para todos os inputs de busca do sistema, utilizando bordas institucionais (#0D3878) de 1.5px, efeito glassmorphism (backdrop-filter) e sombras de foco aprimoradas.
+- **Padronização de Localização**: Reposicionamento estratégico dos campos de busca para ficarem imediatamente acima dos grids de dados em todos os módulos administrativos (`UserManager`, `EfetivoManager`, `RequerimentosAdmin`, `HistoricoMilitar` e `AnalyticsDashboard`), garantindo consistência e foco contextual.
+
+---
+
+## v1.28.32 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **UI/UX**: Atualizada a cor do cabeçalho do grid no componente `HistoricoMilitar.jsx` para `#0D3878` (Azul Institucional GSVR) com texto em branco, garantindo consistência visual com os demais módulos do sistema.
+
+---
+
+## v1.28.31 — 2026-04-29
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Frontend**: No componente `ServicosExecutadosManager.jsx`, a coluna **Status** (Presença) foi substituída pela coluna **OPM**, exibindo o dado `opm_origem` da tabela de serviços executados. O status de presença permanece acessível via tooltip (title) ao passar o mouse sobre a sigla da OPM.
+- **UX**: Adicionada funcionalidade de ordenação por OPM no grid de serviços executados.
+
+---
+
+## v1.28.30 — 2026-04-29
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Configuração**: Integrado o arquivo `frontend/.env` com o `docker-compose.yml` utilizando a diretiva `env_file`. 
+- **Melhoria**: Removido o IP hardcoded do `docker-compose.yml`, permitindo que o arquivo `.env` seja a única fonte de verdade para a variável `VITE_API_URL`. Isso evita que as configurações do Docker sobrescrevam as configurações locais e facilita futuras mudanças de IP.
+
+---
+
+## v1.28.29 — 2026-04-29
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Infraestrutura**: Atualizado o IP do servidor de `192.168.1.134`/`144` para `192.168.1.123` (novo IP detectado após desligamento do servidor).
+- **Configuração**: Atualizada a variável `VITE_API_URL` em `docker-compose.yml` e `.env` para apontar corretamente para o novo IP, restabelecendo a comunicação entre o frontend e a API backend.
+- **Docker**: Ajustadas as configurações de ambiente para garantir que os contêineres utilizem o novo endereço de rede.
+
+---
+
+## v1.28.28 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Frontend**: Removido `window.confirm` do fluxo de cancelamento em `RequerimentosAdmin.jsx` para evitar bloqueios de navegadores e garantir que o botão "Sim, Cancelar" funcione instantaneamente conforme o esperado pelo usuário.
+
+---
+
+## v1.28.27 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **Backend**: Corrigido erro de sintaxe Postgres no lookup de efetivo (aspas duplas trocadas por simples), eliminando o erro "zero-length delimited identifier".
+- **Backend**: Melhorada a busca de militar no POST /api/volunteers para aceitar tanto matrícula quanto número de ordem, resolvendo falhas na criação manual de requerimentos.
+- **Backend**: Adicionado log detalhado de requisições e erros de autenticação para depuração.
+- **Frontend**: Adicionado interceptor global de 401 para deslogar usuários com sessão expirada, prevenindo falhas silenciosas de autorização.
+- **Frontend**: Garantido que o ciclo ativo e o ID do usuário da sessão sejam vinculados corretamente ao criar requerimentos.
+
+---
+
+## v1.28.26 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Vínculo de Auditoria em Requerimentos**: Atualizada a tabela `REQUERIMENTOS` para incluir a coluna `id_usuario_criacao`. A rota `POST /api/volunteers` agora utiliza o middleware de autenticação e registra automaticamente o ID do usuário logado que realizou a inserção manual.
+- **[Backend] Estabilidade no Salvamento**: Refatorada a lógica de criação de voluntários para aceitar `id_ciclo` explícito via corpo da requisição, prevenindo erros de "Ciclo não encontrado" quando a data atual do servidor não coincide com a janela de um ciclo aberto.
+- **[Frontend] Requerimentos Admin**: Atualizado o componente `RequerimentosAdmin` para receber dados da sessão do usuário e enviar o ID do ciclo ativo durante o salvamento de novos registros, corrigindo a causa raiz da falha no botão "Novo".
+- **[Database] Migração**: Adicionadas colunas `id_usuario_criacao` e `observacao` à tabela `REQUERIMENTOS` via script de migração automática no `db.js`.
+
+---
+
+## v1.28.25 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Correção de Falsos Positivos**: Refatorado o trigger `trg_planejamento_ternaria` no banco de dados para distinguir entre escalas futuras e passadas. Serviços planejados para datas posteriores a hoje são agora categorizados com o novo status `'Planejado'`, evitando que sejam contabilizados incorretamente como "Faltas" (Planejado e não Executado).
+- **[Backend] API de Relatórios**: Atualizado o endpoint `/api/reports/operacional-detalhado` para aplicar a mesma lógica condicional de data na classificação do `status_op`, garantindo consistência entre o banco e a API.
+- **[Frontend] Relatório Individual e Histórico**: Implementado suporte ao status `'Planejado'` nos componentes de visualização. O status é exibido com cor azul e ícone de calendário, indicando um agendamento futuro legítimo, sem impactar negativamente os indicadores de eficiência ou produtividade do militar.
+
+---
+
+## v1.28.24 — 2026-04-28
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Importação de Efetivo (Excel)**: Corrigido bug no mapeamento de colunas que permitia que colunas com nomes como "Sub Unidade" sobrescrevessem o valor da coluna "OPM". A prioridade agora é garantida para a coluna "OPM" nativa, evitando vinculações incorretas de lotação.
+- **[Backend] Atualização de OPM em Lote**: Adicionada a capacidade de atualizar o campo OPM de militares já existentes no banco de dados durante novas importações de planilhas.
+
+---
+
+## v1.28.23 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Database] Campo de Observação**: Adicionada a coluna `observacao` à tabela `REQUERIMENTOS` para permitir anotações gerais sobre a solicitação do militar.
+- **[Backend] API de Voluntários**: Atualizada a rota `PUT /api/volunteers/:id` para persistir as observações e o `GET /api/volunteers` para retorná-las ao frontend.
+- **[UI/UX] Edição de Requerimento**: Implementado campo de texto (textarea) no modal de edição de requerimentos, permitindo que administradores registrem e visualizem observações importantes.
+- **[Database] Observações por Turno**: Suporte a observações individuais para cada turno selecionado na grade de disponibilidade (tabela `DISPONIBILIDADE_REQUERIMENTO`).
+- **[UI/UX] Notas na Grade**: Adicionada funcionalidade de "Botão Direito" na grade de disponibilidade para inserir notas em turnos específicos. Um marcador visual (ponto amarelo) indica turnos com observações.
+- **[Estabilidade] Sincronização de Dados**: Refatoração da estrutura de disponibilidade para suportar objetos complexos sem quebrar o preenchimento de novos requerimentos.
+- **[Bug Fix] Estabilidade da Interface**: Corrigido erro de "tela branca" e falha na lógica de ordenação.
+- **[Security/Estabilidade] Sessão do Usuário**: Adicionado `try-catch` na restauração de sessão do `App.jsx`.
+
+---
+
+## v1.28.22 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Importação de PDFs**: Implementada a extração automática do "Número do Requerimento" (ex: 17566/2026) diretamente do texto do PDF.
+- **[Backend] Persistência de Requerimento**: Atualizadas as funções de banco de dados (`upsertRequerimentoFragmento` e `distribuirDisponibilidadeEmCiclos`) para salvar o número do requerimento na tabela `REQUERIMENTOS`, garantindo que o campo não fique nulo após a importação.
+
+---
+
+## v1.28.21 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Backend] Correção na Importação de PDFs**: Corrigida a lógica de parsing da biblioteca `pdf-parse` em `server.js` (`parseRequerimentoPDF`). O algoritmo agora aplica `.toUpperCase()` nas linhas e turnos extraídos, resolvendo a falha onde horários com minúsculas (ex: "07:00 às") não eram reconhecidos, o que resultava no registro do ciclo mas deixava a grade com "0" turnos selecionados para o militar. O sistema agora lê com sucesso todos os turnos marcados.
+
+---
+
+## v1.28.20 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Serviços Executados] Dinamismo nas Cargas Horárias**: A constante hardcoded `CARGA_OPTIONS` foi substituída por dados dinâmicos buscados no endpoint `/api/tipos-servico`.
+- **[UI/UX] Atualização Dinâmica**: As opções do seletor e os _placeholders_ automáticos de valor de remuneração agora refletem instantaneamente as parametrizações da tabela `TIPOS_SERVICO` persistida no banco de dados.
+
+---
+
+## v1.28.19 — 2026-04-27
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Importação] Tratamento de Exceção de Datas**: Implementada regra de negócio na rotina de fragmentação de disponibilidade (`distribuirDisponibilidadeEmCiclos`) que ignora automaticamente dias inválidos no mês de referência (ex: 31 de Abril, 30/31 de Fevereiro) detectados no PDF. Isso previne o erro "out of range" no banco de dados e assegura a importação do restante do requerimento normalmente.
+
+---
+
+## v1.28.18 — 2026-04-23
+**Autor:** Alan Kleber
+**Email:** alan.kleber@example.com
+
+### Mudanças:
+- **[Feature] Gestão de Ciclos — Controle de Ativação**: Implementado interruptor (*toggle switch*) no `CicloManager.jsx` para ativação/desativação rápida de ciclos operacionais diretamente nos cards, com sincronização automática do status ('Aberto'/'Fechado') e do campo booleano `ativo`.
+- **[Logic] Orçamento Dinâmico no Analytics**: Substituída a constante estática `ORCAMENTO_MENSAL` por lógica de cálculo dinâmico baseada no campo `valor_total_previsto` da tabela de ciclos, garantindo precisão financeira em tempo real no `AnalyticsDashboard.jsx`.
+- **[Feature] Detalhes de Escalas no Planejamento**: Adicionado modal de informações militares no `AdminDashboardV2.jsx` que exibe o histórico completo de escalas planejadas e executadas para o militar selecionado no ciclo atual.
+- **[UI/UX] Unificação de Indicadores de Carga**: Padronizada a exibição de contadores de serviço no modal de voluntários utilizando o formato "X/8" tanto para escalas planejadas (PLAN) quanto executadas (EXEC), com estilização harmonizada e selos identificadores.
+- **[UI/UX] Redesign de Cards de Ciclo**: Reestruturado o layout dos cards no gerenciador de ciclos para agrupar status, controle de ativação e ações de edição no topo, melhorando a escaneabilidade e acessibilidade.
+- **[Backend] Evolução do Esquema de Dados**: Adicionado campo `ativo` (BOOLEAN) à tabela `CICLOS` e otimizado o endpoint `/api/volunteers` para retornar contagens segregadas de planejamentos e execuções por militar.
+
+---
+
 ## v1.28.17 — 2026-04-22
 **Autor:** Alan Kleber
 **Email:** alan.kleber@example.com
@@ -235,7 +1036,7 @@
 **Email:** alan.kleber@example.com
 
 ### Mudanças:
-- **[UI/UX] Padronização de Cabeçalhos de Grid**: Implementado o fundo azul institucional (`var(--primary)`) e texto branco em todos os cabeçalhos (`th`) das tabelas de gestão (`UserManager`, `ServicosExecutadosManager`, `RequerimentosAdmin`, `TiposServicoManager`).
+- **UI/UX**: Atualizada a cor do cabeçalho do grid no componente `HistoricoMilitar.jsx` para `#0D3878` (Azul GSVR) com texto em branco, padronizando a identidade visual com o restante do sistema.
 - **[UI/UX] Consistência Estrita**: Reforçada a especificidade dos estilos inline nos cabeçalhos para garantir a identidade visual "Premium" e evitar conflitos com o CSS global, removendo bordas redundantes e padronizando o padding.
 - **[UI/UX] Refinamento dos Modais de Requerimentos**: Grade de disponibilidade nos modais de edição e visualização agora seguem o padrão visual do cabeçalho principal.
 

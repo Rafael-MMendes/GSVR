@@ -1,5 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+html {
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  html { font-size: 15px; }
+}
+@media (min-width: 1200px) {
+  html { font-size: 16px; }
+}
+@media (min-width: 1920px) {
+  html { font-size: 17px; }
+}
+@media (min-width: 2560px) {
+  html { font-size: 19px; }
+}
+
 :root {
   --bg-dark: #F1F5F9;           /* Slate 100 - Light Background */
   --bg-panel: #F8FAFC;          /* Slate 50 - Panels */
@@ -29,6 +45,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+}
+
 /* Typography */
 h1, h2, h3, h4, h5 {
   font-weight: 600;
@@ -50,14 +76,40 @@ h3 { font-size: 1.25rem; }
 }
 
 .container {
-  max-width: 1400px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+  transition: max-width 0.3s ease;
 }
 
 @media (min-width: 768px) {
   .container {
     padding: 2rem 1.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    max-width: 1350px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1550px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1750px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .container {
+    max-width: 2200px;
   }
 }
 
@@ -591,10 +643,59 @@ h3 { font-size: 1.25rem; }
   }
 }
 
-/* Responsividade de Tabelas Admin */
+/* Responsividade de Tabelas Admin e Rolagem Interna Premium */
 .responsive-table-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.table-premium-wrapper {
+  max-height: 65vh;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: white;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.table-premium-wrapper table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-premium-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--primary) !important;
+  color: white !important;
+  box-shadow: inset 0 -2px 0 var(--border-color); /* Substitute for border-bottom which fails on sticky */
+}
+
+/* Custom Scrollbar Premium */
+.table-premium-wrapper::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.responsive-table-container table {
+  width: 100%;
 }
 
 .btn-mobile-full {
@@ -800,8 +901,207 @@ h3 { font-size: 1.25rem; }
   color: #0d3878;
 }
 
+/* Switch UI */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #10b981; /* Success Color */
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #10b981;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 24px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
 .action-btn-warning:hover:not(:disabled) {
   background: #fffbeb;
   border-color: #f59e0b;
   color: #f59e0b;
+}
+
+/* ============================================================
+   SEARCH INPUTS STANDARDIZED (PREMIUM UI/UX)
+   ============================================================ */
+
+.search-container {
+  position: relative;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.search-input {
+  width: 100%;
+  height: 42px; /* Altura padronizada */
+  padding: 0.6rem 1rem 0.6rem 2.8rem !important;
+  background: rgba(255, 255, 255, 0.6) !important; /* Suavidade com transparência */
+  backdrop-filter: blur(8px); /* Efeito glassmorphism */
+  border: 1.5px solid var(--primary) !important; /* Borda institucional para destaque */
+  border-radius: 12px !important;
+  color: #1e293b !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.9rem !important;
+  font-weight: 500 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+.search-input::placeholder {
+  color: #94a3b8 !important;
+  font-weight: 400 !important;
+  opacity: 0.7;
+}
+
+.search-input:focus {
+  outline: none !important;
+  border-color: var(--primary) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important; /* Fica mais sólido no foco para leitura */
+  box-shadow: 0 0 0 4px rgba(13, 56, 120, 0.15), 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.search-input:focus + .search-icon,
+.search-input:focus ~ .search-icon {
+  color: var(--primary) !important;
+  transform: translateY(-50%) scale(1.1);
+}
+
+@media (min-width: 768px) {
+  .search-container-fixed {
+    max-width: 350px;
+  }
+}
+
+/* ============================================================
+   PREMIUM DATA GRID STANDARDIZATION (GSVR 2025)
+   ============================================================ */
+
+.table-premium-wrapper {
+  position: relative;
+  width: 100%;
+  max-height: 65vh; /* Altura padrão para dashboards e grids */
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* Scrollbar Premium Estilizada */
+.table-premium-wrapper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 0 12px 12px 0;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid #f8fafc;
+}
+
+.table-premium-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Sticky Header Logic */
+.table-premium-wrapper table {
+  width: 100%;
+  border-collapse: separate; /* Essencial para sticky header borders */
+  border-spacing: 0;
+}
+
+.table-premium-wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--primary) !important;
+  color: white !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 1rem 0.75rem;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Bordas internas para compensar border-collapse separate */
+.table-premium-wrapper td {
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  background: white;
+}
+
+/* Efeito Hover nas linhas */
+.table-premium-wrapper tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Ajustes de cantos arredondados no sticky header */
+.table-premium-wrapper thead tr:first-child th:first-child {
+  border-top-left-radius: 0px;
+}
+
+.table-premium-wrapper thead tr:first-child th:last-child {
+  border-top-right-radius: 0px;
 }

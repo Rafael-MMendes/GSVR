@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2 } from 'lucide-react';
-import { maskPhone, formatPhone } from '../utils/formatters';
+import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2, Info } from 'lucide-react';
+import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
-const ranks = [
-  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM",
-  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
-];
+const ranks = MILITARY_RANK_ORDER;
 
 const SHIFTS = [
   "07:00 ÀS 13:00",
@@ -17,10 +14,30 @@ const SHIFTS = [
   "01:00 ÀS 07:00"
 ];
 
-const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+// Gera array de dias a partir do intervalo data_inicio..data_fim do ciclo
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return [];
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
 
-export function RequerimentosAdmin() {
+export function RequerimentosAdmin({ user }) {
   const [volunteers, setVolunteers] = useState([]);
+  const [efetivo, setEfetivo] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [activeCycle, setActiveCycle] = useState(null);
@@ -31,14 +48,69 @@ export function RequerimentosAdmin() {
   const [viewingVolunteer, setViewingVolunteer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'data_solicitacao', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
 
   // PDF Folder Import states
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importCycles, setImportCycles] = useState([]);
+  const [importCompetencia, setImportCompetencia] = useState('');
   const fileInputRef = useRef(null);
+
+  /** Gera opções MM/YYYY: próximos 2 meses + mês atual + últimos 12 meses (mais recente primeiro) */
+  const generateCompetenciaOptions = () => {
+    const opts = [];
+    const now = new Date();
+    for (let offset = 2; offset >= -12; offset--) {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      opts.push(`${mm}/${yyyy}`);
+    }
+    return opts;
+  };
+
+  const toggleImportCycle = (id) => {
+    setImportCycles(prev => {
+      if (prev.includes(id)) return prev.filter(c => c !== id);
+      if (prev.length >= 2) return prev; // limite de 2
+      return [...prev, id];
+    });
+  };
+
+  // New Search States
+  const [militarSearch, setMilitarSearch] = useState('');
+  const [showMilitarResults, setShowMilitarResults] = useState(false);
+
+  // Search logic
+  const filteredEfetivo = militarSearch.length >= 2
+    ? efetivo.filter(m => {
+      const search = militarSearch.toLowerCase();
+      return (
+        m.nome_completo?.toLowerCase().includes(search) ||
+        m.nome_guerra?.toLowerCase().includes(search) ||
+        m.matricula?.toLowerCase().includes(search) ||
+        m.numero_ordem?.toLowerCase().includes(search) ||
+        m.cpf?.toLowerCase().includes(search)
+      );
+    }).slice(0, 10)
+    : [];
+
+  const selectMilitar = (m) => {
+    setFormData({
+      ...formData,
+      numero_ordem: m.matricula || m.numero_ordem || '',
+      name: m.nome_completo,
+      rank: m.posto_graduacao,
+      nome_guerra: m.nome_guerra,
+      phone: m.telefone ? maskPhone(m.telefone) : '',
+      motorista: m.motorista || 'Não'
+    });
+    setMilitarSearch('');
+    setShowMilitarResults(false);
+  };
 
   // Cancel availability states
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -46,19 +118,35 @@ export function RequerimentosAdmin() {
   const [cancelingLoading, setCancelingLoading] = useState(false);
   const [cancelingSelection, setCancelingSelection] = useState({});
   const [cancelObservation, setCancelObservation] = useState('');
+  const [showShiftObsModal, setShowShiftObsModal] = useState(false);
+  const [obsShiftData, setObsShiftData] = useState(null);
 
   const [formData, setFormData] = useState({
     numero_ordem: '',
     name: '',
+    nome_guerra: '',
     rank: 'Soldado PM',
     phone: '',
     motorista: 'Não',
+    observacao: '',
     availability: {}
   });
 
   useEffect(() => {
     fetchMonths();
+    fetchEfetivo();
   }, []);
+
+  const fetchEfetivo = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/efetivo`);
+      const ativos = res.data.filter(e => e.status_ativo);
+      ativos.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+      setEfetivo(ativos);
+    } catch (e) {
+      console.error('Erro ao buscar efetivo', e);
+    }
+  };
 
   useEffect(() => {
     if (selectedMonth) {
@@ -70,16 +158,17 @@ export function RequerimentosAdmin() {
     try {
       const res = await axios.get(`${API_URL}/ciclos`);
       const ciclos = res.data.map(c => {
-        // Extrai YYYY-MM do data_inicio para uso no backend de fragmentação
         const dataInicio = c.data_inicio ? String(c.data_inicio).split('T')[0] : '';
-        const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : ''; // "YYYY-MM"
+        const mesReferenciaISO = dataInicio ? dataInicio.substring(0, 7) : '';
 
         return {
           id_ciclo: c.id_ciclo,
-          month_key: c.periodo_ciclo,
+          month_key: c.id_ciclo.toString(),
           month_name: c.period_name || `${c.periodo_ciclo} (${c.status})`,
-          mes_referencia_iso: mesReferenciaISO, // Ex: "2026-04" — formato para o backend
-          status: c.status
+          mes_referencia_iso: mesReferenciaISO,
+          status: c.status,
+          data_inicio: c.data_inicio || '',
+          data_fim: c.data_fim || ''
         };
       });
       setMonths(ciclos);
@@ -104,7 +193,7 @@ export function RequerimentosAdmin() {
       return;
     }
     try {
-      const res = await axios.get(`${API_URL}/volunteers?month=${selectedMonth}`);
+      const res = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedMonth}`);
       setVolunteers(res.data);
     } catch (e) {
       console.error(e);
@@ -128,6 +217,8 @@ export function RequerimentosAdmin() {
     setShowFolderModal(true);
     setImportResult(null);
     setSelectedFiles([]);
+    setImportCycles([]);
+    setImportCompetencia('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -139,31 +230,35 @@ export function RequerimentosAdmin() {
   };
 
   const handleImportFromFiles = async () => {
-    if (selectedFiles.length === 0 || !activeCycle) {
-      alert('Selecione arquivos PDF e aguarde o carregamento do ciclo ativo.');
+    if (selectedFiles.length === 0) {
+      alert('Selecione ao menos um arquivo PDF.');
+      return;
+    }
+    if (importCycles.length === 0) {
+      alert('Selecione ao menos 1 ciclo de destino.');
+      return;
+    }
+    if (!importCompetencia) {
+      alert('Selecione a Competência (Mês/Ano) de referência.');
       return;
     }
 
     setImporting(true);
     setImportResult(null);
     try {
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
-      });
+      const fd = new FormData();
+      selectedFiles.forEach(file => fd.append('files', file));
+      fd.append('ciclos_ids', JSON.stringify(importCycles));
+      fd.append('competencia', importCompetencia);
 
-      // Envia o id_ciclo como preferência e o mes_referencia em YYYY-MM para fragmentação
-      formData.append('id_ciclo', activeCycle.id_ciclo || '');
-      formData.append('mes_referencia', activeCycle.mes_referencia_iso || '');
-
-      const res = await axios.post(`${API_URL}/import/volunteers/files`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await axios.post(`${API_URL}/import/volunteers/files`, fd);
       setImportResult(res.data);
       fetchVolunteers();
     } catch (e) {
       console.error(e);
-      alert('Erro ao importar PDFs: ' + (e.response?.data?.error || e.message));
+      const rawErr = e.response?.data?.error ?? e.response?.data?.message ?? e.message ?? e;
+      const errMsg = typeof rawErr === 'string' ? rawErr : JSON.stringify(rawErr);
+      alert('Erro ao importar PDFs: ' + errMsg);
     } finally {
       setImporting(false);
     }
@@ -177,35 +272,36 @@ export function RequerimentosAdmin() {
       rank: 'Soldado PM',
       phone: '',
       motorista: 'Não',
+      observacao: '',
       availability: {}
     });
+    setMilitarSearch('');
+    setShowMilitarResults(false);
     setShowModal(true);
   };
 
   // Efeito para buscar militar por Nº de Ordem
   useEffect(() => {
-    const lookupMilitar = async () => {
-      const matricula = formData.numero_ordem.trim();
-      if (matricula.length >= 4 && !editingVolunteer) {
-        try {
-          const res = await axios.get(`${API_URL}/efetivo/lookup/${matricula}`);
-          if (res.data) {
-            setFormData(prev => ({
-              ...prev,
-              name: res.data.nome_completo,
-              rank: res.data.posto_graduacao,
-              phone: res.data.telefone ? maskPhone(res.data.telefone) : prev.phone
-            }));
-          }
-        } catch (e) {
-          // Militar não encontrado ou erro, ignorar silenciosamente
-        }
-      }
-    };
+    const matricula = formData.numero_ordem.trim();
+    if (matricula.length >= 4 && !editingVolunteer && efetivo.length > 0) {
+      const cleanMatricula = matricula.replace(/\D/g, '');
+      const militar = efetivo.find(e =>
+        e.matricula === matricula ||
+        e.numero_ordem === matricula ||
+        (e.matricula && e.matricula.replace(/\D/g, '') === cleanMatricula)
+      );
 
-    const timeoutId = setTimeout(lookupMilitar, 500);
-    return () => clearTimeout(timeoutId);
-  }, [formData.numero_ordem, editingVolunteer]);
+      if (militar) {
+        setFormData(prev => ({
+          ...prev,
+          name: militar.nome_completo,
+          rank: militar.posto_graduacao,
+          phone: militar.telefone ? maskPhone(militar.telefone) : prev.phone,
+          motorista: militar.motorista || 'Não'
+        }));
+      }
+    }
+  }, [formData.numero_ordem, editingVolunteer, efetivo]);
 
   const openEditModal = (volunteer) => {
     setEditingVolunteer(volunteer);
@@ -215,6 +311,7 @@ export function RequerimentosAdmin() {
       rank: volunteer.rank,
       phone: volunteer.phone || '',
       motorista: volunteer.motorista || 'Não',
+      observacao: volunteer.observacao || '',
       availability: volunteer.availability || {},
       availability_completa: volunteer.availability_completa || {}
     });
@@ -250,14 +347,12 @@ export function RequerimentosAdmin() {
 
   const handleCancelAvailability = async () => {
     if (!cancelingItem) return;
-    
+
     // Verifica se há algo selecionado
     if (Object.keys(cancelingSelection).length === 0) {
       alert('Selecione ao menos um turno para cancelar.');
       return;
     }
-
-    if (!confirm('Deseja realmente cancelar os turnos selecionados?')) return;
 
     setCancelingLoading(true);
     try {
@@ -282,8 +377,15 @@ export function RequerimentosAdmin() {
     setFormData(prev => {
       const dayStr = String(day);
       const dayShifts = prev.availability[dayStr] || [];
-      const isSelected = dayShifts.includes(shift);
-      const newShifts = isSelected ? dayShifts.filter(s => s !== shift) : [...dayShifts, shift];
+      const isSelected = dayShifts.some(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+
+      let newShifts;
+      if (isSelected) {
+        newShifts = dayShifts.filter(s => (typeof s === 'object' ? s.turno !== shift : s !== shift));
+      } else {
+        newShifts = [...dayShifts, { turno: shift, observacoes: '' }];
+      }
+
       const newAvailability = { ...prev.availability };
       if (newShifts.length > 0) {
         newAvailability[dayStr] = newShifts;
@@ -294,9 +396,51 @@ export function RequerimentosAdmin() {
     });
   };
 
+  const openShiftObsModal = (e, day, shift) => {
+    e.preventDefault(); // Evita menu do navegador
+    const dayStr = String(day);
+    const dayShifts = formData.availability[dayStr] || [];
+    const shiftData = dayShifts.find(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+
+    if (!shiftData) return; // Só comenta se estiver selecionado
+
+    setObsShiftData({
+      day,
+      shift,
+      value: typeof shiftData === 'object' ? (shiftData.observacoes || '') : ''
+    });
+    setShowShiftObsModal(true);
+  };
+
+  const saveShiftObservation = () => {
+    const { day, shift, value } = obsShiftData;
+    setFormData(prev => {
+      const dayStr = String(day);
+      const dayShifts = [...(prev.availability[dayStr] || [])];
+      const idx = dayShifts.findIndex(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+
+      if (idx !== -1) {
+        const current = dayShifts[idx];
+        dayShifts[idx] = {
+          turno: typeof current === 'object' ? current.turno : current,
+          observacoes: value
+        };
+      }
+
+      return {
+        ...prev,
+        availability: {
+          ...prev.availability,
+          [dayStr]: dayShifts
+        }
+      };
+    });
+    setShowShiftObsModal(false);
+  };
+
   const handleSave = async () => {
-    const duplicateFound = volunteers.find(v => 
-      v.numero_ordem?.trim() === formData.numero_ordem?.trim() && 
+    const duplicateFound = volunteers.find(v =>
+      v.numero_ordem?.trim() === formData.numero_ordem?.trim() &&
       v.id !== editingVolunteer?.id
     );
 
@@ -315,13 +459,13 @@ export function RequerimentosAdmin() {
       if (editingVolunteer) {
         await axios.put(`${API_URL}/volunteers/${editingVolunteer.id}`, formData);
       } else {
-        await axios.post(`${API_URL}/volunteers`, formData);
+        await axios.post(`${API_URL}/volunteers`, { ...formData, id_ciclo: activeCycle?.id_ciclo });
       }
       setShowModal(false);
       fetchVolunteers();
     } catch (error) {
       console.error(error);
-      alert('Erro ao salvar requerimento.');
+      alert('Erro: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -337,18 +481,24 @@ export function RequerimentosAdmin() {
   }).sort((a, b) => {
     if (!sortConfig.key) return 0;
 
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'rank') {
+      const result = compareByRank(a.rank, b.rank);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
     // Tratamento especial para números
     if (sortConfig.key === 'numero_ordem') {
-      aVal = parseInt(aVal?.toString().replace(/\D/g, '')) || 0;
-      bVal = parseInt(bVal?.toString().replace(/\D/g, '')) || 0;
+      aVal = parseInt((aVal?.toString() || '').replace(/\D/g, '')) || 0;
+      bVal = parseInt((bVal?.toString() || '').replace(/\D/g, '')) || 0;
     }
 
     if (sortConfig.key === 'turnos') {
-      aVal = Object.values(a.availability || {}).flat().length;
-      bVal = Object.values(b.availability || {}).flat().length;
+      aVal = Object.keys(a.availability || {}).length;
+      bVal = Object.keys(b.availability || {}).length;
     }
 
     if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -364,8 +514,11 @@ export function RequerimentosAdmin() {
     setSortConfig({ key, direction });
   };
 
+  // Dias reais do ciclo ativo (pode cruzar dois meses, ex: 16/Abr → 15/Mai)
+  const cycleDays = getCycleDays(activeCycle?.data_inicio, activeCycle?.data_fim);
+
   return (
-    <div className="container" style={{ maxWidth: '1400px' }}>
+    <div className="container">
       <div className="admin-controls-header" style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -380,14 +533,13 @@ export function RequerimentosAdmin() {
       }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Gestão de Requerimentos</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            className="btn btn-primary" 
-            onClick={openFolderModal} 
-            disabled={!activeCycle} 
-            style={{ 
-              width: 'auto', 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-              color: 'white', 
+          <button
+            className="btn btn-primary"
+            onClick={openFolderModal}
+            style={{
+              width: 'auto',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
               border: 'none',
               boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
             }}
@@ -409,42 +561,44 @@ export function RequerimentosAdmin() {
               Ciclo Ativo: {activeCycle ? activeCycle.month_name : 'Nenhum ciclo aberto'}
             </strong>
           </div>
-          <div style={{ position: 'relative', flex: '1 1 300px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '40px' }}
-            />
-          </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             Total: <strong>{filteredVolunteers.length}</strong>
           </div>
         </div>
 
-        <div className="responsive-table-container">
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '700px' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem' }}>
+          <div className="search-container" style={{ width: '350px' }}>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar por nome, matrícula ou ordem..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <Search size={18} className="search-icon" />
+          </div>
+        </div>
+
+        <div className="table-premium-wrapper">
+          <table className="table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
+              <tr>
+                <th onClick={() => requestSort('numero_ordem')} style={{ cursor: 'pointer' }}>
                   Nº Ordem {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('rank')}>
+                <th onClick={() => requestSort('rank')} style={{ cursor: 'pointer' }}>
                   Posto/Grad {sortConfig.key === 'rank' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left', cursor: 'pointer' }} onClick={() => requestSort('name')}>
+                <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>
                   Nome {sortConfig.key === 'name' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Telefone</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Motorista</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
-                  Turnos {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                <th>Telefone</th>
+                <th style={{ textAlign: 'center' }}>Motorista</th>
+                <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('turnos')}>
+                  Dias Disponíveis {sortConfig.key === 'turnos' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'left' }}>Obs</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '0.75rem', textAlign: 'center' }}>Ações</th>
+                <th>Obs</th>
+                <th style={{ textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -480,27 +634,22 @@ export function RequerimentosAdmin() {
                         </span>
                       )}
                       <span>
-                        {Object.keys(v.availability || {}).length > 0
-                          ? `${Object.values(v.availability).flat().length}`
-                          : '0'}
+                        {Object.keys(v.availability || {}).length}
                       </span>
                     </div>
                   </td>
                   <td style={{ padding: '0.75rem' }}>
                     {v.observacao && (
-                      <div title={v.observacao} style={{ 
-                        maxWidth: '120px', 
-                        overflow: 'hidden', 
-                        textOverflow: 'ellipsis', 
+                      <div title={v.observacao} style={{
+                        maxWidth: '120px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontSize: '0.75rem',
                         color: 'var(--text-muted)',
-                        cursor: 'help',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
+                        cursor: 'help'
                       }}>
-                        <Info size={14} color="var(--primary)" /> {v.observacao}
+                        {v.observacao}
                       </div>
                     )}
                   </td>
@@ -568,67 +717,117 @@ export function RequerimentosAdmin() {
               </button>
             </div>
 
-            <div className="form-grid-stack" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: '1rem',
-              marginBottom: '1.5rem'
-            }}>
-              <div className="form-group">
-                <label>Nº de Ordem</label>
-                <input
-                  type="text"
-                  className={`form-control ${volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? 'is-invalid' : ''}`}
-                  value={formData.numero_ordem}
-                  onChange={e => setFormData({ ...formData, numero_ordem: e.target.value })}
-                  style={volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) ? { borderColor: '#ef4444', backgroundColor: '#fef2f2' } : {}}
-                />
-                {volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) && (
-                  <small style={{ color: '#ef4444', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
-                    ⚠️ Militar já cadastrado neste ciclo.
-                  </small>
+            {/* Novo Campo de Busca de Militar */}
+            {!formData.numero_ordem ? (
+              <div className="form-group" style={{ marginBottom: '1.5rem', position: 'relative' }}>
+                <label>Buscar Militar (Nome, Matrícula, Nº Ordem ou CPF)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Digite para buscar..."
+                    value={militarSearch}
+                    onChange={(e) => {
+                      setMilitarSearch(e.target.value);
+                      setShowMilitarResults(true);
+                    }}
+                    onFocus={() => setShowMilitarResults(true)}
+                  />
+                  <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                </div>
+
+                {showMilitarResults && filteredEfetivo.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    background: 'white', border: '1px solid var(--border-color)',
+                    borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                    zIndex: 10, marginTop: '5px', maxHeight: '250px', overflowY: 'auto'
+                  }}>
+                    {filteredEfetivo.map(m => (
+                      <div
+                        key={m.id_militar}
+                        onClick={() => selectMilitar(m)}
+                        style={{
+                          padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color)',
+                          cursor: 'pointer', transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.background = '#f8fafc'}
+                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                      >
+                        <div style={{ fontWeight: '600', color: 'var(--primary)', fontSize: '0.9rem' }}>
+                          {m.posto_graduacao} {m.nome_completo}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Matrícula: {m.matricula} | Nº Ordem: {m.numero_ordem}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="form-group">
-                <label>Posto/Graduação</label>
-                <select
-                  className="form-control"
-                  value={formData.rank}
-                  onChange={e => setFormData({ ...formData, rank: e.target.value })}
+            ) : (
+              /* Label de Militar Selecionado */
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.05)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '12px',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                animation: 'fadeIn 0.3s ease-out'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '10px',
+                    background: 'var(--primary)', color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <FileText size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1rem' }}>
+                      {formData.rank} - {formData.numero_ordem} {formData.name}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Telefone: {formData.phone || 'N/I'} | Motorista: <strong style={{ color: formData.motorista === 'Sim' ? '#10b981' : 'inherit' }}>{formData.motorista}</strong>
+                    </div>
+                    {volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id) && (
+                      <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Ban size={12} />
+                        Militar já cadastrado neste ciclo.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setFormData({ ...formData, numero_ordem: '', name: '', phone: '', motorista: 'Não' })}
+                  style={{
+                    background: 'none', border: 'none', color: '#ef4444',
+                    cursor: 'pointer', padding: '0.5rem', borderRadius: '6px',
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    fontSize: '0.85rem', fontWeight: '600'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseLeave={(e) => e.target.style.background = 'transparent'}
                 >
-                  {ranks.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                  <Ban size={16} />
+                  Limpar
+                </button>
               </div>
-              <div className="form-group">
-                <label>Nome Completo</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Telefone</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="(00) 00000-0000"
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Motorista?</label>
-                <select
-                  className="form-control"
-                  value={formData.motorista}
-                  onChange={e => setFormData({ ...formData, motorista: e.target.value })}
-                >
-                  <option value="Não">Não</option>
-                  <option value="Sim">Sim</option>
-                </select>
-              </div>
+            )}
+
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label>Observações do Requerimento</label>
+              <textarea
+                className="form-control"
+                placeholder="Ex: Restrições médicas, preferência de guarnição, etc."
+                value={formData.observacao}
+                onChange={e => setFormData({ ...formData, observacao: e.target.value })}
+                rows="2"
+                style={{ resize: 'vertical' }}
+              />
             </div>
 
             <h4 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Disponibilidade (Grade)</h4>
@@ -637,24 +836,35 @@ export function RequerimentosAdmin() {
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
                     <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
-                        const isSelected = (formData.availability[dayStr] || []).includes(shift);
-                        
-                        // Busca o objeto completo do turno para pegar observações
-                        const completeData = formData.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                      {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                        const dayStr = String(dayObj.day);
+                        const isSelected = (formData.availability[dateKey] || formData.availability[dayStr] || []).some(s =>
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+
+                        const currentShiftData = (formData.availability[dateKey] || formData.availability[dayStr] || []).find(s =>
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
+
+                        const completeData = formData.availability_completa?.[dateKey] || formData.availability_completa?.[dayStr] || [];
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
 
@@ -676,19 +886,28 @@ export function RequerimentosAdmin() {
 
                         return (
                           <td
-                            key={day}
-                            onClick={() => toggleShift(day, shift)}
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            onClick={() => toggleShift(dateKey, shift)}
+                            onContextMenu={(e) => openShiftObsModal(e, dateKey, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: 'pointer',
                               backgroundColor: bgColor,
                               color: textColor,
                               border: '1px solid #e2e8f0',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              position: 'relative'
                             }}
-                            title={isSelected ? 'Ativo' : (isCancelado ? `Cancelado - Clique para Reativar${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
+                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para editar observação)` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
                           >
                             {label}
+                            {isSelected && hasObs && (
+                              <div style={{
+                                position: 'absolute', top: 0, right: 0,
+                                width: '6px', height: '6px',
+                                background: '#fbbf24', borderRadius: '50%', margin: '2px'
+                              }} />
+                            )}
                           </td>
                         );
                       })}
@@ -700,9 +919,9 @@ export function RequerimentosAdmin() {
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
-              <button 
-                className="btn btn-primary" 
-                onClick={handleSave} 
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
                 disabled={loading || volunteers.some(v => v.numero_ordem?.trim() === formData.numero_ordem?.trim() && v.id !== editingVolunteer?.id)}
               >
                 {loading ? 'Salvando...' : 'Salvar'}
@@ -742,65 +961,105 @@ export function RequerimentosAdmin() {
               <div><strong>Posto/Grad:</strong><br />{viewingVolunteer.rank}</div>
               <div><strong>Nome:</strong><br />{viewingVolunteer.name}</div>
               <div><strong>Telefone:</strong><br />{formatPhone(viewingVolunteer.phone)}</div>
-              <div><strong>Motorista:</strong><br />{viewingVolunteer.motorista === 'Sim' ? '✅ Sim' : '❌ Não'}</div>
+              <div><strong>Motorista:</strong><br />{(viewingVolunteer.motorista_req || viewingVolunteer.motorista === 'Sim') ? 'Sim' : 'Não'}</div>
             </div>
 
-            <h4 style={{ marginBottom: '1rem' }}>Grade de Disponibilidade</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h4 style={{ margin: 0 }}>Grade de Disponibilidade</h4>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#059669' }} /> Executado
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
+                </span>
+              </div>
+            </div>
+
             <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
                     <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
-                        const isSelected = (viewingVolunteer.availability?.[dayStr] || []).includes(shift);
-                        
-                        // Busca o objeto completo do turno para pegar observações
-                        const completeData = viewingVolunteer.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item => 
+                      {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                        const dayStr = String(dayObj.day);
+                        const isSelected = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).some(s =>
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        const currentShiftData = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).find(s =>
+                          (typeof s === 'object' ? s.turno === shift : s === shift)
+                        );
+                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
+                        const completeData = viewingVolunteer.availability_completa?.[dateKey] || viewingVolunteer.availability_completa?.[dayStr] || [];
+                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
                           (typeof item === 'object' ? item.turno === shift : item === shift)
                         ) : null;
-
                         const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
+                        const teveExecucao = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.teve_execucao === true;
 
-                        let bgColor = 'transparent';
+                        let bgColor = '#f8fafc';
+                        let borderStyle = '1px dashed #e2e8f0';
                         let textColor = 'transparent';
                         let label = '·';
+                        let titleText = '';
 
-                        if (isSelected) {
-                          bgColor = 'var(--primary)';
+                        if (teveExecucao) {
+                          bgColor = '#059669';
+                          borderStyle = '1px solid #047857';
                           textColor = 'white';
-                          label = 'X';
+                          label = '✕';
+                          titleText = 'Serviço executado';
                         } else if (isCancelado) {
-                          bgColor = 'var(--danger)';
+                          bgColor = '#dc2626';
+                          borderStyle = '1px solid #b91c1c';
                           textColor = 'white';
-                          label = 'X';
+                          label = '✕';
+                          titleText = `Desistência${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}`;
+                        } else if (isSelected) {
+                          bgColor = '#2563eb';
+                          borderStyle = '1px solid #1d4ed8';
+                          textColor = 'white';
+                          label = '✕';
+                          titleText = `Disponível${hasObs ? ': ' + currentShiftData.observacoes : ''}`;
                         }
 
                         return (
                           <td
-                            key={day}
-                            style={{
-                              textAlign: 'center',
-                              backgroundColor: bgColor,
-                              color: textColor,
-                              border: '1px solid #e2e8f0',
-                              fontWeight: 'bold'
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            style={{ 
+                              textAlign: 'center', 
+                              backgroundColor: bgColor, 
+                              color: textColor, 
+                              border: borderStyle, 
+                              fontWeight: 'bold', 
+                              position: 'relative',
+                              padding: '0.25rem 0'
                             }}
-                            title={shiftInfo?.observacoes ? 'Obs: ' + shiftInfo.observacoes : ''}
+                            title={titleText}
                           >
                             {label}
+                            {isSelected && hasObs && (
+                              <div style={{ position: 'absolute', top: 0, right: 0, width: '6px', height: '6px', background: '#fbbf24', borderRadius: '50%', margin: '2px' }} />
+                            )}
                           </td>
                         );
                       })}
@@ -835,21 +1094,101 @@ export function RequerimentosAdmin() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Header do Modal com Status do Ciclo */}
-              <div style={{
-                background: 'rgba(56, 189, 248, 0.05)',
-                borderLeft: '4px solid var(--accent)',
-                padding: '1rem',
-                borderRadius: '0 8px 8px 0'
-              }}>
-                <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className="fas fa-calendar-check"></i> Ciclo de Destino
-                </h4>
-                <div style={{ marginTop: '0.4rem', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                  {activeCycle ? activeCycle.month_name : 'Nenhum ciclo ativo selecionado'}
+
+              {/* ── Seleção de Ciclo(s) ───────────────────────────────── */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  📅 Ciclo(s) de Destino
+                  <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}>
+                    (selecione 1 ou 2 ciclos)
+                  </span>
+                  {importCycles.length === 0 && (
+                    <span style={{ marginLeft: '0.5rem', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠ obrigatório</span>
+                  )}
+                </label>
+                <div style={{
+                  maxHeight: '160px', overflowY: 'auto',
+                  border: `1px solid ${importCycles.length === 0 ? '#ef4444' : 'var(--border-color)'}`,
+                  borderRadius: '8px',
+                  padding: '0.25rem'
+                }}>
+                  {months.length === 0 && (
+                    <div style={{ padding: '0.75rem', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
+                      Nenhum ciclo cadastrado.
+                    </div>
+                  )}
+                  {months.map(ciclo => {
+                    const isSelected = importCycles.includes(ciclo.id_ciclo);
+                    const isDisabled = !isSelected && importCycles.length >= 2;
+                    return (
+                      <label
+                        key={ciclo.id_ciclo}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          padding: '0.5rem 0.75rem', borderRadius: '6px', cursor: isDisabled ? 'not-allowed' : 'pointer',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                          opacity: isDisabled ? 0.45 : 1,
+                          transition: 'background 0.15s',
+                          marginBottom: '2px'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => toggleImportCycle(ciclo.id_ciclo)}
+                          style={{ accentColor: 'var(--primary)', width: '15px', height: '15px', flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: '0.85rem', color: isSelected ? 'var(--primary)' : 'var(--text-primary)', fontWeight: isSelected ? 600 : 400 }}>
+                          {ciclo.month_name}
+                        </span>
+                        {ciclo.status === 'Aberto' && (
+                          <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: '#10b981', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 700 }}>ABERTO</span>
+                        )}
+                        {ciclo.status === 'Fechado' && (
+                          <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: '#6b7280', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>FECHADO</span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
-                <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                  Todos os arquivos processados serão vinculados automaticamente a este período.
+                {importCycles.length > 0 && (
+                  <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                    ✓ {importCycles.length} ciclo(s) selecionado(s)
+                    {importCycles.length === 2 && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: '0.4rem' }}>
+                        — dias &lt; diaInicio → 1º ciclo · dias ≥ diaInicio → 2º ciclo
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Seleção de Competência MM/YYYY ───────────────────── */}
+              <div>
+                <label style={{ display: 'block', fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  🗓️ Competência (Mês/Ano de Referência)
+                  {!importCompetencia && (
+                    <span style={{ marginLeft: '0.5rem', color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>⚠ obrigatório</span>
+                  )}
+                </label>
+                <select
+                  value={importCompetencia}
+                  onChange={e => setImportCompetencia(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.6rem 0.75rem', borderRadius: '8px',
+                    border: `1px solid ${!importCompetencia ? '#ef4444' : 'var(--border-color)'}`,
+                    fontSize: '0.9rem', background: 'var(--card-bg)', color: 'var(--text-primary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">— Selecione o mês/ano —</option>
+                  {generateCompetenciaOptions().map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Os dias do PDF serão associados a este mês e ano. A data impressa no PDF será ignorada.
                 </p>
               </div>
 
@@ -914,14 +1253,28 @@ export function RequerimentosAdmin() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
                     borderBottom: `1px solid ${importResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}`
                   }}>
                     <strong style={{ color: importResult.success ? 'var(--success)' : 'var(--danger)' }}>
                       {importResult.success ? '✓ Resultado do Processamento' : '⚠️ Problemas Detectados'}
                     </strong>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {importResult.processed} arquivos lidos
-                    </span>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {importResult.competencia_usada && (
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(59,130,246,0.15)', color: 'var(--primary)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                          📅 {importResult.competencia_usada}
+                        </span>
+                      )}
+                      {importResult.ciclos_usados?.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', background: 'rgba(16,185,129,0.12)', color: '#059669', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                          {importResult.ciclos_usados.length} ciclo(s)
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {importResult.processed} arquivo(s) lido(s)
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -932,7 +1285,7 @@ export function RequerimentosAdmin() {
                           ✓ Militar(es) Vinculado(s):
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {importResult.results.filter(r => r.success).map(r => (
+                          {importResult.results.filter(r => r.success).map(r => (
                             <span key={r.numero_ordem} style={{ background: 'rgba(34, 197, 94, 0.1)', color: 'var(--success)', padding: '0.2rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', flexDirection: 'column' }}>
                               <span>#{r.numero_ordem} {r.name ? `— ${r.name}` : ''}</span>
                               {r.ciclos_afetados?.length > 1 ? (
@@ -1007,7 +1360,7 @@ export function RequerimentosAdmin() {
               <button
                 className="btn btn-primary"
                 onClick={handleImportFromFiles}
-                disabled={importing || selectedFiles.length === 0 || (!selectedMonth && !activeCycle)}
+                disabled={importing || selectedFiles.length === 0 || importCycles.length === 0 || !importCompetencia}
                 style={{
                   padding: '0.75rem 2rem',
                   minWidth: '150px',
@@ -1096,20 +1449,25 @@ export function RequerimentosAdmin() {
                 <thead>
                   <tr style={{ background: 'var(--primary)', color: 'white' }}>
                     <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {daysInMonth.map(day => (
-                      <th key={day} style={{ padding: '0.5rem', textAlign: 'center', width: '28px' }}>
-                        {String(day).padStart(2, '0')}
-                      </th>
-                    ))}
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
+                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75 }}>{dayObj.monthShort}</div>}
+                          <div style={{ fontSize: '0.7rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
                   {SHIFTS.map((shift, sIdx) => (
                     <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
                       <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {daysInMonth.map(day => {
-                        const dayStr = String(day);
-                        const availabilityData = cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dayStr] || [];
+                      {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                        const dayStr = String(dayObj.day);
+                        const availabilityData = cancelingItem.availability_completa?.[dateKey] || cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dateKey] || cancelingItem.availability?.[dayStr] || [];
 
                         const isAtivo = Array.isArray(availabilityData)
                           ? availabilityData.some(item => {
@@ -1127,12 +1485,12 @@ export function RequerimentosAdmin() {
                           })
                           : false;
 
-                        const isSelectedToCancel = cancelingSelection[dayStr]?.includes(shift);
+                        const isSelectedToCancel = (cancelingSelection[dateKey] || cancelingSelection[dayStr])?.includes(shift);
 
                         return (
                           <td
-                            key={day}
-                            onClick={() => isAtivo && toggleCancelShiftSelection(day, shift)}
+                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                            onClick={() => isAtivo && toggleCancelShiftSelection(dateKey, shift)}
                             style={{
                               textAlign: 'center',
                               cursor: isAtivo ? 'pointer' : 'default',
@@ -1141,7 +1499,7 @@ export function RequerimentosAdmin() {
                               border: '1px solid #e2e8f0',
                               fontWeight: 'bold',
                               transition: 'all 0.1s ease',
-                              opacity: isCancelado ? 0.6 : 1 // Opacidade reduzida para os já cancelados
+                              opacity: isCancelado ? 0.6 : 1
                             }}
                             title={isCancelado ? 'Já Cancelado' : (isAtivo ? 'Clique para cancelar' : '')}
                           >
@@ -1165,9 +1523,9 @@ export function RequerimentosAdmin() {
                 value={cancelObservation}
                 onChange={e => setCancelObservation(e.target.value)}
                 placeholder="Ex: Solicitado pelo militar via telefone..."
-                style={{ 
-                  width: '100%', 
-                  minHeight: '80px', 
+                style={{
+                  width: '100%',
+                  minHeight: '80px',
                   resize: 'vertical',
                   padding: '0.75rem',
                   fontSize: '0.9rem',
@@ -1221,6 +1579,39 @@ export function RequerimentosAdmin() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Observação de Turno */}
+      {showShiftObsModal && obsShiftData && (
+        <div className="modal-overlay">
+          <div className="glass-panel" style={{ width: '400px', maxWidth: '90%', animation: 'slideUp 0.3s ease-out' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Observação do Turno</h3>
+              <button onClick={() => setShowShiftObsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Dia {String(obsShiftData.day).includes('-') ? obsShiftData.day.split('-').reverse().join('/') : String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
+            </p>
+
+            <textarea
+              className="form-control"
+              value={obsShiftData.value}
+              onChange={e => setObsShiftData({ ...obsShiftData, value: e.target.value })}
+              placeholder="Digite observações específicas para este turno..."
+              rows="4"
+              autoFocus
+              style={{ marginBottom: '1.5rem' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline" onClick={() => setShowShiftObsModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveShiftObservation}>Salvar</button>
             </div>
           </div>
         </div>

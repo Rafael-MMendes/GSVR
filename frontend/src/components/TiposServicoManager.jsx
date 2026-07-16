@@ -12,7 +12,6 @@ export function TiposServicoManager() {
   const [formData, setFormData] = useState({
     descricao: '',
     carga_horaria: '',
-    carga_horaria: '',
     valor_remuneracao: '',
     ativo: true
   });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check } from 'lucide-react';
+import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar, Users } from 'lucide-react';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -17,8 +18,6 @@ const formatDateDisplay = (dateValue) => {
 };
 
 const STATUS_OPTIONS = ['Presente', 'Ausente', 'Justificado', 'Atestado'];
-const CARGA_OPTIONS = [{ value: 6, label: '6h — R$ 192,03' }, { value: 8, label: '8h — R$ 250,00' }];
-
 const statusColor = (s) => ({
   'Presente': '#10b981',
   'Ausente': '#ef4444',
@@ -39,6 +38,7 @@ export function ServicosExecutadosManager() {
   const [servicos, setServicos] = useState([]);
   const [ciclos, setCiclos] = useState([]);
   const [efetivo, setEfetivo] = useState([]);
+  const [tiposServico, setTiposServico] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingServico, setEditingServico] = useState(null);
@@ -49,6 +49,7 @@ export function ServicosExecutadosManager() {
   const [filterDataFim, setFilterDataFim] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'data_execucao', direction: 'desc' });
+  const [activeTab, setActiveTab] = useState('list'); // 'list' ou 'guarnicao'
 
   const [formData, setFormData] = useState({
     id_ciclo: '',
@@ -71,12 +72,16 @@ export function ServicosExecutadosManager() {
 
   const fetchData = async () => {
     try {
-      const [resCiclos, resEfetivo] = await Promise.all([
+      const [resCiclos, resEfetivo, resTipos] = await Promise.all([
         axios.get(`${API_URL}/ciclos`),
-        axios.get(`${API_URL}/efetivo`)
+        axios.get(`${API_URL}/efetivo`),
+        axios.get(`${API_URL}/tipos-servico`)
       ]);
       setCiclos(resCiclos.data);
-      setEfetivo(resEfetivo.data.filter(e => e.status_ativo));
+      const ativosEfetivo = resEfetivo.data.filter(e => e.status_ativo);
+      ativosEfetivo.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
+      setEfetivo(ativosEfetivo);
+      setTiposServico(resTipos.data.filter(t => t.ativo !== false));
       // Priorizar ciclo aberto (status 'Aberto') para seleção inicial
       const active = resCiclos.data.find(c => c.status === 'Aberto');
       if (active && !filterCiclo) {
@@ -99,11 +104,11 @@ export function ServicosExecutadosManager() {
     setSelectedIds(new Set());
     try {
       const params = {};
-      if (filterCiclo) params.ciclo_id = filterCiclo; 
+      if (filterCiclo) params.ciclo_id = filterCiclo;
       if (filterMilitar) params.militar_id = filterMilitar;
       if (filterDataInicio) params.data_inicio = filterDataInicio;
       if (filterDataFim) params.data_fim = filterDataFim;
-      
+
       const res = await axios.get(`${API_URL}/servicos`, { params });
       setServicos(res.data);
     } catch (e) {
@@ -207,9 +212,16 @@ export function ServicosExecutadosManager() {
   const filtered = servicos.filter(s =>
     !searchTerm ||
     s.nome_guerra?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.matricula?.includes(searchTerm)
+    s.matricula?.includes(searchTerm) ||
+    s.guarnicao?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
+
+    // Ordenação por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
 
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
@@ -240,7 +252,7 @@ export function ServicosExecutadosManager() {
   const selectedCicloText = (() => {
     const c = ciclos.find(item => String(item.id_ciclo) === String(filterCiclo));
     if (!c) return 'Selecione um Ciclo';
-    
+
     // Se o backend já enviou o period_name formatado (ex: "Maio / Junho - 2026")
     if (c.period_name) {
       return c.period_name.replace(' / ', '/').replace(' - ', ' ');
@@ -255,12 +267,12 @@ export function ServicosExecutadosManager() {
       // Tenta formatar a partir das datas brutas de início e fim
       const d1 = c.data_inicio ? new Date(String(c.data_inicio).split('T')[0] + 'T12:00:00') : null;
       const d2 = c.data_fim ? new Date(String(c.data_fim).split('T')[0] + 'T12:00:00') : null;
-      
+
       if (d1 && !isNaN(d1.getTime())) {
         const m1 = monthNames[d1.getMonth()];
         const m2 = d2 && !isNaN(d2.getTime()) ? monthNames[d2.getMonth()] : m1;
         const ano = d1.getFullYear();
-        
+
         return m1 === m2 ? `${m1} ${ano}` : `${m1}/${m2} ${ano}`;
       }
     } catch (e) {
@@ -269,6 +281,45 @@ export function ServicosExecutadosManager() {
 
     return c.periodo_ciclo || 'Ciclo ' + c.id_ciclo;
   })();
+
+  const getValorPlaceholder = () => {
+    const tipo = tiposServico.find(t => t.carga_horaria === formData.carga_horaria);
+    return tipo ? parseFloat(tipo.valor_remuneracao).toFixed(2) : '0.00';
+  };
+
+  // Lógica de agrupamento por guarnição
+  const groupedByGuarnicao = filtered.reduce((acc, s) => {
+    // Só agrupa se tiver guarnição definida
+    if (!s.guarnicao || s.guarnicao === '---') return acc;
+
+    const key = `${s.data_execucao}_${s.guarnicao}`;
+    if (!acc[key]) {
+      acc[key] = {
+        id: key,
+        guarnicao: s.guarnicao,
+        data: s.data_execucao,
+        militares: [],
+        totalValor: 0,
+        cargaHoraria: s.carga_horaria,
+        opm: s.opm_origem
+      };
+    }
+    acc[key].militares.push(s);
+    if (s.status_presenca === 'Presente') {
+      acc[key].totalValor += parseFloat(s.valor_remuneracao || 0);
+    }
+    return acc;
+  }, {});
+
+  const currentCiclo = ciclos.find(c => String(c.id_ciclo) === String(filterCiclo));
+  const cicloOpm = currentCiclo?.opm_sigla;
+
+  const guarnicaoRows = Object.values(groupedByGuarnicao)
+    .filter(row => !cicloOpm || row.opm === cicloOpm)
+    .sort((a, b) => {
+      if (a.data !== b.data) return new Date(b.data) - new Date(a.data);
+      return a.guarnicao.localeCompare(b.guarnicao);
+    });
 
   return (
     <div className="container" style={{ paddingBottom: '2rem' }}>
@@ -286,10 +337,10 @@ export function ServicosExecutadosManager() {
           <button
             className="btn btn-primary"
             onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'import-servicos' }))}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', 
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', 
-              color: 'white', 
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
               border: 'none',
               boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
             }}
@@ -324,20 +375,18 @@ export function ServicosExecutadosManager() {
 
       {/* Filtros */}
       <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-
         <div style={{ flex: 1, minWidth: '200px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Ciclo Operacional</label>
-          <select 
-            className="form-control" 
-            style={{ margin: 0, fontWeight: 600, borderLeft: '4px solid var(--primary)' }} 
-            value={filterCiclo} 
+          <select
+            className="form-control"
+            style={{ margin: 0, fontWeight: 600, borderLeft: '4px solid var(--primary)' }}
+            value={filterCiclo}
             onChange={e => {
               const cid = e.target.value;
               setFilterCiclo(cid);
               if (cid) {
                 const selected = ciclos.find(c => String(c.id_ciclo) === String(cid));
                 if (selected) {
-                  // Sincroniza automaticamente as datas do filtro com as datas do ciclo
                   setFilterDataInicio(selected.data_inicio?.split('T')[0] || '');
                   setFilterDataFim(selected.data_fim?.split('T')[0] || '');
                 }
@@ -359,48 +408,120 @@ export function ServicosExecutadosManager() {
             {efetivo.map(e => <option key={e.id_militar} value={e.id_militar}>{e.posto_graduacao} {e.nome_guerra || e.nome_completo}</option>)}
           </select>
         </div>
-        <div style={{ flex: 1, minWidth: '200px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Busca</label>
+
+        <div style={{ flex: 1, minWidth: '150px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Início</label>
           <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input className="form-control" style={{ margin: 0, paddingLeft: '34px' }} placeholder="Nome ou matrícula..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input
+              type="date"
+              className="form-control"
+              style={{ margin: 0, paddingRight: '35px' }}
+              value={filterDataInicio}
+              onChange={e => setFilterDataInicio(e.target.value)}
+            />
+            <Calendar size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: '140px' }}>
-          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Início</label>
-          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataInicio} onChange={e => setFilterDataInicio(e.target.value)} />
-        </div>
-        <div style={{ flex: 1, minWidth: '140px' }}>
+
+        <div style={{ flex: 1, minWidth: '150px' }}>
           <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Data Fim</label>
-          <input type="date" className="form-control" style={{ margin: 0 }} value={filterDataFim} onChange={e => setFilterDataFim(e.target.value)} />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="date"
+              className="form-control"
+              style={{ margin: 0, paddingRight: '35px' }}
+              value={filterDataFim}
+              onChange={e => setFilterDataFim(e.target.value)}
+            />
+            <Calendar size={16} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: '220px' }}>
+          <label style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Busca</label>
+          <div className="search-container">
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Nome ou matrícula..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+            <Search size={18} className="search-icon" />
+          </div>
         </div>
       </div>
 
-      {/* Botões de ação em massa */}
-      {selectedIds.size > 0 && (
-        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-          <button
-            className="btn btn-primary"
-            onClick={handleDeleteSelected}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
-          >
-            <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
-          </button>
-          <button className="btn btn-secondary" onClick={() => setSelectedIds(new Set())} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <X size={16} /> Limpar seleção
-          </button>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '2px' }}>
+        <button
+          onClick={() => setActiveTab('list')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'list' ? 'white' : 'transparent',
+            color: activeTab === 'list' ? 'var(--primary)' : '#64748b',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            borderBottom: activeTab === 'list' ? '3px solid var(--primary)' : '3px solid transparent',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <ClipboardCheck size={18} /> Lista Individual
+        </button>
+        <button
+          onClick={() => setActiveTab('guarnicao')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'guarnicao' ? 'white' : 'transparent',
+            color: activeTab === 'guarnicao' ? 'var(--primary)' : '#64748b',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            borderBottom: activeTab === 'guarnicao' ? '3px solid var(--primary)' : '3px solid transparent',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Users size={18} /> Visão por Guarnição
+        </button>
+      </div>
+
+      {/* Botões de ação em massa e Busca */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {activeTab === 'list' && selectedIds.size > 0 && (
+            <>
+              <button
+                className="btn btn-primary"
+                onClick={handleDeleteSelected}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ef4444', borderColor: '#ef4444' }}
+              >
+                <Trash2 size={16} /> Excluir {selectedIds.size} selecionado(s)
+              </button>
+              <button className="btn btn-secondary" onClick={() => setSelectedIds(new Set())} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <X size={16} /> Limpar seleção
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Tabela */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>Carregando...</div>
-      ) : (
-        <div className="responsive-table-container">
-          <table className="admin-table">
+      ) : activeTab === 'list' ? (
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ border: 'none' }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', width: '40px' }}>
+              <tr style={{ borderBottom: 'none' }}>
+                <th style={{ padding: '16px', width: '40px' }}>
                   <input
                     type="checkbox"
                     checked={selectedIds.size === filtered.length && filtered.length > 0}
@@ -408,26 +529,26 @@ export function ServicosExecutadosManager() {
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('data_execucao')}>
                   Data {sortConfig.key === 'data_execucao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
+                  Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th style={{ padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                   Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
-                  Posto {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
+                <th style={{ padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('carga_horaria')}>
                   Carga {sortConfig.key === 'carga_horaria' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('status_presenca')}>
-                  Status {sortConfig.key === 'status_presenca' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                <th style={{ padding: '16px', textAlign: 'center', cursor: 'pointer' }} onClick={() => requestSort('opm_origem')}>
+                  OPM {sortConfig.key === 'opm_origem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
+                <th style={{ padding: '16px', textAlign: 'right', cursor: 'pointer' }} onClick={() => requestSort('valor_remuneracao')}>
                   Valor {sortConfig.key === 'valor_remuneracao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px', textAlign: 'center' }}>Feriado</th>
-                <th style={{ background: 'var(--primary)', color: 'white', padding: '16px' }}>Ações</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Feriado</th>
+                <th style={{ padding: '16px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -451,19 +572,29 @@ export function ServicosExecutadosManager() {
                     <td style={{ fontWeight: 500 }}>
                       {formatDateDisplay(s.data_execucao)}
                     </td>
+                    <td style={{ fontSize: '0.85rem' }}>{s.posto_graduacao}</td>
                     <td>
                       <div style={{ fontWeight: 600 }}>{s.nome_guerra || s.nome_completo}</div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{s.matricula}</div>
                     </td>
-                    <td style={{ fontSize: '0.85rem' }}>{s.posto_graduacao}</td>
                     <td style={{ textAlign: 'center' }}>
                       <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
                         {s.carga_horaria}h
                       </span>
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: statusColor(s.status_presenca) + '20', color: statusColor(s.status_presenca), padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>
-                        {statusIcon(s.status_presenca)} {s.status_presenca}
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: 'rgba(13, 56, 120, 0.1)',
+                        color: 'var(--primary)',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600
+                      }} title={`Presença: ${s.status_presenca}`}>
+                        {s.opm_origem || '---'}
                       </span>
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 600, color: s.status_presenca === 'Presente' ? '#10b981' : '#94a3b8' }}>
@@ -477,6 +608,64 @@ export function ServicosExecutadosManager() {
                         <button className="action-btn action-btn-primary" onClick={() => openEdit(s)} title="Editar"><Edit2 size={14} /></button>
                         <button className="action-btn action-btn-danger" onClick={() => handleDelete(s.id_execucao)} title="Excluir"><Trash2 size={14} /></button>
                       </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ border: 'none' }}>
+            <thead>
+              <tr style={{ borderBottom: 'none' }}>
+                <th style={{ padding: '16px' }}>Guarnição</th>
+                <th style={{ padding: '16px' }}>Data</th>
+                <th style={{ padding: '16px' }}>Efetivo (Integrantes)</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Qtd</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Carga</th>
+                <th style={{ padding: '16px', textAlign: 'right' }}>Total Remuneração</th>
+              </tr>
+            </thead>
+            <tbody>
+              {guarnicaoRows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                    Nenhuma guarnição identificada nos filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                guarnicaoRows.map(row => (
+                  <tr key={row.id}>
+                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                      {row.guarnicao}
+                    </td>
+                    <td>{formatDateDisplay(row.data)}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {row.militares.sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao)).map((m, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '0.75rem',
+                            background: '#f1f5f9',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            color: m.status_presenca === 'Presente' ? '#334155' : '#94a3b8',
+                            textDecoration: m.status_presenca !== 'Presente' ? 'line-through' : 'none'
+                          }}>
+                            {m.nome_guerra}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 600 }}>{row.militares.length}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span style={{ background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
+                        {row.cargaHoraria}h
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#10b981' }}>
+                      {formatCurrency(row.totalValor)}
                     </td>
                   </tr>
                 ))
@@ -520,7 +709,11 @@ export function ServicosExecutadosManager() {
                   <div className="form-group">
                     <label className="form-label">Carga Horária *</label>
                     <select className="form-control" value={formData.carga_horaria} onChange={e => setFormData({ ...formData, carga_horaria: parseInt(e.target.value), valor_remuneracao: '' })}>
-                      {CARGA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      {tiposServico.map(t => (
+                        <option key={t.id_tipo_servico || t.carga_horaria} value={t.carga_horaria}>
+                          {t.descricao || `${t.carga_horaria}h`} — R$ {parseFloat(t.valor_remuneracao).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -533,7 +726,7 @@ export function ServicosExecutadosManager() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Valor (R$) — Automático</label>
-                    <input type="number" step="0.01" className="form-control" placeholder={formData.carga_horaria === 8 ? '250.00' : '192.03'} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
+                    <input type="number" step="0.01" className="form-control" placeholder={getValorPlaceholder()} value={formData.valor_remuneracao} onChange={e => setFormData({ ...formData, valor_remuneracao: e.target.value })} />
                   </div>
                 </div>
                 <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

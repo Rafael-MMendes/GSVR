@@ -10,12 +10,34 @@ import {
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
+// Gera array de dias a partir do intervalo data_inicio..data_fim do ciclo
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   'Planejado e Executado': { color: '#059669', bg: '#f0fdf4', border: '#bbf7d0', icon: <CheckCircle size={14} />, label: 'Planejado e Executado' },
-  'Planejado e não Executado': { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: <XCircle size={14} />, label: 'Falta (P e não E)' },
-  'Executado e não Planejado': { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: <Info size={14} />, label: 'Extra (E e não P)' },
-  'Desistência de Requerimento': { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: <AlertTriangle size={14} />, label: 'Desistência' },
+  'Planejado': { color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: <Calendar size={14} />, label: 'Planejado' },
+  'Planejado e não Executado': { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: <XCircle size={14} />, label: 'Planejado e Não Executado' },
+  'Executado e não Planejado': { color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: <Info size={14} />, label: 'Executado e Não Planejado' },
+  'Desistência de Requerimento': { color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: <AlertTriangle size={14} />, label: 'Desistência de Requerimento' },
 };
 
 function StatusBadge({ status }) {
@@ -132,12 +154,19 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
   // KPIs agregados
   const kpis = useMemo(() => {
     const result = { executados: 0, planejados: 0, match: 0, falta: 0, extra: 0, desistencia: 0, dias_disponiveis: 0 };
+    const desistenciaDays = new Set();
+    
     data.forEach(item => {
       if (item.status_op === 'Planejado e Executado') { result.executados++; result.planejados++; result.match++; }
+      else if (item.status_op === 'Planejado') { result.planejados++; }
       else if (item.status_op === 'Planejado e não Executado') { result.planejados++; result.falta++; }
       else if (item.status_op === 'Executado e não Planejado') { result.executados++; result.extra++; }
-      else if (item.status_op === 'Desistência de Requerimento') { result.desistencia++; }
+      else if (item.status_op === 'Desistência de Requerimento') { 
+        desistenciaDays.add(item.data_ref); 
+      }
     });
+
+    result.desistencia = desistenciaDays.size;
 
     // Conta dias únicos na grade de disponibilidade onde o militar se colocou disponível
     const uniqueDays = new Set(
@@ -152,7 +181,15 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
 
   // Timeline filtrada e ordenada por data
   const timeline = useMemo(() => {
+    const seenDesistencias = new Set();
     return data
+      .filter(item => {
+        if (item.status_op === 'Desistência de Requerimento') {
+          if (seenDesistencias.has(item.data_ref)) return false;
+          seenDesistencias.add(item.data_ref);
+        }
+        return true;
+      })
       .sort((a, b) => {
         const da = a.data_ref ? new Date(a.data_ref) : 0;
         const db = b.data_ref ? new Date(b.data_ref) : 0;
@@ -378,9 +415,9 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Dias Disponíveis" value={kpis.dias_disponiveis} icon={<CalendarCheck size={24} />} color="#0891b2" bg="#ecfeff" subtitle="Requerimentos ativos" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Executados" value={kpis.executados} icon={<CheckCircle size={24} />} color="#059669" bg="#f0fdf4" subtitle="Serviços realizados" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados" value={kpis.planejados} icon={<Shield size={24} />} color="#2563eb" bg="#eff6ff" subtitle="Escalas previstas" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Match (P+E)" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total (Planejados + Executados)" /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Faltas" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="P e não E (Planejade e não Executado) " /></div>
-              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Extras" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="E e não P (Executado e não Planejado)" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados e Executados" value={kpis.match} icon={<BarChart3 size={24} />} color="#0D3878" bg="#e0f2fe" subtitle="Conformidade total Planejados(escalado) e Executados" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Planejados e não Executados" value={kpis.falta} icon={<XCircle size={24} />} color="#dc2626" bg="#fef2f2" subtitle="foi escalado porem outro militar executou o serviço" /></div>
+              <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Executados e não Planejados" value={kpis.extra} icon={<TrendingUp size={24} />} color="#7c3aed" bg="#f5f3ff" subtitle="Executou o serviço que não Planejado(escalado)" /></div>
               <div className="print-card" style={{ flex: '1 1 200px' }}><KPICard label="Desistências" value={kpis.desistencia} icon={<AlertTriangle size={24} />} color="#d97706" bg="#fffbeb" subtitle="Cancelamentos" /></div>
             </div>
 
@@ -401,8 +438,10 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
               });
 
               const turnos = SHIFTS;
-              // Sempre exibe os 31 dias para manter a estrutura do mês completa
-              const dias = Array.from({ length: 31 }, (_, i) => i + 1);
+
+              // Dias dinâmicos baseados no intervalo do ciclo selecionado
+              const cicloDadosAtual = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
+              const cycleDays = getCycleDays(cicloDadosAtual?.data_inicio, cicloDadosAtual?.data_fim);
 
               // Configuração visual dos quadrados
               const getCfg = (cell) => {
@@ -443,9 +482,17 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                       <thead>
                         <tr>
                           <th style={{ width: '80px', padding: '0.25rem 0.5rem 0.25rem 0', fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Turno</th>
-                          {dias.map(d => (
-                            <th key={d} style={{ padding: '0.25rem 0', fontSize: '0.7rem', color: '#475569', fontWeight: 800, textAlign: 'center' }}>{d}</th>
-                          ))}
+                          {cycleDays.map((dayObj, idx) => {
+                            const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                            return (
+                              <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.15rem 0', fontSize: '0.65rem', color: '#475569', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
+                                {showMonth && (
+                                  <div style={{ fontSize: '0.55rem', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.03em' }}>{dayObj.monthShort}</div>
+                                )}
+                                <div>{dayObj.day}</div>
+                              </th>
+                            );
+                          })}
                         </tr>
                       </thead>
                       <tbody>
@@ -454,11 +501,13 @@ export function RelatorioIndividual({ idMilitar, cicloId, onBack }) {
                             <td style={{ padding: '0.25rem 0.5rem 0.25rem 0', fontSize: '0.75rem', color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {turno}
                             </td>
-                            {dias.map(d => {
-                              const cell = byDay[d]?.[turno];
+                            {cycleDays.map(dayObj => {
+                              const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                              const dayStr = String(dayObj.day);
+                              const cell = byDay[dateKey]?.[turno] || byDay[dayStr]?.[turno];
                               const cfg = getCfg(cell);
                               return (
-                                <td key={d} style={{ padding: 0, textAlign: 'center' }}>
+                                <td key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: 0, textAlign: 'center' }}>
                                   {cfg ? (
                                     <div
                                       title={cfg.title}

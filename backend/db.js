@@ -9,11 +9,69 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Helper to convert SQLite '?' to PostgreSQL '$n'
 function translateSQL(sql) {
   let index = 1;
   return sql.replace(/\?/g, () => `$${index++}`);
 }
+
+// Global helper methods that use the pool directly
+const db = {
+  exec: async (sql) => {
+    await pool.query(sql);
+  },
+
+  get: async (sql, params = []) => {
+    const { rows } = await pool.query(translateSQL(sql), params);
+    return rows[0];
+  },
+
+  all: async (sql, params = []) => {
+    const { rows } = await pool.query(translateSQL(sql), params);
+    return rows;
+  },
+
+  run: async (sql, params = []) => {
+    const isInsert = sql.toUpperCase().includes('INSERT');
+    const hasReturning = sql.toUpperCase().includes('RETURNING');
+
+    let internalSql = sql;
+    if (isInsert && !hasReturning) {
+      internalSql += ' RETURNING *';
+    }
+
+    const result = await pool.query(translateSQL(internalSql), params);
+
+    let lastID = null;
+    if (isInsert && result.rows.length > 0) {
+      const firstRow = result.rows[0];
+      lastID = firstRow[Object.keys(firstRow)[0]];
+    }
+
+    return {
+      lastID: lastID,
+      changes: result.rowCount
+    };
+  },
+
+  query: async (text, params) => {
+    return pool.query(text, params);
+  },
+
+  transaction: async (callback) => {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+};
 
 async function setupDB() {
   let retries = 5;
@@ -54,6 +112,7 @@ async function setupDB() {
           -- Drop views que possuem dependências de colunas que serão migradas
           DROP VIEW IF EXISTS vw_relatorio_operacional_completo CASCADE;
           DROP VIEW IF EXISTS vw_relatorio_operacional_agregado CASCADE;
+          DROP VIEW IF EXISTS vw_detalhes_ciclos CASCADE;
         `);
         console.log('[DB] Tabelas RBAC antigas removidas — serão recriadas com schema correto.');
 
@@ -83,6 +142,14 @@ async function setupDB() {
               WHERE table_name = 'users' AND column_name = 'password'
             ) THEN
               ALTER TABLE users RENAME COLUMN senha TO password;
+            END IF;
+
+            -- Garante que limite_equipes_diario existe na tabela CICLOS
+            IF NOT EXISTS (
+              SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'ciclos' AND column_name = 'limite_equipes_diario'
+            ) THEN
+              ALTER TABLE CICLOS ADD COLUMN limite_equipes_diario INTEGER DEFAULT 6;
             END IF;
           END $$;
         `);
@@ -120,6 +187,17 @@ async function setupDB() {
           -- Migration: Adicionar coluna motorista se não existir
           ALTER TABLE EFETIVO ADD COLUMN IF NOT EXISTS motorista VARCHAR(10) DEFAULT 'Não';
 
+          -- Migration: Garantir unique constraint em REQUERIMENTOS
+          DO $$ 
+          BEGIN 
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.table_constraints 
+                WHERE constraint_name='uq_requerimentos_militar_ciclo' AND table_name='requerimentos'
+            ) THEN
+                ALTER TABLE REQUERIMENTOS ADD CONSTRAINT uq_requerimentos_militar_ciclo UNIQUE (id_militar, id_ciclo);
+            END IF;
+          END $$;
+
           -- 3. Tabela CICLOS
           CREATE TABLE IF NOT EXISTS CICLOS (
               id_ciclo SERIAL PRIMARY KEY,
@@ -127,16 +205,65 @@ async function setupDB() {
               data_inicio DATE NOT NULL,
               data_fim DATE NOT NULL,
               status VARCHAR(50) NOT NULL DEFAULT 'Aberto',
-              valor_total_previsto DECIMAL(12, 2) DEFAULT 0
+              valor_total_previsto DECIMAL(12, 2) DEFAULT 0,
+              valor_contingencia DECIMAL(12, 2) DEFAULT 0,
+              ativo BOOLEAN DEFAULT TRUE,
+              limite_equipes_diario INTEGER DEFAULT 6
           );
+
+          -- 3.1 Tabela METAS_ALOCACAO (Metas diárias calculadas automaticamente)
+          CREATE TABLE IF NOT EXISTS METAS_ALOCACAO (
+              id_meta SERIAL PRIMARY KEY,
+              id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo) ON DELETE CASCADE,
+              data DATE NOT NULL,
+              cenario CHAR(1) CHECK (cenario IN ('A', 'B')),
+              qtd_equipes_planejadas INTEGER DEFAULT 0,
+              custo_estimado DECIMAL(12, 2) DEFAULT 0,
+              UNIQUE(id_ciclo, data)
+          );
+
+          -- 3.2 Configuração parametrizável do Motor de Ciclos (elimina hardcode)
+          CREATE TABLE IF NOT EXISTS CICLO_CONFIG (
+              id_config     SERIAL PRIMARY KEY,
+              dia_inicio    INTEGER NOT NULL DEFAULT 16,
+              dia_fim       INTEGER NOT NULL DEFAULT 15,
+              id_opm        INTEGER REFERENCES OPM(id_opm),
+              vigente_desde DATE NOT NULL DEFAULT CURRENT_DATE,
+              criado_em     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Seed: configuração padrão do ciclo (16 ao 15)
+          INSERT INTO CICLO_CONFIG (dia_inicio, dia_fim, vigente_desde)
+          VALUES (16, 15, '2020-01-01')
+          ON CONFLICT DO NOTHING;
+
+          -- 3.3 Log de auditoria de importações de PDF
+          CREATE TABLE IF NOT EXISTS IMPORTACAO_LOG (
+              id_log          SERIAL PRIMARY KEY,
+              id_usuario      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+              arquivo_nome    VARCHAR(255),
+              arquivo_hash    TEXT,
+              status          VARCHAR(50) DEFAULT 'sucesso',
+              id_militar      INTEGER REFERENCES EFETIVO(id_militar) ON DELETE SET NULL,
+              id_requerimento INTEGER REFERENCES REQUERIMENTOS(id_requerimento) ON DELETE SET NULL,
+              ciclos_afetados INTEGER[],
+              detalhes        JSONB,
+              importado_em    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_militar  ON IMPORTACAO_LOG(id_militar);
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_hash     ON IMPORTACAO_LOG(arquivo_hash);
+          CREATE INDEX IF NOT EXISTS idx_importacao_log_usuario  ON IMPORTACAO_LOG(id_usuario);
 
           -- 4. Tabela REQUERIMENTOS (Substitui volunteers - metadados)
           CREATE TABLE IF NOT EXISTS REQUERIMENTOS (
               id_requerimento SERIAL PRIMARY KEY,
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
+              id_usuario_criacao INTEGER REFERENCES users(id),
               numero_requerimento VARCHAR(50),
               data_solicitacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              observacao TEXT,
               UNIQUE(id_militar, id_ciclo)
           );
 
@@ -144,7 +271,7 @@ async function setupDB() {
           CREATE TABLE IF NOT EXISTS DISPONIBILIDADE_REQUERIMENTO (
               id_disponibilidade SERIAL PRIMARY KEY,
               id_requerimento INTEGER NOT NULL REFERENCES REQUERIMENTOS(id_requerimento) ON DELETE CASCADE,
-              dia_mes INTEGER NOT NULL,
+              dia_mes DATE NOT NULL,
               horario_turno VARCHAR(50) NOT NULL,
               marcado_disponivel BOOLEAN DEFAULT FALSE,
               marcado_servico_ordinario BOOLEAN DEFAULT FALSE,
@@ -187,7 +314,8 @@ async function setupDB() {
               horario_embarque VARCHAR(50),
               nome_recurso VARCHAR(100),
               funcao VARCHAR(50),
-              observacoes TEXT
+              observacoes TEXT,
+              publicado BOOLEAN DEFAULT TRUE
           );
 
           -- 7. Tabela SERVICOS_EXECUTADOS
@@ -214,8 +342,18 @@ async function setupDB() {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_total_previsto') THEN
               ALTER TABLE CICLOS ADD COLUMN valor_total_previsto DECIMAL(12, 2) DEFAULT 0;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='valor_contingencia') THEN
+              ALTER TABLE CICLOS ADD COLUMN valor_contingencia DECIMAL(12, 2) DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ciclos' AND column_name='ativo') THEN
+              ALTER TABLE CICLOS ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
+              UPDATE CICLOS SET ativo = (status = 'Aberto');
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
               ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='publicado') THEN
+              ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN publicado BOOLEAN DEFAULT TRUE;
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_tipo_servico') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
@@ -234,6 +372,14 @@ async function setupDB() {
             END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='motorista') THEN
               ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN motorista BOOLEAN DEFAULT FALSE;
+            END IF;
+
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='id_usuario_criacao') THEN
+              ALTER TABLE REQUERIMENTOS ADD COLUMN id_usuario_criacao INTEGER REFERENCES users(id);
+            END IF;
+            
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='observacao') THEN
+              ALTER TABLE REQUERIMENTOS ADD COLUMN observacao TEXT;
             END IF;
 
             -- Migration v1.28.3: Garantir constraint de unicidade para idempotência na importação
@@ -257,6 +403,86 @@ async function setupDB() {
 
             IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='servicos_executados' AND column_name='id_ciclo' AND is_nullable='YES') THEN
               ALTER TABLE SERVICOS_EXECUTADOS ALTER COLUMN id_ciclo SET NOT NULL;
+            END IF;
+
+            -- Migration: Refatoração de dia_mes (INTEGER -> DATE) e remoção de mes_referencia
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'disponibilidade_requerimento' 
+                AND column_name = 'dia_mes' 
+                AND data_type = 'integer'
+            ) THEN
+              -- 1. Criar funções temporárias de conversão segura
+              CREATE OR REPLACE FUNCTION public.safe_cast_to_date(year_month text, day_num integer)
+              RETURNS date AS $body$
+              BEGIN
+                RETURN (year_month || '-' || LPAD(day_num::text, 2, '0'))::date;
+              EXCEPTION WHEN OTHERS THEN
+                RETURN NULL;
+              END;
+              $body$ LANGUAGE plpgsql;
+
+              CREATE OR REPLACE FUNCTION public.safe_make_date(y integer, m integer, d integer)
+              RETURNS date AS $body$
+              BEGIN
+                RETURN make_date(y, m, d);
+              EXCEPTION WHEN OTHERS THEN
+                RETURN NULL;
+              END;
+              $body$ LANGUAGE plpgsql;
+
+              -- 2. Remover constraints que usam dia_mes
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP CONSTRAINT IF EXISTS uq_disp_req_dia_turno;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP CONSTRAINT IF EXISTS disponibilidade_requerimento_id_requerimento_dia_mes_horar_key;
+              
+              -- 3. Adicionar coluna temporária do tipo DATE
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN dia_mes_date DATE;
+
+              -- 4. Atualizar a nova coluna com as datas convertidas de forma segura
+              UPDATE DISPONIBILIDADE_REQUERIMENTO dr
+              SET dia_mes_date = COALESCE(
+                (SELECT public.safe_cast_to_date(r.mes_referencia, dr.dia_mes)
+                 FROM REQUERIMENTOS r
+                 WHERE r.id_requerimento = dr.id_requerimento
+                   AND r.mes_referencia IS NOT NULL
+                   AND r.mes_referencia ~ '^\d{4}-\d{2}$'),
+                (SELECT 
+                   CASE 
+                     WHEN dr.dia_mes >= EXTRACT(DAY FROM c.data_inicio)::int THEN
+                       public.safe_make_date(EXTRACT(YEAR FROM c.data_inicio)::int, EXTRACT(MONTH FROM c.data_inicio)::int, dr.dia_mes)
+                     ELSE
+                       public.safe_make_date(EXTRACT(YEAR FROM c.data_fim)::int, EXTRACT(MONTH FROM c.data_fim)::int, dr.dia_mes)
+                   END
+                 FROM REQUERIMENTOS r
+                 JOIN CICLOS c ON r.id_ciclo = c.id_ciclo
+                 WHERE r.id_requerimento = dr.id_requerimento)
+              );
+
+              -- 5. Excluir registros inválidos (como dia 31 em abril/fevereiro) que resultaram em NULL
+              DELETE FROM DISPONIBILIDADE_REQUERIMENTO WHERE dia_mes_date IS NULL;
+
+              -- 6. Remover coluna antiga e renomear a nova
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO DROP COLUMN dia_mes;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO RENAME COLUMN dia_mes_date TO dia_mes;
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ALTER COLUMN dia_mes SET NOT NULL;
+
+              -- 7. Recriar a constraint de unicidade
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO 
+                ADD CONSTRAINT uq_disp_req_dia_turno 
+                UNIQUE (id_requerimento, dia_mes, horario_turno);
+
+              -- 8. Dropar funções temporárias auxiliares
+              DROP FUNCTION IF EXISTS public.safe_cast_to_date(text, integer);
+              DROP FUNCTION IF EXISTS public.safe_make_date(integer, integer, integer);
+            END IF;
+
+            -- Migration: remover mes_referencia de REQUERIMENTOS
+            IF EXISTS (
+              SELECT 1 FROM information_schema.columns 
+              WHERE table_name = 'requerimentos' 
+                AND column_name = 'mes_referencia'
+            ) THEN
+              ALTER TABLE REQUERIMENTOS DROP COLUMN mes_referencia;
             END IF;
 
 
@@ -521,10 +747,21 @@ async function setupDB() {
               o.sigla as opm_sigla,
               o.descricao as opm_descricao,
               TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
+              (CASE 
+                WHEN EXTRACT(MONTH FROM c.data_inicio) = EXTRACT(MONTH FROM c.data_fim) THEN 
+                  TO_CHAR(c.data_inicio, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+                ELSE 
+                  TO_CHAR(c.data_inicio, 'FMMonth') || ' / ' || TO_CHAR(c.data_fim, 'FMMonth') || ' - ' || TO_CHAR(c.data_inicio, 'YYYY')
+              END) as period_name,
               c.data_inicio,
-          c.data_fim,
-          c.status,
-          c.valor_total_previsto,
+              c.data_fim,
+              c.status,
+              c.ativo,
+              c.valor_total_previsto,
+              c.valor_contingencia,
+              c.limite_equipes_diario,
+              COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as custo_executado,
+              c.valor_total_previsto - c.valor_contingencia - COALESCE((SELECT SUM(valor_remuneracao) FROM SERVICOS_EXECUTADOS se WHERE se.id_ciclo = c.id_ciclo AND UPPER(TRIM(se.opm_origem)) = UPPER(TRIM(o.sigla))), 0) as saldo_restante,
               (SELECT COUNT(*) FROM REQUERIMENTOS r WHERE r.id_ciclo = c.id_ciclo) as total_inscritos,
               (SELECT COUNT(*) FROM ESCALA_PLANEJAMENTO ep WHERE ep.id_ciclo = c.id_ciclo) as total_escalados
           FROM CICLOS c
@@ -583,6 +820,8 @@ async function setupDB() {
         if (parseInt(tiposCheck.rows[0].count) === 0) {
           await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 6h', 6, 192.03)");
           await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 8h', 8, 250.00)");
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 12h', 12, 384.06)");
+          await client.query("INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao) VALUES ('Serviço 24h', 24, 768.12)");
         }
 
         // ============================================================
@@ -699,6 +938,25 @@ async function setupDB() {
           ON CONFLICT DO NOTHING
         `);
 
+        // Migração: Corrigir id_tipo_servico dos registros em SERVICOS_EXECUTADOS baseado na carga_horaria
+        await client.query(`
+          UPDATE SERVICOS_EXECUTADOS se
+          SET id_tipo_servico = (
+            SELECT ts.id_tipo_servico
+            FROM TIPOS_SERVICO ts
+            WHERE ts.carga_horaria = se.carga_horaria
+            AND ts.ativo = true
+            LIMIT 1
+          )
+          WHERE se.id_tipo_servico IS NULL 
+             OR se.id_tipo_servico NOT IN (
+               SELECT ts2.id_tipo_servico 
+               FROM TIPOS_SERVICO ts2 
+               WHERE ts2.carga_horaria = se.carga_horaria
+             );
+        `);
+        console.log('[DB] Migração e correção de id_tipo_servico executada com sucesso.');
+
         console.log('[DB] Schema RBAC + Perfil inicializado com sucesso.');
 
       } finally {
@@ -706,50 +964,7 @@ async function setupDB() {
       }
 
       // Wrapper methods using the pool
-      const dbWrapper = {
-        exec: async (sql) => {
-          await pool.query(sql);
-        },
-
-        get: async (sql, params = []) => {
-          const { rows } = await pool.query(translateSQL(sql), params);
-          return rows[0];
-        },
-
-        all: async (sql, params = []) => {
-          const { rows } = await pool.query(translateSQL(sql), params);
-          return rows;
-        },
-
-        run: async (sql, params = []) => {
-          const isInsert = sql.toUpperCase().includes('INSERT');
-          const hasReturning = sql.toUpperCase().includes('RETURNING');
-
-          let internalSql = sql;
-          if (isInsert && !hasReturning) {
-            internalSql += ' RETURNING *';
-          }
-
-          const result = await pool.query(translateSQL(internalSql), params);
-
-          // Se for insert, tenta pegar o valor da primeira coluna (geralmente o ID) para simular o lastID do SQLite
-          let lastID = null;
-          if (isInsert && result.rows.length > 0) {
-            const firstRow = result.rows[0];
-            lastID = firstRow[Object.keys(firstRow)[0]];
-          }
-
-          return {
-            lastID: lastID,
-            changes: result.rowCount
-          };
-        },
-
-        // Add pool access for complex queries
-        query: async (text, params) => {
-          return pool.query(text, params);
-        }
-      };
+      const dbWrapper = db;
 
       // ============================================================
       // CONFIGURAÇÃO DE TRIGGERS (Automação da Tabela Ternária)
@@ -790,11 +1005,16 @@ async function setupDB() {
                       INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, id_execucao, status)
                       VALUES (NEW.id_escala, NEW.id_militar, v_id_execucao, 'Planejado e executado');
                   END IF;
-              ELSE
-                  -- 5. Sem execução prévia: Comportamento padrão (Cria apenas planejamento)
-                  INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
-                  VALUES (NEW.id_escala, NEW.id_militar, 'Planejado e não executado');
-              END IF;
+                  ELSE
+                      -- 5. Sem execução prévia: Comportamento padrão (Cria apenas planejamento)
+                      INSERT INTO ESCALA_EFETIVO_SERVICO (id_escala, id_militar, status)
+                      VALUES (NEW.id_escala, NEW.id_militar, 
+                          CASE 
+                            WHEN NEW.data_servico > CURRENT_DATE THEN 'Planejado' 
+                            ELSE 'Planejado e não Executado' 
+                          END
+                      );
+                  END IF;
 
               RETURN NEW;
           END;
@@ -840,7 +1060,7 @@ async function setupDB() {
               ELSE
                   -- Sem Planejamento: Cria novo registro de execução avulsa
                   INSERT INTO ESCALA_EFETIVO_SERVICO (id_execucao, id_militar, status)
-                  VALUES (NEW.id_execucao, NEW.id_militar, 'Apenas executado');
+                  VALUES (NEW.id_execucao, NEW.id_militar, 'Executado e Não Planejado');
               END IF;
 
               RETURN NEW;
@@ -869,4 +1089,7 @@ async function setupDB() {
   }
 }
 
-module.exports = { setupDB };
+module.exports = {
+  setupDB,
+  ...db
+};

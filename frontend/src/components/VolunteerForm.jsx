@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Save, CheckCircle, AlertTriangle, Calendar } from 'lucide-react';
-import { maskPhone } from '../utils/formatters';
+import { maskPhone, MILITARY_RANK_ORDER } from '../utils/formatters';
 
 const formatDateDisplay = (dateValue) => {
   if (!dateValue) return '---';
@@ -14,10 +14,27 @@ const formatDateDisplay = (dateValue) => {
   }
 };
 
-const ranks = [
-  "CEL PM", "TC PM", "MAJ PM", "CAP PM", "1º TEN PM", "2º TEN PM", 
-  "SUB PM", "1º SGT PM", "2º SGT PM", "3º SGT PM", "CB PM", "SD PM"
-];
+const ranks = MILITARY_RANK_ORDER;
+
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return [];
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
 
 const SHIFTS = [
   "07:00 ÀS 13:00",
@@ -48,6 +65,8 @@ export function VolunteerForm({ userData }) {
     }
     return { ...EMPTY_FORM, id_ciclo: '' };
   });
+  const [showShiftObsModal, setShowShiftObsModal] = useState(false);
+  const [obsShiftData, setObsShiftData] = useState(null);
   const [ciclos, setCiclos] = useState([]);
   const [selectedCiclo, setSelectedCiclo] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +77,7 @@ export function VolunteerForm({ userData }) {
   const [conflictInfo, setConflictInfo] = useState(null); // { id, name, rank }
   const [showConflictModal, setShowConflictModal] = useState(false);
 
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  const cycleDays = getCycleDays(selectedCiclo?.data_inicio, selectedCiclo?.data_fim);
 
   useEffect(() => {
     const fetchCiclos = async () => {
@@ -87,8 +106,15 @@ export function VolunteerForm({ userData }) {
     setFormData(prev => {
       const dayStr = String(day);
       const dayShifts = prev.availability[dayStr] || [];
-      const isSelected = dayShifts.includes(shift);
-      const newShifts = isSelected ? dayShifts.filter(s => s !== shift) : [...dayShifts, shift];
+      const isSelected = dayShifts.some(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+      
+      let newShifts;
+      if (isSelected) {
+        newShifts = dayShifts.filter(s => (typeof s === 'object' ? s.turno !== shift : s !== shift));
+      } else {
+        newShifts = [...dayShifts, { turno: shift, observacoes: '' }];
+      }
+
       const newAvailability = { ...prev.availability };
       if (newShifts.length > 0) {
         newAvailability[dayStr] = newShifts;
@@ -97,6 +123,45 @@ export function VolunteerForm({ userData }) {
       }
       return { ...prev, availability: newAvailability };
     });
+  };
+
+  const openShiftObsModal = (e, day, shift) => {
+    e.preventDefault();
+    const dayStr = String(day);
+    const dayShifts = formData.availability[dayStr] || [];
+    const shiftData = dayShifts.find(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+    
+    if (!shiftData) return;
+
+    setObsShiftData({ 
+      day, 
+      shift, 
+      value: typeof shiftData === 'object' ? (shiftData.observacoes || '') : '' 
+    });
+    setShowShiftObsModal(true);
+  };
+
+  const saveShiftObservation = () => {
+    const { day, shift, value } = obsShiftData;
+    setFormData(prev => {
+      const dayStr = String(day);
+      const dayShifts = [...(prev.availability[dayStr] || [])];
+      const idx = dayShifts.findIndex(s => (typeof s === 'object' ? s.turno === shift : s === shift));
+      
+      if (idx !== -1) {
+        const current = dayShifts[idx];
+        dayShifts[idx] = { 
+          turno: typeof current === 'object' ? current.turno : current, 
+          observacoes: value 
+        };
+      }
+
+      return {
+        ...prev,
+        availability: { ...prev.availability, [dayStr]: dayShifts }
+      };
+    });
+    setShowShiftObsModal(false);
   };
 
   const validate = () => {
@@ -332,11 +397,15 @@ export function VolunteerForm({ userData }) {
                   <th style={{ padding: '1rem', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'left', minWidth: '160px', position: 'sticky', left: 0, zIndex: 10, background: 'var(--primary)' }}>
                     TURNO / DATA
                   </th>
-                  {daysInMonth.map(day => (
-                    <th key={day} style={{ padding: '0.5rem 0', width: '32px', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-                      {String(day).padStart(2, '0')}
-                    </th>
-                  ))}
+                  {cycleDays.map((dayObj, idx) => {
+                    const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                    return (
+                      <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.5rem 0', width: '32px', borderRight: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', lineHeight: 1.1 }}>
+                        {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75 }}>{dayObj.monthShort}</div>}
+                        <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -356,12 +425,21 @@ export function VolunteerForm({ userData }) {
                     }}>
                       {shift}
                     </td>
-                    {daysInMonth.map(day => {
-                      const isSelected = (formData.availability[String(day)] || []).includes(shift);
+                    {cycleDays.map(dayObj => {
+                      const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                      const isSelected = (formData.availability[dateKey] || []).some(s => 
+                        (typeof s === 'object' ? s.turno === shift : s === shift)
+                      );
+                      const currentShiftData = (formData.availability[dateKey] || []).find(s => 
+                        (typeof s === 'object' ? s.turno === shift : s === shift)
+                      );
+                      const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
+
                       return (
                         <td
-                          key={day}
-                          onClick={() => toggleShift(day, shift)}
+                          key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                          onClick={() => toggleShift(dateKey, shift)}
+                          onContextMenu={(e) => openShiftObsModal(e, dateKey, shift)}
                           style={{
                             borderRight: '1px solid var(--border-color)',
                             borderTop: '1px solid var(--border-color)',
@@ -374,10 +452,24 @@ export function VolunteerForm({ userData }) {
                             userSelect: 'none',
                             transition: 'all 0.1s ease',
                             width: '44px',
-                            height: '44px' // Improved touch target
+                            height: '44px',
+                            position: 'relative'
                           }}
+                          title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para observação)` : ''}
                         >
                           {isSelected ? 'X' : '·'}
+                          {isSelected && hasObs && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              right: 0,
+                              width: '6px',
+                              height: '6px',
+                              background: '#fbbf24',
+                              borderRadius: '50%',
+                              margin: '2px'
+                            }} />
+                          )}
                         </td>
                       );
                     })}
@@ -395,6 +487,34 @@ export function VolunteerForm({ userData }) {
           </div>
         </form>
       </div>
+
+      {/* Modal de Observação de Turno */}
+      {showShiftObsModal && obsShiftData && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100
+        }}>
+          <div className="glass-panel" style={{ width: '400px', maxWidth: '90%', animation: 'slideUp 0.3s ease-out' }}>
+            <h3 style={{ marginTop: 0 }}>Observação do Turno</h3>
+             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Dia {String(obsShiftData.day).includes('-') ? obsShiftData.day.split('-').reverse().join('/') : String(obsShiftData.day).padStart(2, '0')} - {obsShiftData.shift}
+             </p>
+            <textarea
+              className="form-control"
+              value={obsShiftData.value}
+              onChange={e => setObsShiftData({ ...obsShiftData, value: e.target.value })}
+              placeholder="Digite observações específicas para este turno..."
+              rows="4"
+              autoFocus
+              style={{ marginBottom: '1.5rem' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button className="btn btn-outline" onClick={() => setShowShiftObsModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveShiftObservation}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

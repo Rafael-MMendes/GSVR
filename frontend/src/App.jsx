@@ -10,6 +10,7 @@ import { RequerimentosAdmin } from './components/RequerimentosAdmin';
 import { FinanceiroDashboard } from './components/FinanceiroDashboard';
 import { OpmManager } from './components/OpmManager';
 import { CicloManager } from './components/CicloManager';
+import { MetasAlocacaoManager } from './components/MetasAlocacaoManager';
 import { EfetivoImport } from './components/EfetivoImport';
 import { ServicosImport } from './components/ServicosImport';
 import { EfetivoManager } from './components/EfetivoManager';
@@ -18,11 +19,13 @@ import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
 import { TiposServicoManager } from './components/TiposServicoManager';
+import { ConferenciaOperacional } from './components/ConferenciaOperacional';
+import { Footer } from './components/Footer';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet
+  FileSpreadsheet, Target, GitCompareArrows
 } from 'lucide-react';
 
 // ============================================================
@@ -31,12 +34,17 @@ import {
 function restoreSession() {
   try {
     const token = localStorage.getItem('ft_access_token');
-    const userData = JSON.parse(localStorage.getItem('ft_user'));
-    if (token && userData) {
+    const userRaw = localStorage.getItem('ft_user');
+    if (token && userRaw && userRaw !== 'undefined') {
+      const userData = JSON.parse(userRaw);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       return userData;
     }
-  } catch (_) { }
+  } catch (e) {
+    console.error("Session restoration failed:", e);
+    localStorage.removeItem('ft_access_token');
+    localStorage.removeItem('ft_user');
+  }
   return null;
 }
 
@@ -45,6 +53,21 @@ function App() {
   const [user, setUser] = useState(() => restoreSession());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+
+  // Configura interceptor para logout automático em caso de 401
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      response => response,
+      error => {
+        if (error.response?.status === 401) {
+          console.warn("Session expired or unauthorized. Logging out...");
+          handleLogout();
+        }
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
 
   // Determina a view inicial após login/restauração de sessão
   useEffect(() => {
@@ -133,7 +156,7 @@ function App() {
       <nav className="navbar">
         <div className="navbar-brand">
           <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" />
-          <span>9º BPM - GSVR</span>
+          <span>GSVR - Gestão de Serviço Voluntário Remunerado - {user.opm_sigla || '9º BPM'}</span>
         </div>
 
         <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -174,6 +197,11 @@ function App() {
                       <ClipboardCheck size={16} /> Serviços Executados
                     </a>
                   )}
+                  {hasPermission('escalas:read') && (
+                    <a href="#" className={`dropdown-item ${currentView === 'conferencia' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('conferencia'); }}>
+                      <GitCompareArrows size={16} /> Conferência Operacional
+                    </a>
+                  )}
 
                 </div>
               </div>
@@ -182,7 +210,7 @@ function App() {
               {hasPermission('financeiro:read') && (
                 <div className="nav-group">
                   <span
-                    className={`nav-category ${(['analytics', 'financeiro'].includes(currentView)) ? 'active' : ''}`}
+                    className={`nav-category ${(['analytics', 'financeiro', 'metas'].includes(currentView)) ? 'active' : ''}`}
                     onClick={() => toggleDropdown('dashboards')}
                   >
                     <BarChart2 size={18} /> Dashboards {chevron('dashboards')}
@@ -194,6 +222,11 @@ function App() {
                     <a href="#" className={`dropdown-item ${currentView === 'financeiro' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('financeiro'); }}>
                       <DollarSign size={16} /> Dashboard Financeiro
                     </a>
+                    {hasPermission('ciclos:read') && (
+                      <a href="#" className={`dropdown-item ${currentView === 'metas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('metas'); }}>
+                        <Target size={16} /> Metas de Alocação
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
@@ -213,11 +246,11 @@ function App() {
                         <Building2 size={16} /> Configuração OPM
                       </a>
                     )}
-                    {hasPermission('ciclos:read') && (
-                      <a href="#" className={`dropdown-item ${currentView === 'ciclo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('ciclo'); }}>
-                        <Calendar size={16} /> Gerenciamento de Ciclos
-                      </a>
-                    )}
+                    <a href="#" className={`dropdown-item ${currentView === 'ciclo' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('ciclo'); }}>
+                      <Calendar size={16} /> Gerenciamento de Ciclos
+                    </a>
+
+
                     {isAdmin && (
                       <a href="#" className={`dropdown-item ${currentView === 'tipos-servico' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('tipos-servico'); }}>
                         <DollarSign size={16} /> Tipos de Serviço (Verba)
@@ -286,19 +319,22 @@ function App() {
         {/* Rotas administrativas — protegidas por permissão */}
         {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
         {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
-        {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin />}
+        {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin user={user} />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
         {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
+        {currentView === 'metas' && hasPermission('ciclos:read') && <MetasAlocacaoManager />}
         {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
         {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
         {currentView === 'import-servicos' && isAdmin && <ServicosImport onBack={() => navigateTo('servicos')} />}
         {currentView === 'servicos' && isAdmin && <ServicosExecutadosManager />}
+        {currentView === 'conferencia' && (isAdmin || isGerente) && <ConferenciaOperacional />}
         {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
         {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}
       </main>
+      <Footer />
     </>
   );
 }

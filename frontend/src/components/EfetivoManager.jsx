@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Edit2, Trash2, Search, User, CreditCard, Shield, MapPin, Phone, CheckCircle, XCircle, FileSpreadsheet, X, MoreVertical } from 'lucide-react';
-import { maskPhone, formatPhone } from '../utils/formatters';
+import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 import { EfetivoImport } from './EfetivoImport';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
@@ -13,7 +13,7 @@ export function EfetivoManager() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingMilitar, setEditingMilitar] = useState(null);
-  const [sortConfig, setSortConfig] = useState({ key: 'nome_completo', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'posto_graduacao', direction: 'asc' });
   const [formData, setFormData] = useState({
     nome_completo: '',
     nome_guerra: '',
@@ -109,6 +109,12 @@ export function EfetivoManager() {
   ).sort((a, b) => {
     if (!sortConfig.key) return 0;
 
+    // Ordenação especial por hierarquia militar
+    if (sortConfig.key === 'posto_graduacao') {
+      const result = compareByRank(a.posto_graduacao, b.posto_graduacao);
+      return sortConfig.direction === 'asc' ? result : -result;
+    }
+
     let aVal = a[sortConfig.key];
     let bVal = b[sortConfig.key];
 
@@ -156,18 +162,6 @@ export function EfetivoManager() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Nome, matrícula ou ordem..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '40px', width: '280px', height: '44px', borderRadius: '12px' }}
-            />
-          </div>
-
           <button
             className="btn btn-outline"
             onClick={() => setIsImportModalOpen(true)}
@@ -203,28 +197,41 @@ export function EfetivoManager() {
         </div>
       </header>
 
-      {loading ? (
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div className="search-container search-container-fixed">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Nome, matrícula ou ordem..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <Search size={18} className="search-icon" />
+        </div>
+      </div>
+
+      {loading && filteredEfetivo.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem' }}>Carregando...</div>
       ) : (
-        <div className="responsive-table-container" style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-          <table className="admin-table" style={{ border: 'none' }}>
+        <div className="table-premium-wrapper">
+          <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-              <tr style={{ background: 'var(--primary)', borderBottom: 'none' }}>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('status_ativo')}>
+              <tr>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('status_ativo')}>
                   Status {sortConfig.key === 'status_ativo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('posto_graduacao')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                   Posto/Grad {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_guerra')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                   Nome de Guerra {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', padding: '16px' }} onClick={() => requestSort('nome_completo')}>
+                <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_completo')}>
                   Identificação {sortConfig.key === 'nome_completo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>CPF</th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '16px' }}>Telefone</th>
-                <th style={{ background: 'var(--primary)', color: 'white', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', padding: '16px' }}>Ações</th>
+                <th>CPF</th>
+                <th>Telefone</th>
+                <th style={{ textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target, Eye, EyeOff } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
+import { compareByRank } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -32,7 +34,10 @@ export function AdminDashboardV2() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
   const [selectedCycleId, setSelectedCycleId] = useState('');
-  const [selectedDate, setSelectedDate] = useState(String(new Date().getDate()));
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [selectedShift, setSelectedShift] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSlot, setActiveSlot] = useState(null);
@@ -43,6 +48,11 @@ export function AdminDashboardV2() {
   const [savingPatrolId, setSavingPatrolId] = useState(null);
   const [newPatrolDuration, setNewPatrolDuration] = useState('6h');
   const [newPatrolShift, setNewPatrolShift] = useState('Diurno (07:00 - 13:00)');
+  const [detailedMilitar, setDetailedMilitar] = useState(null);
+  const [militarSchedules, setMilitarSchedules] = useState([]);
+  const [showPublicacao, setShowPublicacao] = useState(false);
+  const [metas, setMetas] = useState([]);
+  const [showUnavailable, setShowUnavailable] = useState(false);
 
   const [state, setState] = useState({
     pool: [],
@@ -57,11 +67,18 @@ export function AdminDashboardV2() {
       try {
         const monthsRes = await axios.get(`${API_URL}/ciclos`);
         setMonths(monthsRes.data);
-        const activeCycle = monthsRes.data.find(c => c.status === 'Aberto');
+        const activeCycle = monthsRes.data.find(c => c.status === 'Aberto') || monthsRes.data[0];
         if (activeCycle) {
           setSelectedCycleId(activeCycle.id_ciclo);
-        } else if (monthsRes.data.length > 0) {
-          setSelectedCycleId(monthsRes.data[0].id_ciclo);
+          
+          // Sincroniza a data selecionada: se hoje estiver fora do ciclo, usa o início do ciclo
+          const today = new Date().toISOString().split('T')[0];
+          const start = String(activeCycle.data_inicio).split('T')[0];
+          const end = String(activeCycle.data_fim).split('T')[0];
+          
+          if (today < start || today > end) {
+            setSelectedDate(start);
+          }
         }
       } catch (e) {
         console.error('[Init] Erro ao carregar ciclos:', e);
@@ -72,12 +89,16 @@ export function AdminDashboardV2() {
 
   const loadScheduleData = (volunteersData, schedulesData, monthKey, dateVal) => {
     if (!volunteersData) return;
-    const selectedDateNum = parseInt(dateVal);
+    // dateVal can be 'YYYY-MM-DD' or a plain day number — extract the day correctly
+    const selectedDateNum = (typeof dateVal === 'string' && dateVal.includes('-'))
+      ? parseInt(dateVal.split('-')[2], 10)
+      : parseInt(dateVal);
     const dayKey1 = String(selectedDateNum);
     const dayKey2 = String(selectedDateNum).padStart(2, '0');
 
     const processedVolunteers = volunteersData.map(v => {
       const availabilityForDay =
+        (v.availability && typeof dateVal === 'string' && v.availability[dateVal]) ||
         (v.availability && v.availability[dayKey1]) ||
         (v.availability && v.availability[dayKey2]) ||
         (v.availability && v.availability[selectedDateNum]);
@@ -107,12 +128,14 @@ export function AdminDashboardV2() {
 
     const pool = processedVolunteers.filter(p => !assignedIds.has(String(p.id)) && !(p.id_militar && assignedIds.has(`m${p.id_militar}`)))
       .sort((a, b) => {
+        // Primário: disponíveis hoje primeiro
         if (a.isAvailableToday && !b.isAvailableToday) return -1;
         if (!a.isAvailableToday && b.isAvailableToday) return 1;
-        return 0;
+        // Secundário: ordenar por hierarquia (maior posto primeiro)
+        return compareByRank(a.rank, b.rank);
       });
 
-    setState({ pool, patrols });
+    setState(prev => ({ ...prev, pool, patrols }));
   };
 
   useEffect(() => {
@@ -120,9 +143,13 @@ export function AdminDashboardV2() {
     const loadVolunteers = async () => {
       try {
         setLoadingVolunteers(true);
-        const volRes = await axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCycleId}`);
+        const [volRes, metasRes] = await Promise.all([
+          axios.get(`${API_URL}/volunteers?id_ciclo=${selectedCycleId}`),
+          axios.get(`${API_URL}/ciclos/${selectedCycleId}/metas`)
+        ]);
         volunteersRef.current = volRes.data;
         setVolunteers(volRes.data);
+        setMetas(metasRes.data);
       } catch (e) {
         console.error(e);
       } finally {
@@ -133,7 +160,7 @@ export function AdminDashboardV2() {
   }, [selectedCycleId]);
 
   const loadSchedule = async () => {
-    if (!selectedCycleId || volunteersRef.current.length === 0) return;
+    if (!selectedCycleId) return;
     try {
       const schedRes = await axios.get(`${API_URL}/schedules?date=${selectedDate}&id_ciclo=${selectedCycleId}`);
       loadScheduleData(volunteersRef.current, schedRes.data, selectedCycleId, selectedDate);
@@ -172,26 +199,31 @@ export function AdminDashboardV2() {
 
   const filteredPool = useMemo(() => {
     return state.pool.filter(p => {
-      // Regra: Exibir apenas militares com até 7 serviços (limite de 8 atingido oculta do pool)
-      if (p.service_count >= 8) return false;
+      // Regra: Exibir apenas militares com até 7 serviços executados (limite de 8 atingido oculta do pool)
+      if (p.executed_count >= 8) return false;
 
-      const matchesSearch = (p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.numero_ordem && String(p.numero_ordem).includes(searchTerm));
-      if (searchTerm.length > 1) return matchesSearch;
-      if (selectedShift === 'Todos') return matchesSearch;
-      if (!p.isAvailableToday) return false;
-      return matchesSearch && p.todayShifts.some(s => {
-        if (!s) return false;
-        const dbShift = String(s).toUpperCase();
-        const selShift = selectedShift.toUpperCase();
-        return dbShift.includes(selShift.split(' ')[0]) ||
-          (selShift.includes('07') && dbShift.includes('07:00')) ||
-          (selShift.includes('13') && dbShift.includes('13:00')) ||
-          (selShift.includes('19') && dbShift.includes('19:00')) ||
-          (selShift.includes('01') && dbShift.includes('01:00'));
-      });
+      const isSearchActive = searchTerm.length > 1;
+      const matchesSearch = isSearchActive
+        ? ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.numero_ordem && String(p.numero_ordem).includes(searchTerm)))
+        : true;
+
+      if (!matchesSearch) return false;
+
+      if (selectedShift !== 'Todos') {
+        if (!p.isAvailableToday && !showUnavailable) return false;
+        if (!p.isAvailableToday && showUnavailable) return true; // Mostra todos se showUnavailable estiver on
+        return p.todayShifts.some(s => {
+          if (!s) return false;
+          const shiftStr = typeof s === 'object' ? s.turno : s;
+          return String(shiftStr).toUpperCase().trim() === selectedShift.toUpperCase().trim();
+        });
+      }
+
+      if (!isSearchActive && !p.isAvailableToday && !showUnavailable) return false;
+
+      return true;
     });
-  }, [state.pool, searchTerm, selectedShift, selectedDate]);
+  }, [state.pool, searchTerm, selectedShift, selectedDate, showUnavailable]);
 
   const assignToActiveSlot = (person) => {
     if (!activeSlot) return;
@@ -268,7 +300,7 @@ export function AdminDashboardV2() {
         if (patrolId === 'NEW') {
           newPatrols.push({
             id: `p${Date.now()}`,
-            name: 'GSVR',
+            name: 'Força Tarefa',
             duration: newPatrolDuration,
             timeSpan: newPatrolShift,
             members: newMembers
@@ -300,6 +332,18 @@ export function AdminDashboardV2() {
         return p;
       })
     }));
+  };
+
+  const handleShowDetails = async (militar) => {
+    setDetailedMilitar(militar);
+    setMilitarSchedules([]);
+    try {
+      const res = await axios.get(`${API_URL}/reports/operacional-detalhado?ciclo_id=${selectedCycleId}`);
+      const filtered = res.data.filter(item => String(item.id_militar) === String(militar.id_militar || militar.id));
+      setMilitarSchedules(filtered);
+    } catch (err) {
+      console.error('Erro ao buscar escalas do militar:', err);
+    }
   };
 
   const handleDragStart = (e, personId, sourceId) => {
@@ -362,16 +406,13 @@ export function AdminDashboardV2() {
 
     if (!window.confirm(`Deseja realmente excluir a guarnição "${patrolName}"? Esta ação removerá os registros planejados do banco de dados.`)) return;
 
-    try {
-      // Chama API para exclusão física no banco
-      await axios.delete(`${API_URL}/schedules/patrol`, {
-        params: {
-          nome_recurso: patrolName,
-          data_servico: selectedDate,
-          id_ciclo: selectedCycleId
-        }
-      });
+    // Verifica se a guarnição é local (criada via "Nova Guarnição" mas nunca salva no banco)
+    // Patrulhas locais têm IDs no formato 'p' + timestamp (ex: p1720352800000)
+    // Patrulhas do DB têm IDs no formato 'nome_N' (ex: GSVR_0, p_0, Força Tarefa_1)
+    const isLocalOnly = /^p\d{10,}$/.test(patrolId);
 
+    // Função para remover a guarnição do estado local e devolver membros ao pool
+    const removeFromLocalState = () => {
       setState(prev => {
         const pRem = prev.patrols.find(p => p.id === patrolId);
         if (!pRem) return prev;
@@ -382,11 +423,49 @@ export function AdminDashboardV2() {
           patrols: prev.patrols.filter(p => p.id !== patrolId)
         };
       });
+    };
 
-      // Feedback opcional ou apenas sucesso silencioso na UI
+    // Se a guarnição nunca foi salva no banco, remove apenas localmente
+    if (isLocalOnly) {
+      removeFromLocalState();
+      return;
+    }
+
+    try {
+      // Extrai os ids dos militares presentes na guarnição
+      const memberIds = (patrolToRemove.members || [])
+        .filter(m => m && m.id_militar)
+        .map(m => m.id_militar)
+        .join(',');
+
+      // Chama API para exclusão física no banco, incluindo horario_servico e membros para precisão
+      await axios.delete(`${API_URL}/schedules/patrol`, {
+        params: {
+          nome_recurso: patrolName,
+          data_servico: selectedDate,
+          id_ciclo: selectedCycleId,
+          horario_servico: patrolToRemove.timeSpan || '',
+          membros: memberIds
+        }
+      });
+
+      // Remove do estado local
+      removeFromLocalState();
+
+      // Recarrega a escala do banco para garantir sincronia total
+      await loadSchedule();
+
     } catch (error) {
       console.error('Erro ao excluir guarnição:', error);
       const errorData = error.response?.data;
+
+      // Se o backend retornou 404 ou não encontrou registros, pode ser que a guarnição já não exista no banco
+      if (error.response?.status === 404 || (errorData && errorData.code === 'NOT_FOUND')) {
+        // Remove apenas localmente, pois a guarnição já não existe no banco
+        removeFromLocalState();
+        return;
+      }
+
       const msg = (typeof errorData === 'object' ? errorData.error : null) || error.response?.statusText || error.message;
       alert(`Erro ao excluir guarnição: ${msg}`);
     }
@@ -441,7 +520,11 @@ export function AdminDashboardV2() {
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5);
     pdf.text('9º Batalhão de Polícia Militar — Batalhão de Divisas', pageW / 2, 15, { align: 'center' });
     pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8.5); pdf.setTextColor(200, 220, 255);
-    pdf.text(`Escala Operacional do GSVR (Dia ${selectedDate})`, pageW / 2, 21, { align: 'center' });
+    const [yyyy, mm, dd] = selectedDate.split('-');
+    const dateForPdf = dd && mm && yyyy
+      ? new Date(`${yyyy}-${mm}-${dd}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+      : selectedDate;
+    pdf.text(`Escala Operacional do GSVR (${dateForPdf})`, pageW / 2, 21, { align: 'center' });
 
     const source = printRef.current;
     const clone = source.cloneNode(true);
@@ -488,6 +571,18 @@ export function AdminDashboardV2() {
   const shadowSm = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
   const shadowMd = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
   const shadowLg = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+
+  if (showPublicacao) {
+    const currentCycle = months.find(c => String(c.id_ciclo) === String(selectedCycleId));
+    return (
+      <EscalaPublicacaoOficial
+        patrols={state.patrols}
+        date={selectedDate}
+        cycle={currentCycle}
+        onBack={() => setShowPublicacao(false)}
+      />
+    );
+  }
 
   return (
     <div className="v2-dashboard-container" style={{
@@ -555,8 +650,40 @@ export function AdminDashboardV2() {
             }}>
               <Clock size={16} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Ciclo Ativo</div>
-                {months.find(m => m.id_ciclo === selectedCycleId)?.period_name || '---'}
+                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Ciclo Ativo</div>
+                <select 
+                  value={selectedCycleId}
+                  onChange={(e) => {
+                    const newId = e.target.value;
+                    setSelectedCycleId(newId);
+                    const cycle = months.find(c => String(c.id_ciclo) === String(newId));
+                    if (cycle) {
+                      const start = String(cycle.data_inicio).split('T')[0];
+                      const end = String(cycle.data_fim).split('T')[0];
+                      const today = new Date().toISOString().split('T')[0];
+                      if (today < start || today > end) {
+                        setSelectedDate(start);
+                      } else {
+                        setSelectedDate(today);
+                      }
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    color: colors.primary,
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    padding: 0
+                  }}
+                >
+                  {months.map(m => (
+                    <option key={m.id_ciclo} value={m.id_ciclo}>{m.period_name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -574,10 +701,60 @@ export function AdminDashboardV2() {
             }}>
               <Users size={16} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
-                Disponíveis: {filteredPool.length}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
+                  <button 
+                    onClick={() => setShowUnavailable(!showUnavailable)}
+                    style={{ 
+                      fontSize: '0.65rem', 
+                      background: showUnavailable ? '#fee2e2' : '#f1f5f9',
+                      border: 'none',
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      color: showUnavailable ? '#b91c1c' : '#64748b',
+                      cursor: 'pointer',
+                      fontWeight: 700
+                    }}
+                  >
+                    {showUnavailable ? 'Ocultar' : 'Mostrar Todos'}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>Disponíveis: {filteredPool.length}</div>
               </div>
             </div>
+
+            {/* CARD DE METAS DO DIA */}
+            {(() => {
+              const metaDoDia = metas.find(m => String(m.data).split('T')[0] === selectedDate);
+              const totalPlanejado = metaDoDia?.qtd_equipes_planejadas || 0;
+              const atual = state.patrols.length;
+              const isOver = atual > totalPlanejado && totalPlanejado > 0;
+              const isMet = atual === totalPlanejado && totalPlanejado > 0;
+
+              return (
+                <div style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '12px',
+                  background: isOver ? '#fef2f2' : (isMet ? '#f0fdf4' : '#fff7ed'),
+                  color: isOver ? '#dc2626' : (isMet ? '#15803d' : '#c2410c'),
+                  border: `1px solid ${isOver ? '#fecaca' : (isMet ? '#bbf7d0' : '#fed7aa')}`,
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  transition: 'all 0.3s ease'
+                }}>
+                  <Target size={16} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Meta do Dia</div>
+                    {atual} / {totalPlanejado} Equipes
+                  </div>
+                  {isMet && <Check size={14} />}
+                  {isOver && <AlertTriangle size={14} />}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -605,10 +782,11 @@ export function AdminDashboardV2() {
               >
                 {/* Options logic stays the same */}
                 {(() => {
-                  const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                  const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                   if (!currentCycle) return null;
-                  const startBy = new Date(currentCycle.data_inicio);
-                  const endBy = new Date(currentCycle.data_fim);
+                  const startBy = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
+                  const endBy = new Date(String(currentCycle.data_fim).split('T')[0] + 'T12:00:00');
+
                   const daysBy = [];
                   let currBy = new Date(startBy);
                   while (currBy <= endBy) {
@@ -617,11 +795,15 @@ export function AdminDashboardV2() {
                   }
                   return daysBy.map(date => {
                     const d = date.getDate();
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d).padStart(2, '0');
+                    const isoDate = `${yyyy}-${mm}-${dd}`;
                     const month = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
                     const monthCap = month.charAt(0).toUpperCase() + month.slice(1);
                     const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
                     const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                    return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                    return <option key={date.getTime()} value={isoDate}>Dia {dd}/{monthCap}{wdayCap}</option>;
                   });
                 })()}
               </select>
@@ -705,13 +887,13 @@ export function AdminDashboardV2() {
               </button>
 
               <button
-                onClick={generatePDF}
+                onClick={() => setShowPublicacao(true)}
                 style={{
                   width: '100%',
                   padding: '0.85rem',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  border: '1px solid #e2e8f0',
+                  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
                   transition: transitions,
@@ -719,13 +901,15 @@ export function AdminDashboardV2() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.75rem',
-                  marginTop: '0.5rem'
+                  marginTop: '0.5rem',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 6px rgba(15, 23, 42, 0.2)'
                 }}
-                onMouseOver={e => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
-                onMouseOut={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                <Printer size={18} />
-                <span>Imprimir Escala</span>
+                <FileText size={18} />
+                <span>Publicar Escala</span>
               </button>
             </div>
           </div>
@@ -744,9 +928,6 @@ export function AdminDashboardV2() {
               Gerencie as guarnições para o dia selecionado
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            {/* Additional stats or info could go here */}
-          </div>
         </div>
 
         <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
@@ -764,8 +945,9 @@ export function AdminDashboardV2() {
                 style={{
                   background: colors.white,
                   borderRadius: '20px',
-                  border: `1px solid ${colors.border}`,
+                  border: patrol.publicado === false ? '1px dashed #ef4444' : `1px solid ${colors.border}`,
                   boxShadow: shadowMd,
+                  opacity: patrol.publicado === false ? 0.85 : 1,
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
@@ -817,33 +999,57 @@ export function AdminDashboardV2() {
                         placeholder="Nome da Guarnição"
                       />
                     </div>
-                    <button
-                      onClick={() => removePatrol(patrol.id)}
-                      className="no-print"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.12)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255, 255, 255, 0.2)',
-                        color: 'white',
-                        cursor: 'pointer',
-                        borderRadius: '12px',
-                        padding: '8px',
-                        display: 'flex',
-                        transition: transitions,
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }}
-                      onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
-                      onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
-                      title="Remover Guarnição"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <button
+                        onClick={() => handlePatrolSettingChange(patrol.id, 'publicado', patrol.publicado === false ? true : false)}
+                        className="no-print"
+                        style={{
+                          background: patrol.publicado !== false ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
+                          backdropFilter: 'blur(8px)',
+                          border: `1px solid ${patrol.publicado !== false ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                          color: 'white',
+                          cursor: 'pointer',
+                          borderRadius: '12px',
+                          padding: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }}
+                        title={patrol.publicado !== false ? "Esta guarnição será publicada na escala oficial (Clique para ocultar)" : "Esta guarnição está oculta e não será publicada (Clique para exibir)"}
+                      >
+                        {patrol.publicado !== false ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </button>
+
+                      <button
+                        onClick={() => removePatrol(patrol.id)}
+                        className="no-print"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.12)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          cursor: 'pointer',
+                          borderRadius: '12px',
+                          padding: '8px',
+                          display: 'flex',
+                          transition: transitions,
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background = colors.danger; e.currentTarget.style.borderColor = colors.danger; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
+                        title="Remover Guarnição"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Status Pills inside header */}
-                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                     <div style={{
-                      fontSize: '0.6rem',
+                      fontSize: '0.8rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       background: 'rgba(255,255,255,0.15)',
@@ -855,7 +1061,7 @@ export function AdminDashboardV2() {
                     </div>
                     {patrol.timeSpan && (
                       <div style={{
-                        fontSize: '0.6rem',
+                        fontSize: '0.8rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         background: 'rgba(255,255,255,0.15)',
@@ -866,6 +1072,45 @@ export function AdminDashboardV2() {
                         {patrol.timeSpan}
                       </div>
                     )}
+                    <div style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      background: patrol.publicado !== false ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '20px',
+                      backdropFilter: 'blur(4px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {patrol.publicado !== false ? <Check size={12} strokeWidth={3} /> : <X size={12} strokeWidth={3} />}
+                      {patrol.publicado !== false ? 'Publicada' : 'Não Publicada'}
+                    </div>
+                  </div>
+
+                  {/* Input Local de Embarque */}
+                  <div style={{ marginTop: '0.8rem' }}>
+                    <input
+                      type="text"
+                      value={patrol.horario_embarque === undefined ? 'local de embarque; 30 minutos de antecedência na sede do 9º BPM' : patrol.horario_embarque}
+                      onChange={e => handlePatrolSettingChange(patrol.id, 'horario_embarque', e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        color: 'white',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        outline: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                      onFocus={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                      onBlur={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                      placeholder="Local de embarque"
+                    />
                   </div>
                 </div>
 
@@ -1139,27 +1384,15 @@ export function AdminDashboardV2() {
               padding: '0.5rem 2rem'
             }}>
               {/* Line 1: Search */}
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Search size={18} color={colors.textMuted} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
+              <div className="search-container" style={{ width: '100%' }}>
                 <input
                   type="text"
+                  className="search-input"
                   placeholder="Buscar por nome, matricula ou Nº ordem..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem 1rem 0.85rem 3rem',
-                    borderRadius: '12px',
-                    border: `1px solid ${colors.border}`,
-                    outline: 'none',
-                    fontSize: '1rem',
-                    fontWeight: 500,
-                    boxShadow: shadowSm,
-                    transition: transitions
-                  }}
-                  onFocus={e => { e.target.style.borderColor = colors.primary; e.target.style.boxShadow = '0 0 0 3px rgba(13, 56, 120, 0.1)'; }}
-                  onBlur={e => { e.target.style.borderColor = colors.border; e.target.style.boxShadow = shadowSm; }}
                 />
+                <Search size={18} className="search-icon" />
               </div>
 
               {/* Line 2: All Filters Grouped */}
@@ -1184,11 +1417,12 @@ export function AdminDashboardV2() {
                     onChange={e => setSelectedDate(e.target.value)}
                   >
                     {(() => {
-                      const currentCycle = months.find(m => m.id_ciclo === selectedCycleId);
+                      const currentCycle = months.find(m => String(m.id_ciclo) === String(selectedCycleId));
                       if (!currentCycle) return null;
 
-                      const startDate = new Date(currentCycle.data_inicio);
-                      const endDate = new Date(currentCycle.data_fim);
+                      const startDate = new Date(String(currentCycle.data_inicio).split('T')[0] + 'T12:00:00');
+                      const endDate = new Date(String(currentCycle.data_fim).split('T')[0] + 'T12:00:00');
+
                       const days = [];
                       let curr = new Date(startDate);
                       while (curr <= endDate) {
@@ -1198,11 +1432,15 @@ export function AdminDashboardV2() {
 
                       return days.map(date => {
                         const d = date.getDate();
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d).padStart(2, '0');
+                        const isoDate = `${yyyy}-${mm}-${dd}`;
                         const monthName = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
                         const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1);
                         const wday = date.toLocaleDateString('pt-BR', { weekday: 'short' });
                         const wdayCap = ' (' + wday.charAt(0).toUpperCase() + wday.slice(1) + ')';
-                        return <option key={date.getTime()} value={d}>Dia {String(d).padStart(2, '0')}/{monthCap}{wdayCap}</option>
+                        return <option key={date.getTime()} value={isoDate}>Dia {dd}/{monthCap}{wdayCap}</option>;
                       });
                     })()}
                   </select>
@@ -1227,7 +1465,7 @@ export function AdminDashboardV2() {
                     onChange={e => setSelectedShift(e.target.value)}
                   >
                     <option value="Todos">Turno: Todos</option>
-                    {SHIFTS.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
+                    {SHIFTS?.map(s => <option key={s} value={s}>{s.split(' ')[0]}</option>)}
                   </select>
                 </div>
 
@@ -1248,7 +1486,7 @@ export function AdminDashboardV2() {
                           color: colors.primary,
                           boxShadow: shadowSm
                         }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration}
                         onChange={e => {
                           if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
                           else handleDurationChange(selectionMode.patrolId, e.target.value);
@@ -1272,14 +1510,14 @@ export function AdminDashboardV2() {
                           color: colors.primary,
                           boxShadow: shadowSm
                         }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(p => p.id === selectionMode.patrolId)?.timeSpan}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols?.find(p => p.id === selectionMode.patrolId)?.timeSpan}
                         onChange={e => {
                           if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
                           else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
                         }}
                       >
                         <option value="">Selecione Horário...</option>
-                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols.find(p => p.id === selectionMode.patrolId)?.duration).map(opt => (
+                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration)?.map(opt => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
@@ -1290,17 +1528,37 @@ export function AdminDashboardV2() {
                 <div style={{
                   padding: '0.85rem 1.25rem',
                   borderRadius: '12px',
-                  background: '#f0fdf4',
-                  color: '#166534',
-                  border: '1px solid #bbf7d0',
+                  background: showUnavailable ? '#fee2e2' : '#f0fdf4',
+                  color: showUnavailable ? '#b91c1c' : '#166534',
+                  border: showUnavailable ? '1px solid #fecaca' : '1px solid #bbf7d0',
                   fontWeight: 700,
                   fontSize: '0.9rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem'
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  minWidth: '220px'
                 }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
-                  {filteredPool.length} Disponíveis
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: showUnavailable ? '#ef4444' : '#22c55e' }}></div>
+                    {filteredPool.length} {showUnavailable ? 'Encontrados' : 'Disponíveis'}
+                  </div>
+                  <button
+                    onClick={() => setShowUnavailable(!showUnavailable)}
+                    style={{
+                      background: 'white',
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontSize: '0.7rem',
+                      cursor: 'pointer',
+                      color: showUnavailable ? '#b91c1c' : '#166534',
+                      fontWeight: 800,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    {showUnavailable ? 'Ver Disponíveis' : 'Mostrar Todos'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1319,8 +1577,10 @@ export function AdminDashboardV2() {
               {filteredPool.length === 0 ? (
                 <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: colors.textMuted }}>
                   <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar encontrado</p>
-                  <p style={{ fontSize: '0.9rem' }}>Tente ajustar os filtros ou a busca</p>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar disponível hoje</p>
+                  <p style={{ fontSize: '0.9rem', maxWidth: '300px', margin: '0.5rem auto' }}>
+                    Tente clicar em <strong>"Mostrar Todos"</strong> no topo para ver voluntários que não marcaram este dia.
+                  </p>
                 </div>
               ) : (
                 filteredPool.map(p => {
@@ -1348,6 +1608,32 @@ export function AdminDashboardV2() {
                       onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
+                      {/* Info Button Overlay */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleShowDetails(p); }}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '10px',
+                          background: 'rgba(30, 58, 120, 0.05)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '28px',
+                          height: '28px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.primary,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          zIndex: 10
+                        }}
+                        onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+                        onMouseOut={e => { e.currentTarget.style.background = 'rgba(30, 58, 120, 0.05)'; e.currentTarget.style.color = colors.primary; }}
+                        title="Ver escalas do militar"
+                      >
+                        <Search size={14} strokeWidth={3} />
+                      </button>
                       <div style={{
                         width: '48px',
                         height: '48px',
@@ -1410,21 +1696,53 @@ export function AdminDashboardV2() {
                         </div>
                       </div>
 
-                      {/* Service Counter Badge with Color Scale */}
-                      <div style={{
-                        background: p.service_count >= 8 ? '#fef2f2' :
-                          p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
-                        color: p.service_count >= 8 ? '#dc2626' :
-                          p.service_count >= 6 ? '#b45309' : '#15803d',
-                        padding: '6px 10px',
-                        borderRadius: '12px',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                        border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
-                          p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
-                          }`
-                      }}>
-                        {p.service_count}/8
+                      {/* Service Counter Badges */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                        {/* PLAN Badge */}
+                        <div style={{
+                          background: p.service_count >= 8 ? '#fef2f2' :
+                            p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
+                          color: p.service_count >= 8 ? '#dc2626' :
+                            p.service_count >= 6 ? '#b45309' : '#15803d',
+                          padding: '4px 10px',
+                          borderRadius: '10px',
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
+                            p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
+                            }`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: '60px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
+                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>PLAN</span>
+                          {p.service_count}/8
+                        </div>
+
+                        {/* EXEC Badge */}
+                        <div style={{
+                          background: p.executed_count >= 8 ? '#ecfdf5' :
+                            p.executed_count >= 6 ? '#f0fdf4' : '#eff6ff',
+                          color: p.executed_count >= 8 ? '#059669' :
+                            p.executed_count >= 6 ? '#16a34a' : '#1e40af',
+                          padding: '4px 10px',
+                          borderRadius: '10px',
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          border: `1px solid ${p.executed_count >= 8 ? '#a7f3d0' :
+                            p.executed_count >= 6 ? '#bbf7d0' : '#dbeafe'
+                            }`,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          minWidth: '60px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
+                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>EXEC</span>
+                          {p.executed_count}/8
+                        </div>
                       </div>
                     </div>
                   );
@@ -1486,6 +1804,100 @@ export function AdminDashboardV2() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALHES MILITAR */}
+      {detailedMilitar && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1100, animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            background: colors.white, borderRadius: '24px',
+            width: '90%', maxWidth: '500px', padding: '2rem',
+            boxShadow: shadowLg, position: 'relative'
+          }}>
+            <button onClick={() => setDetailedMilitar(null)} style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted }}>
+              <X size={24} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ background: colors.primaryGradient, width: '60px', height: '60px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <UserCircle size={36} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, color: colors.primary, fontWeight: 800 }}>{detailedMilitar.rank} {detailedMilitar.name}</h3>
+                <p style={{ margin: 0, color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>Matrícula: {detailedMilitar.numero_ordem || detailedMilitar.matricula}</p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={18} color={colors.primary} /> Histórico no Ciclo
+              </h4>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                {militarSchedules.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '16px', color: colors.textMuted }}>
+                    <Calendar size={32} style={{ opacity: 0.2, marginBottom: '0.5rem' }} />
+                    <p style={{ fontSize: '0.85rem' }}>Carregando escalas ou nenhuma encontrada...</p>
+                  </div>
+                ) : (
+                  militarSchedules.map((s, idx) => (
+                    <div key={idx} style={{
+                      background: '#ffffff',
+                      padding: '1rem',
+                      borderRadius: '16px',
+                      border: `1px solid ${colors.border}`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      boxShadow: shadowSm
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: colors.text, fontSize: '0.9rem' }}>{s.data_formatada}</div>
+                        <div style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>{s.recurso_planejado || s.recurso_executado || 'SVR'}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          textTransform: 'uppercase',
+                          background: colors.primary + '10',
+                          color: colors.primary,
+                          padding: '4px 10px',
+                          borderRadius: '8px'
+                        }}>
+                          {s.funcao_planejada || 'Patrulheiro'}
+                        </span>
+                        <div style={{
+                          fontSize: '0.7rem',
+                          color: s.id_execucao ? '#10b981' : '#f59e0b',
+                          fontWeight: 700,
+                          marginTop: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          justifyContent: 'flex-end'
+                        }}>
+                          {s.id_execucao ? <Check size={12} strokeWidth={3} /> : <Clock size={12} strokeWidth={3} />}
+                          {s.id_execucao ? 'EXECUTADO' : 'PLANEJADO'}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <button onClick={() => setDetailedMilitar(null)} style={{ width: '100%', padding: '1rem', background: colors.primary, color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+              Fechar
+            </button>
           </div>
         </div>
       )}

@@ -175,68 +175,143 @@ export function ServicosImport({ onBack }) {
           </div>
         )}
 
-        {result && (
-          <div style={{
-            textAlign: 'center', padding: '2rem', background: '#f0fdf4', borderRadius: '16px',
-            border: '1px solid #bbf7d0', marginBottom: '2rem'
-          }}>
-            <div style={{
-              width: '64px', height: '64px', background: '#22c55e', color: 'white',
-              borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 1.5rem'
-            }}>
-              <CheckCircle2 size={40} />
-            </div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>Dados importados com sucesso!</h3>
-            <p style={{ color: '#15803d', marginBottom: '2rem' }}>{result.message}</p>
+        {result && (() => {
+          const totalProcessed = (result.stats.imported || 0) + (result.stats.skipped || 0) + (result.stats.errors || 0) + (result.stats.inactive || 0) + (result.stats.not_registered || 0);
+          const totalRejected = (result.stats.errors || 0) + (result.stats.inactive || 0) + (result.stats.not_registered || 0);
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: '1rem'
-            }}>
-              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Importados</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>{result.stats.imported}</div>
-              </div>
-              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Duplicados/S.Dados</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#f59e0b' }}>{result.stats.skipped || 0}</div>
-              </div>
-              <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Erros</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>{result.stats.errors}</div>
-              </div>
-            </div>
-
-            {result.errorDetails && result.errorDetails.length > 0 && (
-              <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                <h5 style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <AlertCircle size={14} /> Detalhamento:
-                </h5>
+          return (
+            <div style={{ padding: '1.5rem', background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '2rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                 <div style={{
-                  background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px',
-                  padding: '0.75rem', fontSize: '0.75rem', color: '#991b1b',
-                  maxHeight: '200px', overflowY: 'auto'
+                  width: '64px', height: '64px', background: '#10b981', color: 'white',
+                  borderRadius: '50%', display: 'flex', alignItems: 'center',
+                  margin: '0 auto 1.5rem', justifyContent: 'center'
                 }}>
-                  {result.errorDetails.map((err, i) => (
-                    <div key={i} style={{ marginBottom: '4px', paddingBottom: '4px', borderBottom: i < result.errorDetails.length - 1 ? '1px solid #fecaca' : 'none' }}>
-                      <strong>{err.militar}:</strong> {err.error}
+                  <CheckCircle2 size={40} />
+                </div>
+                <h3 style={{ margin: '0 0 8px 0', color: '#166534', fontSize: '1.5rem' }}>Importação concluída com sucesso.</h3>
+                
+                {/* UX Message Banner */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '1rem', color: '#15803d', fontSize: '0.9rem', maxWidth: '600px', margin: '1rem auto', textAlign: 'left', lineHeight: '1.6' }}>
+                  <strong>Resumo do Processamento:</strong>
+                  <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.25rem' }}>
+                    <li>Serviços processados: <strong>{totalProcessed}</strong></li>
+                    <li>Serviços importados: <strong>{result.stats.imported || 0}</strong></li>
+                    <li>Serviços ignorados (militares inativos): <strong>{result.stats.inactive || 0}</strong></li>
+                    <li>Serviços ignorados (militares não cadastrados): <strong>{result.stats.not_registered || 0}</strong></li>
+                    <li>Total de serviços não importados: <strong>{totalRejected}</strong></li>
+                  </ul>
+                  {totalRejected > 0 && (
+                    <div style={{ marginTop: '0.75rem', fontWeight: 600, color: '#b91c1c' }}>
+                      Consulte o relatório de inconsistências abaixo para visualizar os militares e serviços que não puderam ser importados.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
-            )}
 
-            <button
-              className="btn btn-primary"
-              style={{ marginTop: '2.5rem', paddingLeft: '2rem', paddingRight: '2rem' }}
-              onClick={() => setResult(null)}
-            >
-              Nova Importação
-            </button>
-          </div>
-        )}
+              {/* Stats Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '1rem',
+                marginBottom: '2rem'
+              }}>
+                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>Processados</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a' }}>{totalProcessed}</div>
+                </div>
+                <div style={{ background: '#f0fdf4', padding: '1rem', borderRadius: '12px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#15803d', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>Importados</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#16a34a' }}>{result.stats.imported}</div>
+                </div>
+                <div style={{ background: '#fffbeb', padding: '1rem', borderRadius: '12px', border: '1px solid #fde68a', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#b45309', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>Inativos</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#d97706' }}>{result.stats.inactive || 0}</div>
+                </div>
+                <div style={{ background: '#fff1f2', padding: '1rem', borderRadius: '12px', border: '1px solid #fecaca', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#991b1b', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>Não Cadastrados</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#dc2626' }}>{result.stats.not_registered || 0}</div>
+                </div>
+                <div style={{ background: '#f1f5f9', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: '#475569', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>Rejeitados</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ef4444' }}>{totalRejected}</div>
+                </div>
+              </div>
+
+              {/* Relatório de Inconsistências */}
+              {result.errorDetails && result.errorDetails.length > 0 && (
+                <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                  <h4 style={{ fontSize: '1.1rem', color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+                    <AlertCircle size={20} style={{ color: '#ef4444' }} /> 
+                    Relatório de Inconsistências
+                  </h4>
+                  <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #cbd5e1' }}>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Militar</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>Matrícula</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>Unidade</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'center', color: '#475569', fontWeight: 600 }}>Data Serviço</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'left', color: '#475569', fontWeight: 600 }}>Motivo da Rejeição</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.errorDetails.map((err, i) => {
+                          const isInactive = err.reason === 'inactive' || err.error?.includes('inativo');
+                          const isNotReg = err.reason === 'not_registered' || err.error?.includes('não cadastrado');
+                          
+                          let badgeBg = '#f1f5f9';
+                          let badgeColor = '#475569';
+                          let reasonText = err.error || 'Erro desconhecido';
+
+                          if (isInactive) {
+                            badgeBg = '#fffbeb';
+                            badgeColor = '#b45309';
+                            reasonText = 'Militar inativo';
+                          } else if (isNotReg) {
+                            badgeBg = '#fff1f2';
+                            badgeColor = '#e11d48';
+                            reasonText = 'Militar não cadastrado no sistema';
+                          }
+
+                          return (
+                            <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                              <td style={{ padding: '10px 12px', fontWeight: 500, color: '#1e293b' }}>{err.militar}</td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>{err.matricula || '---'}</td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>{err.opm || '---'}</td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center', color: '#64748b' }}>
+                                {err.data ? new Date(err.data).toLocaleDateString('pt-BR') : '---'}
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span style={{
+                                  padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem',
+                                  fontWeight: '600', background: badgeBg, color: badgeColor
+                                }}>
+                                  {reasonText}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.5rem' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
+                  onClick={() => setResult(null)}
+                >
+                  Nova Importação
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {!result && (
           <>
