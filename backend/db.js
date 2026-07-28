@@ -305,6 +305,7 @@ async function setupDB() {
           -- 6. Tabela ESCALA_PLANEJAMENTO (Substitui schedules)
           CREATE TABLE IF NOT EXISTS ESCALA_PLANEJAMENTO (
               id_escala SERIAL PRIMARY KEY,
+              id_guarnicao VARCHAR(50),
               id_ciclo INTEGER NOT NULL REFERENCES CICLOS(id_ciclo),
               id_militar INTEGER NOT NULL REFERENCES EFETIVO(id_militar),
               id_disponibilidade INTEGER REFERENCES DISPONIBILIDADE_REQUERIMENTO(id_disponibilidade),
@@ -349,6 +350,21 @@ async function setupDB() {
               ALTER TABLE CICLOS ADD COLUMN ativo BOOLEAN DEFAULT TRUE;
               UPDATE CICLOS SET ativo = (status = 'Aberto');
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_guarnicao') THEN
+              ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_guarnicao VARCHAR(150);
+            ELSE
+              ALTER TABLE ESCALA_PLANEJAMENTO ALTER COLUMN id_guarnicao TYPE VARCHAR(150);
+            END IF;
+
+            -- Preenche retroativamente id_guarnicao para registros antigos agrupando por id_ciclo, data_servico, horario_servico e nome_recurso
+            UPDATE ESCALA_PLANEJAMENTO ep
+            SET id_guarnicao = SUBSTRING(CONCAT(
+              LOWER(REGEXP_REPLACE(ep.nome_recurso, '[^a-zA-Z0-9]', '_', 'g')),
+              '_',
+              TO_CHAR(ep.data_servico, 'YYYYMMDD'),
+              '_',
+              LOWER(REGEXP_REPLACE(ep.horario_servico, '[^a-zA-Z0-9]', '', 'g'))
+            ) FROM 1 FOR 150);
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
               ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
             END IF;
@@ -686,14 +702,17 @@ async function setupDB() {
               v_marcado_disponivel BOOLEAN;
               v_ativo BOOLEAN;
           BEGIN
-              IF NEW.id_disponibilidade IS NOT NULL THEN
-                  SELECT marcado_disponivel, ativo 
-                  INTO v_marcado_disponivel, v_ativo
-                  FROM DISPONIBILIDADE_REQUERIMENTO
-                  WHERE id_disponibilidade = NEW.id_disponibilidade;
+              -- No UPDATE, só valida se id_disponibilidade mudou ou no INSERT
+              IF (TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.id_disponibilidade IS DISTINCT FROM OLD.id_disponibilidade)) THEN
+                  IF NEW.id_disponibilidade IS NOT NULL THEN
+                      SELECT marcado_disponivel, ativo 
+                      INTO v_marcado_disponivel, v_ativo
+                      FROM DISPONIBILIDADE_REQUERIMENTO
+                      WHERE id_disponibilidade = NEW.id_disponibilidade;
 
-                  IF v_marcado_disponivel = FALSE OR v_ativo = FALSE THEN
-                      RAISE EXCEPTION 'Erro: O militar não marcou este turno como disponível no requerimento ou a disponibilidade está inativa.';
+                      IF v_marcado_disponivel = FALSE OR v_ativo = FALSE THEN
+                          RAISE EXCEPTION 'Erro: O militar não marcou este turno como disponível no requerimento ou a disponibilidade está inativa.';
+                      END IF;
                   END IF;
               END IF;
               RETURN NEW;

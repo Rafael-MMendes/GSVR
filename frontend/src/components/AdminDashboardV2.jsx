@@ -279,6 +279,8 @@ export function AdminDashboardV2() {
     if (!selectionMode) return;
     const { patrolId, slotIndex } = selectionMode;
 
+    let updatedPatrols = [];
+
     setState(prev => {
       let newPatrols = [...prev.patrols];
 
@@ -313,10 +315,18 @@ export function AdminDashboardV2() {
         }
       }
 
+      updatedPatrols = newPatrols;
       return { ...prev, patrols: newPatrols };
     });
 
     closeSelectionModal();
+
+    // Salvar automaticamente no banco de dados
+    if (updatedPatrols.length > 0) {
+      setIsSaving(true);
+      await saveSchedule(updatedPatrols);
+      setIsSaving(false);
+    }
   };
 
   const moveMember = (patrolId, fromIndex, toIndex) => {
@@ -1787,20 +1797,24 @@ export function AdminDashboardV2() {
                 </button>
                 <button
                   onClick={confirmSelection}
-                  disabled={selectedMembers.length === 0}
+                  disabled={selectedMembers.length === 0 || isSaving}
                   style={{
                     padding: '0.85rem 3rem',
-                    background: selectedMembers.length > 0 ? colors.primary : colors.accent,
+                    background: selectedMembers.length > 0 && !isSaving ? colors.primary : colors.accent,
                     color: 'white',
                     border: 'none',
                     borderRadius: '12px',
-                    cursor: selectedMembers.length > 0 ? 'pointer' : 'not-allowed',
+                    cursor: selectedMembers.length > 0 && !isSaving ? 'pointer' : 'not-allowed',
                     fontWeight: 700,
-                    boxShadow: selectedMembers.length > 0 ? '0 10px 20px rgba(13, 56, 120, 0.2)' : 'none',
-                    transition: transitions
+                    boxShadow: selectedMembers.length > 0 && !isSaving ? '0 10px 20px rgba(13, 56, 120, 0.2)' : 'none',
+                    transition: transitions,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
                   }}
                 >
-                  Confirmar Escala
+                  <Check size={18} strokeWidth={3} />
+                  {isSaving ? 'Salvando...' : 'Salvar Escala'}
                 </button>
               </div>
             </div>

@@ -1,3 +1,94 @@
+## v1.33.0 — 2026-07-28
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Normalização e Unificação de Nomes de OPM na Conferência Operacional**:
+  - **[Frontend]** Implementada a função `normalizeOpm` em `formatters.js` para tratar variações de sintaxe (ex: `9º BPM`, `9o BPM`, `9ºBPM` e `9.º BPM`). Isso eliminou OPMs duplicadas na lista suspensa do filtro e corrigiu a busca para retornar 100% dos registros independentemente de variações de digitação no banco de dados.
+- **Filtro por OPM de Execução do Serviço na Conferência Operacional**:
+  - **[Backend]** Atualizada a consulta SQL na rota `/api/reports/conferencia` em `server.js` para priorizar a coluna `se.opm_origem` (OPM onde o serviço foi executado). Isso permite filtrar as guarnições pela unidade onde o serviço foi efetivamente prestado.
+- **Contagem de Guarnições Executadas por Dia na Conferência Operacional**:
+  - **[Frontend]** Adicionada badge verde de destaque no cabeçalho de cada dia em `ConferenciaOperacional.jsx` exibindo a contagem exata de guarnições únicas que executaram serviço naquele dia específico (ex: `X guarnições executadas`).
+- **Correção e Unificação do Identificador Persistente por Guarnição (`id_guarnicao`)**:
+  - **[Banco de Dados]** Ampliada a coluna `id_guarnicao` para `VARCHAR(150)` em `db.js` para evitar estouro de limite de caracteres (`value too long for type character varying(50)`).
+  - **[Banco de Dados]** Ajustado o script de migração automática no `db.js` para preencher o `id_guarnicao` dos dados legados agrupando os 3 integrantes sob uma mesma string identificadora sem concatenar o `id_escala` individual.
+  - **[Backend]** Corrigida a lógica da API `GET /api/schedules` para reagrupar os integrantes (Comandante, Motorista e Patrulheiro) em um único card de guarnição por `id_guarnicao`.
+  - **[Backend]** Mantida a atribuição de um `id_guarnicao` único compartilhado para todos os membros durante o salvamento na rota `POST /api/schedules`.
+
+---
+
+## v1.32.67 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção Definitiva da Normalização de Nomes de OPM no Analytics**:
+  - **[Frontend]** Atualizada a função `isTargetOpm` com um algoritmo ultra-robusto de higienização de strings (removendo pontos, traços, barras, espaços múltiplos e normalizando ordenações do tipo `9.º BPM`, `9BPM`, `9ºBPM` e `9o BPM`). Isso garante o correto pareamento de militares cuja OPM de origem possui qualquer variação de sintaxe, corrigindo a divergência de soma em unidades como `CPM/I-Faz`.
+
+---
+
+## v1.32.66 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Inicialização Temporal de targetOpm**:
+  - **[Frontend]** Corrigido o erro de inicialização `Cannot access 'targetOpm' before initialization` movendo as declarações de `matchingCycle` e `targetOpm` para o início do componente, antes de serem referenciadas por quaisquer hooks.
+
+---
+
+## v1.32.65 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Divergência de Valores por OPM no Memorando**:
+  - **[Frontend]** Resolvida a diferença de cálculo nas cotas de outras OPMs do Memorando. O filtro de serviços no Memorando agora exclui serviços de ausência/falta (`s.status_presenca !== 'Presente'`), alinhando-se com a lógica do Dashboard.
+  - **[Frontend]** Corrigido o bug na normalização da OPM nativa do militar, que falhava ao ignorar o caractere `°` (sinal de grau), excluindo indevidamente policiais do `9º BPM` no Memorando.
+
+---
+
+## v1.32.64 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Soma de Débitos por OPM no Memorando**:
+  - **[Frontend]** Corrigida a inconsistência de soma no Memorando SVR em `AnalyticsDashboard.jsx`. O sumário de débitos das OPMs foi filtrado para ocultar a OPM do ciclo ativo, alinhando a lista com o valor total calculado em `totalOutrasOpms`.
+
+---
+
+## v1.32.63 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Card de Total de Equipes Executadas**:
+  - **[Frontend]** Adicionado card de KPI na parte superior para a quantidade total de equipes executadas no ciclo.
+
+---
+
+## v1.32.62 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Exibição de Equipes Executadas no Calendário**:
+  - **[Frontend]** Adicionado contador de equipes de serviços executados para cada dia no card do calendário da Conferência Operacional.
+
+---
+
+## v1.32.61 — 2026-07-16
+**Autor:** pmal-daten
+**Email:** unknown
+
+### Mudanças:
+- **Exibição de Equipes Planejadas na Conferência Operacional**:
+  - **[Frontend]** Adicionado contador de equipes planejadas por dia no card do calendário.
+  - **[Frontend]** Adicionado card de KPI na parte superior com a quantidade total de equipes planejadas no ciclo.
+
+---
+
 ## v1.32.60 — 2026-06-17
 **Autor:** pmal-daten
 **Email:** unknown

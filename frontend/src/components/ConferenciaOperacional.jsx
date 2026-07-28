@@ -5,7 +5,7 @@ import {
   XCircle, Zap, Clock, BarChart3, TrendingUp, Eye, List, Grid3X3,
   AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, ChevronRight
 } from 'lucide-react';
-import { compareByRank } from '../utils/formatters';
+import { compareByRank, normalizeOpm } from '../utils/formatters';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -83,10 +83,10 @@ export function ConferenciaOperacional() {
     return dates.sort();
   }, [data]);
 
-  // Available OPMs for filter
+  // Available OPMs for filter (Normalizadas e sem duplicatas sintáticas)
   const availableOpms = useMemo(() => {
     if (!data?.registros) return [];
-    const opms = [...new Set(data.registros.map(r => r.opm).filter(Boolean))];
+    const opms = [...new Set(data.registros.map(r => normalizeOpm(r.opm)).filter(Boolean))];
     return opms.sort();
   }, [data]);
 
@@ -96,13 +96,16 @@ export function ConferenciaOperacional() {
     return data.registros.filter(r => {
       if (filterStatus !== 'all' && r.status_conferencia !== filterStatus) return false;
       if (filterDate !== 'all' && r.data !== filterDate) return false;
-      if (filterOpm !== 'all' && (r.opm || 'Sem OPM') !== filterOpm) return false;
+      if (filterOpm !== 'all') {
+        const itemOpmNorm = normalizeOpm(r.opm) || 'Sem OPM';
+        if (itemOpmNorm !== filterOpm) return false;
+      }
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
         const nome = (r.nome_planejado || r.nome_executado || '').toLowerCase();
         const mat = (r.mat_planejada || r.mat_executada || '').toLowerCase();
         const guarnicao = (r.guarnicao_planejada || r.guarnicao_executada || '').toLowerCase();
-        const opmStr = (r.opm || '').toLowerCase();
+        const opmStr = (normalizeOpm(r.opm) || '').toLowerCase();
         if (!nome.includes(search) && !mat.includes(search) && !guarnicao.includes(search) && !opmStr.includes(search)) return false;
       }
       return true;
@@ -142,6 +145,58 @@ export function ConferenciaOperacional() {
   const calendarDays = useMemo(() => {
     return Object.keys(calendarData).sort();
   }, [calendarData]);
+
+  // Quantidade de equipes planejadas para cada dia
+  const plannedTeamsPerDay = useMemo(() => {
+    if (!data?.registros) return {};
+    const map = {};
+    data.registros.forEach(r => {
+      if (r.id_escala && r.guarnicao_planejada && r.guarnicao_planejada.trim()) {
+        const day = r.data;
+        if (!map[day]) {
+          map[day] = new Set();
+        }
+        map[day].add(r.guarnicao_planejada.trim());
+      }
+    });
+
+    const counts = {};
+    Object.keys(map).forEach(day => {
+      counts[day] = map[day].size;
+    });
+    return counts;
+  }, [data]);
+
+  // Quantidade de equipes executadas para cada dia
+  const executedTeamsPerDay = useMemo(() => {
+    if (!data?.registros) return {};
+    const map = {};
+    data.registros.forEach(r => {
+      if (r.id_execucao && r.guarnicao_executada && r.guarnicao_executada.trim()) {
+        const day = r.data;
+        if (!map[day]) {
+          map[day] = new Set();
+        }
+        map[day].add(r.guarnicao_executada.trim());
+      }
+    });
+
+    const counts = {};
+    Object.keys(map).forEach(day => {
+      counts[day] = map[day].size;
+    });
+    return counts;
+  }, [data]);
+
+  // Quantidade total de equipes planejadas no ciclo
+  const totalPlannedTeamsCycle = useMemo(() => {
+    return Object.values(plannedTeamsPerDay).reduce((acc, count) => acc + count, 0);
+  }, [plannedTeamsPerDay]);
+
+  // Quantidade total de equipes executadas no ciclo
+  const totalExecutedTeamsCycle = useMemo(() => {
+    return Object.values(executedTeamsPerDay).reduce((acc, count) => acc + count, 0);
+  }, [executedTeamsPerDay]);
 
   // Status badge
   const StatusBadge = ({ status }) => {
@@ -271,6 +326,10 @@ export function ConferenciaOperacional() {
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
         <KPICard icon={BarChart3} label="Planejados" value={resumo.totalPlanejados || 0}
           color="#0D3878" subtitle="Serviços na escala" />
+        <KPICard icon={Users} label="Equipes Planejadas" value={totalPlannedTeamsCycle}
+          color="#0D3878" subtitle="Total de guarnições no ciclo" />
+        <KPICard icon={CheckCircle} label="Equipes Executadas" value={totalExecutedTeamsCycle}
+          color="#10b981" subtitle="Total de guarnições executadas" />
         <KPICard icon={CheckCircle} label="Conformes" value={resumo.totalOK || 0}
           color="#10b981" subtitle="Planejado = Executado" />
         <KPICard icon={XCircle} label="Faltas" value={resumo.totalFaltas || 0}
@@ -446,7 +505,7 @@ export function ConferenciaOperacional() {
                             onMouseLeave={e => e.currentTarget.style.background = '#cbd5e1'}
                           >
                             <td colSpan={9} style={{ padding: '0.65rem 1rem', fontWeight: 700 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 {isDateCollapsed ? <ChevronRight size={15} color="#475569" /> : <ChevronDown size={15} color="#475569" />}
                                 <Calendar size={15} color="#475569" />
                                 <span>{formatDateDisplay(dateKey)}</span>
@@ -460,6 +519,34 @@ export function ConferenciaOperacional() {
                                 }}>
                                   {dateCount} {dateCount === 1 ? 'registro' : 'registros'}
                                 </span>
+                                {(() => {
+                                  // Calcula o número de guarnições executadas únicas no dia considerando as linhas filtradas atuais
+                                  const executedSet = new Set();
+                                  Object.keys(guarnicoesObj).forEach(gName => {
+                                    if (gName !== 'Sem Guarnição Executada') {
+                                      const hasExecution = guarnicoesObj[gName].some(row => row.id_execucao);
+                                      if (hasExecution) executedSet.add(gName);
+                                    }
+                                  });
+                                  const countExec = executedSet.size;
+                                  return (
+                                    <span style={{
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                      color: '#15803d',
+                                      background: '#dcfce7',
+                                      border: '1px solid #86efac',
+                                      padding: '2px 10px',
+                                      borderRadius: '12px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      <CheckCircle size={12} color="#166534" />
+                                      {countExec} {countExec === 1 ? 'guarnição executada' : 'guarnições executadas'}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </td>
                           </tr>
@@ -639,6 +726,24 @@ export function ConferenciaOperacional() {
                   </div>
                   <div style={{ fontSize: '0.65rem', color: '#64748b', marginBottom: '6px' }}>
                     {formatDateDisplay(day)}
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.72rem', 
+                    color: colors.color, 
+                    marginBottom: '6px', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: '2px' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                      <Users size={11} color={colors.color} />
+                      <span>{plannedTeamsPerDay[day] || 0} plan.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                      <CheckCircle size={11} color={colors.color} />
+                      <span>{executedTeamsPerDay[day] || 0} exec.</span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', flexWrap: 'wrap' }}>
                     {dayData.ok > 0 && (

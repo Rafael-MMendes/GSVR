@@ -20,6 +20,25 @@ const formatDateDisplay = (dateValue) => {
   }
 };
 
+const isTargetOpm = (opm, targetOpm) => {
+  if (!opm) return false;
+  const clean = (str) => {
+    return str
+      .trim()
+      .toUpperCase()
+      .replace(/º/g, 'O')
+      .replace(/°/g, 'O')
+      .replace(/ª/g, 'A')
+      .replace(/\./g, '')
+      .replace(/-/g, '')
+      .replace(/\//g, '')
+      .replace(/\s/g, '')
+      .replace(/(\d+)O(BPM|CPM)/g, '$1$2')
+      .replace(/(\d+)A(BPM|CPM)/g, '$1$2');
+  };
+  return clean(opm) === clean(targetOpm);
+};
+
 export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [efetivo, setEfetivo] = useState([]);
@@ -34,6 +53,9 @@ export function AnalyticsDashboard() {
   const [sortConfig, setSortConfig] = useState({ key: 'total', direction: 'desc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [tiposServico, setTiposServico] = useState([]);
+
+  const matchingCycle = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
+  const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
 
   // Memorandum Generator States
   const [showMemoModal, setShowMemoModal] = useState(false);
@@ -168,25 +190,21 @@ export function AnalyticsDashboard() {
     }
   }, []);
 
-  // Memoized compilation of SVR services executed outside 9º BPM by 9º BPM militaries
+  // Memoized compilation of SVR services executed outside home OPM by home OPM militaries
   const memoData = useMemo(() => {
     if (!selectedCiclo || servicos.length === 0 || efetivo.length === 0) {
       return { list: [], OpmDebits: {}, totalValue: 0 };
     }
 
-    // Filter: native OPM is '9º BPM' (or '9o BPM') and execution OPM is NOT '9º BPM' (or '9o BPM')
+    // Filter: native OPM is targetOpm, execution OPM is NOT targetOpm, and military was Present
     const filteredServices = servicos.filter(s => {
+      if (s.status_presenca !== 'Presente') return false;
+
       const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
       const homeOpm = mil?.opm || '';
       const execOpm = s.opm_origem || '';
 
-      const is9Bpm = (opm) => {
-        if (!opm) return false;
-        const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
-        return norm === '9O BPM' || norm === '9º BPM' || norm === '9BPM';
-      };
-
-      return is9Bpm(homeOpm) && !is9Bpm(execOpm) && execOpm !== '';
+      return isTargetOpm(homeOpm, targetOpm) && !isTargetOpm(execOpm, targetOpm) && execOpm !== '';
     });
 
     const groups = {};
@@ -242,7 +260,7 @@ export function AnalyticsDashboard() {
     const list = Object.values(groups).sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
 
     return { list, OpmDebits, totalValue };
-  }, [selectedCiclo, servicos, efetivo, tiposServico]);
+  }, [selectedCiclo, servicos, efetivo, tiposServico, targetOpm]);
 
   const requestSort = (key) => {
     let direction = 'asc';
@@ -449,40 +467,23 @@ export function AnalyticsDashboard() {
   const totalServicos = stats.reduce((acc, s) => acc + s.total, 0);
   const totalHoras6 = stats.reduce((acc, s) => acc + s.count6h, 0);
   const totalHoras8 = stats.reduce((acc, s) => acc + s.count8h, 0);
-  const matchingCycle = ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo));
 
   const totalOpmCiclo = useMemo(() => {
-    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
-    const isTargetOpm = (opm) => {
-      if (!opm) return false;
-      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
-      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
-      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
-    };
-
     let targetOpmValue = 0;
     servicos.forEach(s => {
       const execOpm = s.opm_origem || '';
-      if (isTargetOpm(execOpm)) {
+      if (isTargetOpm(execOpm, targetOpm)) {
         targetOpmValue += parseFloat(s.valor_remuneracao || 0);
       }
     });
     return targetOpmValue;
-  }, [servicos, matchingCycle]);
+  }, [servicos, targetOpm]);
 
   const totalOutrasOpms = useMemo(() => {
-    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
-    const isTargetOpm = (opm) => {
-      if (!opm) return false;
-      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
-      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
-      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
-    };
-
     return Object.entries(memoData.OpmDebits)
-      .filter(([opm]) => !isTargetOpm(opm))
+      .filter(([opm]) => !isTargetOpm(opm, targetOpm))
       .reduce((sum, [_, val]) => sum + val, 0);
-  }, [memoData.OpmDebits, matchingCycle]);
+  }, [memoData.OpmDebits, targetOpm]);
 
   const orcamentoCiclo = selectedCiclo === 'all'
     ? ciclos.reduce((acc, c) => acc + parseFloat(c.valor_total_previsto || 0), 0)
@@ -492,19 +493,11 @@ export function AnalyticsDashboard() {
   const recursoRestante = orcamentoCiclo - recursoUtilizado;
 
   const militaresPertoLimite = useMemo(() => {
-    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
-    const isTargetOpm = (opm) => {
-      if (!opm) return false;
-      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
-      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
-      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
-    };
-
     const targetOpmCounts = {};
     servicos.forEach(s => {
       const milId = String(s.id_militar);
       const execOpm = s.opm_origem || '';
-      if (isTargetOpm(execOpm)) {
+      if (isTargetOpm(execOpm, targetOpm)) {
         if (!targetOpmCounts[milId]) {
           targetOpmCounts[milId] = { total: 0 };
         }
@@ -527,27 +520,19 @@ export function AnalyticsDashboard() {
       }
     });
     return pertoLimite.sort((a, b) => b.total - a.total);
-  }, [servicos, efetivo, matchingCycle]);
+  }, [servicos, efetivo, targetOpm]);
 
   const outrasOpmData = useMemo(() => {
-    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
     if (!selectedCiclo || servicos.length === 0 || efetivo.length === 0) {
       return { list: [], totalValue: 0 };
     }
-
-    const isTargetOpm = (opm) => {
-      if (!opm) return false;
-      const norm = opm.trim().toUpperCase().replace(/º/g, 'O');
-      const normTarget = targetOpm.trim().toUpperCase().replace(/º/g, 'O');
-      return norm === normTarget || norm.replace(/\s/g, '') === normTarget.replace(/\s/g, '');
-    };
 
     const filteredServices = servicos.filter(s => {
       const mil = efetivo.find(e => String(e.id_militar) === String(s.id_militar));
       const homeOpm = mil?.opm || '';
       const execOpm = s.opm_origem || '';
 
-      return isTargetOpm(execOpm) && !isTargetOpm(homeOpm) && homeOpm !== '';
+      return isTargetOpm(execOpm, targetOpm) && !isTargetOpm(homeOpm, targetOpm) && homeOpm !== '';
     });
 
     const groups = {};
@@ -578,18 +563,17 @@ export function AnalyticsDashboard() {
     const list = Object.values(groups).sort((a, b) => compareByRank(a.posto_graduacao, b.posto_graduacao));
 
     return { list, totalValue };
-  }, [selectedCiclo, servicos, efetivo, matchingCycle]);
+  }, [selectedCiclo, servicos, efetivo, targetOpm]);
 
 
   const reportOpmDebits = useMemo(() => {
     const debits = { ...memoData.OpmDebits };
-    const targetOpm = matchingCycle?.opm_sigla || '9º BPM';
 
     if (totalOpmCiclo > 0) {
       debits[targetOpm] = totalOpmCiclo;
     }
     return debits;
-  }, [memoData.OpmDebits, totalOpmCiclo, matchingCycle]);
+  }, [memoData.OpmDebits, totalOpmCiclo, targetOpm]);
 
   const reportTotalDebitsValue = useMemo(() => {
     return Object.values(reportOpmDebits).reduce((sum, v) => sum + v, 0);
@@ -1535,11 +1519,14 @@ export function AnalyticsDashboard() {
                         Em conformidade com o §1º do Art. 3º da <strong>{memoPortaria}</strong>, que estabelece que o valor correspondente ao SVR executado por militar fora de sua Unidade de origem, deverá ser debitado da cota orçamentária da Unidade que autorizou a execução, informamos a distribuição dos valores conforme segue:
                       </p>
                       <ul style={{ listStyleType: 'none', paddingLeft: '20mm', marginTop: '10px' }}>
-                        {Object.entries(memoData.OpmDebits).map(([opm, val]) => (
-                          <li key={opm} style={{ marginBottom: '6px' }}>
-                            <strong>{opm}:</strong> {formatarValor(val)}
-                          </li>
-                        ))}
+                        {Object.entries(memoData.OpmDebits)
+                          .filter(([opm]) => !isTargetOpm(opm, targetOpm))
+                          .map(([opm, val]) => (
+                            <li key={opm} style={{ marginBottom: '6px' }}>
+                              <strong>{opm}:</strong> {formatarValor(val)}
+                            </li>
+                          ))
+                        }
                         {totalOutrasOpms > 0 && (
                           <li style={{ marginTop: '8px', borderTop: '1px solid #cbd5e1', paddingTop: '4px', fontWeight: 'bold' }}>
                             Soma das demais OPMs: {formatarValor(totalOutrasOpms)}

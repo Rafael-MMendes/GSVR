@@ -79,6 +79,31 @@ export const getRankIndex = (rank) => {
 };
 
 /**
+ * Normaliza o nome de uma OPM (unidade militar) removendo caracteres especiais,
+ * variações de grau (º, °, o, ª), traços e espaços redundantes.
+ * Exemplo: '9º BPM', '9o BPM', '9.º BPM', '9BPM' -> '9º BPM'
+ * @param {string} opm 
+ * @returns {string}
+ */
+export const normalizeOpm = (opm) => {
+  if (!opm || typeof opm !== 'string') return '';
+  let cleaned = opm
+    .trim()
+    .toUpperCase()
+    .replace(/º/g, 'º')
+    .replace(/°/g, 'º')
+    .replace(/ª/g, 'ª')
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ');
+
+  // Normaliza padrões comuns de batalhões e companhias (ex: 9O BPM / 9 O BPM / 9BPM -> 9º BPM)
+  cleaned = cleaned.replace(/(\d+)\s*[O|°|º]?\s*(BPM|CPM|EM|DAL|CPC|CPI)/g, '$1º $2');
+  cleaned = cleaned.replace(/(\d+)\s*[A|ª]?\s*(CIA)/g, '$1ª $2');
+
+  return cleaned;
+};
+
+/**
  * Comparador para uso em Array.sort() baseado em hierarquia militar.
  * Ordena do maior para o menor posto.
  * @param {string} rankA

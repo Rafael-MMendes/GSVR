@@ -2204,6 +2204,7 @@ app.get('/api/schedules', async (req, res) => {
     const { rows } = await db.query(`
       SELECT
         ep.id_escala,
+        ep.id_guarnicao,
         ep.id_militar,
         ep.funcao,
         ep.horario_servico,
@@ -2243,7 +2244,7 @@ app.get('/api/schedules', async (req, res) => {
 
     if (rows.length === 0) return res.json([]);
 
-    // Reconstrói o array de patrulhas agrupando por nome e horário sem sobrescrever slots ocupados
+    // Reconstrói o array de patrulhas agrupando por id_guarnicao (ou nome + horário) sem sobrescrever slots ocupados
     const patrols = [];
     const seenEscalas = new Set(); // Segurança: deduplica por id_escala
 
@@ -2256,17 +2257,22 @@ app.get('/api/schedules', async (req, res) => {
       const roleIndex = PATROL_ROLES.indexOf(row.funcao);
       const slot = roleIndex >= 0 ? roleIndex : 0;
       
-      // Localiza uma guarnição que já tenha este nome e horário, mas que ainda não tenha este cargo preenchido
+      // Localiza a guarnição correspondente pelo id_guarnicao salvo no banco (ou por nome + horário se nulo)
       let patrol = patrols.find(p => 
-        p.name === patrolName && 
-        p.timeSpan === (row.horario_servico || '') &&
-        p.members[slot] === null
+        row.id_guarnicao 
+          ? p.id === row.id_guarnicao 
+          : (p.name === patrolName && p.timeSpan === (row.horario_servico || ''))
       );
+
+      // Se a vaga desse cargo específico já estiver ocupada na guarnição encontrada (ex: 2 patrulheiros), permite criar outra se necessário
+      if (patrol && patrol.members[slot] !== null) {
+        patrol = null;
+      }
 
       // Se não houver uma guarnição compatível com vaga nesse cargo, cria uma nova instância
       if (!patrol) {
         patrol = {
-          id:       `${row.patrol_id || 'p'}_${patrols.length}`,
+          id:       row.id_guarnicao || `${row.patrol_id || 'p'}_${patrols.length}`,
           name:     patrolName,
           duration: row.patrol_duration || '6h',
           timeSpan: row.horario_servico || '',
@@ -2527,6 +2533,11 @@ app.post('/api/schedules', async (req, res) => {
         );
         const idTipoServico = tipoServicoRes.rows[0]?.id_tipo_servico || null;
 
+        // Garante um id_guarnicao único e uniforme para TODOS os integrantes desta guarnição
+        const idGuarnicao = (patrol.id && !String(patrol.id).startsWith('p17') && !String(patrol.id).startsWith('p_'))
+          ? String(patrol.id)
+          : `g_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
         for (let i = 0; i < patrol.members.length; i++) {
           const member = patrol.members[i];
           if (!member || !member.id_militar) continue;
@@ -2581,8 +2592,8 @@ app.post('/api/schedules', async (req, res) => {
             INSERT INTO ESCALA_PLANEJAMENTO
               (id_ciclo, id_militar, id_tipo_servico, id_disponibilidade,
                data_servico, horario_servico, funcao,
-               nome_recurso, observacoes, publicado)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               nome_recurso, observacoes, publicado, id_guarnicao)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
           `, [
             parseInt(ciclo.id_ciclo, 10),
             parseInt(member.id_militar, 10),
@@ -2593,7 +2604,8 @@ app.post('/api/schedules', async (req, res) => {
             funcao,
             patrol.name || 'GSVR', 
             patrol.duration || '6h',
-            publicado
+            publicado,
+            idGuarnicao
           ]);
 
           inserted++;
@@ -2718,7 +2730,8 @@ app.get('/api/reports/conferencia', async (req, res) => {
           ep.funcao,
           e.nome_guerra,
           e.posto_graduacao,
-          e.matricula
+          e.matricula,
+          e.opm
         FROM ESCALA_PLANEJAMENTO ep
         JOIN EFETIVO e ON ep.id_militar = e.id_militar
         WHERE ep.id_ciclo = $1
@@ -2731,9 +2744,11 @@ app.get('/api/reports/conferencia', async (req, res) => {
           se.carga_horaria,
           se.status_presenca,
           se.guarnicao,
+          se.opm_origem,
           e.nome_guerra,
           e.posto_graduacao,
-          e.matricula
+          e.matricula,
+          e.opm
         FROM SERVICOS_EXECUTADOS se
         JOIN EFETIVO e ON se.id_militar = e.id_militar
         WHERE se.id_ciclo = $1
@@ -2741,6 +2756,7 @@ app.get('/api/reports/conferencia', async (req, res) => {
       SELECT
         TO_CHAR(COALESCE(p.data_servico, x.data_execucao), 'YYYY-MM-DD') AS data,
         TO_CHAR(COALESCE(p.data_servico, x.data_execucao), 'DD/MM/YYYY') AS data_formatada,
+        COALESCE(x.opm_origem, p.opm, x.opm) AS opm,
         p.id_escala,
         p.nome_recurso   AS guarnicao_planejada,
         p.horario_servico,
