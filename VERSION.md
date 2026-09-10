@@ -1,3 +1,51 @@
+## v1.33.4 — 2026-09-10
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção Crítica de Persistência ao Clicar em "Salvar Escala" no Modal de Guarnição**:
+  - **[Frontend]** Identificada a causa raiz da falha de persistência: em `AdminDashboardV2.jsx`, a função `confirmSelection` inicializava `let updatedPatrols = []` e realizava a atribuição `updatedPatrols = newPatrols` dentro do callback do `setState(prev => ...)`. Como no React 18 as chamadas de dispatch/setter são assíncronas e enfileiradas para o ciclo de render, a checagem subsequente `if (updatedPatrols.length > 0)` avaliava imediatamente com array vazio (`length === 0`), impedindo que a requisição `saveSchedule` fosse disparada. O modal fechava apenas alterando o estado local em memória, sem jamais enviar o `POST /api/schedules` para gravação no banco de dados.
+  - **[Frontend]** Refatorada a função `confirmSelection` para calcular `newPatrols` de forma síncrona a partir de `state.patrols` antes do dispatch, garantir o estado de loading (`isSaving = true`), aguardar a conclusão de `saveSchedule(newPatrols, selectedDate)` e apenas fechar o modal (`closeSelectionModal()`) após a persistência ser concluída com sucesso no PostgreSQL.
+  - **[Frontend]** Atualizada a função `saveSchedule` para aceitar `(overridePatrols, overrideDate)`, garantindo o envio correto da data selecionada e propagação de erros caso a sincronização falhe (mantendo os dados preenchidos no modal para não perder seleções).
+  - **[Frontend]** Adicionado feedback visual de carregamento (`Salvando...`, desabilitação de clique e cursor wait) ao botão principal "Salvar Escala" do dashboard para prevenir submissões duplicadas.
+  - **[Backend]** Reforçada a geração de `idGuarnicao` em `server.js` com expressão regular `!patrol.id || /^p\d+$/.test(String(patrol.id)) || String(patrol.id).startsWith('p_') || String(patrol.id) === 'NEW'`, tornando a identificação de IDs temporários de guarnição resiliente e independente do prefixo de ano.
+
+---
+
+## v1.33.3 — 2026-09-10
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Ação de Salvar Escala e Campo de Nome da Guarnição no Modal de Voluntários**:
+  - **[Frontend]** Identificado o motivo do botão "Salvar Escala" não responder: o botão encontrava-se com atributo `disabled={selectedMembers.length === 0}` e cursor bloqueado sempre que nenhum militar estava selecionado nos cards, sem qualquer aviso ou retorno visual explicativo para o usuário.
+  - **[Frontend]** Adicionado o campo de texto estilizado **"Nome da Guarnição"** diretamente no formulário do modal (ao lado de Duração e Horário), permitindo nomear a guarnição criada (ex: `GSVR`, `Força Tarefa`, etc.) em vez de forçar o nome fixo padrão.
+  - **[Frontend]** Corrigido o valor inicial do turno da nova guarnição (`newPatrolShift`) para coincidir perfeitamente com os horários gerados pela função `getTimeOptions` (`07:00 às 13:00`), evitando que o seletor ficasse desmarcado em "Selecione Horário...".
+  - **[Frontend]** Atualizada a lógica do botão "Salvar Escala" para exibir texto orientativo no rodapé (`Clique nos militares acima para selecioná-los para a guarnição`) e alerta amigável caso o usuário clique sem selecionar ao menos um militar para compor a guarnição.
+
+---
+
+## v1.33.2 — 2026-09-10
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Resolução do Erro HTTP 413 (Payload Too Large) na Sincronização de Escalas**:
+  - **[Frontend]** Implementado o saneamento de dados na função `saveSchedule` em `AdminDashboardV2.jsx`. A requisição `POST /api/schedules` agora envia apenas os campos estritamente necessários (`id_militar`, `name`, `rank`, `numero_ordem`), expurgando árvores pesadas de histórico e disponibilidade diária (`availability_json`, `turnos_completos`). Isso reduziu drasticamente o tamanho do payload de centenas de kilobytes para menos de 2 KB.
+  - **[Backend]** Ampliado o limite máximo do analisador de corpo de requisições (`express.json` e `express.urlencoded`) em `server.js` do padrão de 100 KB para `10mb`, garantindo resiliência contra rejeições por tamanho de entidade (HTTP 413) no servidor Node.js.
+
+---
+
+## v1.33.1 — 2026-09-09
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Restrição de Serviços Executados à OPM do Ciclo na Conferência Operacional**:
+  - **[Backend]** Atualizada a consulta SQL na rota `/api/reports/conferencia` em `server.js` para filtrar os serviços executados (`SERVICOS_EXECUTADOS`) restringindo-os à OPM associada ao ciclo (`CICLOS` -> `OPM`). Isso elimina serviços prestados em outras unidades (como 6ª CPM/I e 7º BPM) que eram incorretamente listados como extras ou geravam falsas conformidades no ciclo da OPM em conferência (ex: 9º BPM).
+
+---
+
 ## v1.33.0 — 2026-07-28
 **Autor:** PMAL-DATEN
 **Email:** unknown

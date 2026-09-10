@@ -46,8 +46,9 @@ export function AdminDashboardV2() {
   const [loadingVolunteers, setLoadingVolunteers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savingPatrolId, setSavingPatrolId] = useState(null);
+  const [newPatrolName, setNewPatrolName] = useState('GSVR');
   const [newPatrolDuration, setNewPatrolDuration] = useState('6h');
-  const [newPatrolShift, setNewPatrolShift] = useState('Diurno (07:00 - 13:00)');
+  const [newPatrolShift, setNewPatrolShift] = useState('07:00 às 13:00');
   const [detailedMilitar, setDetailedMilitar] = useState(null);
   const [militarSchedules, setMilitarSchedules] = useState([]);
   const [showPublicacao, setShowPublicacao] = useState(false);
@@ -173,18 +174,44 @@ export function AdminDashboardV2() {
     loadSchedule();
   }, [selectedDate, volunteers, selectedCycleId]);
 
-  const saveSchedule = async (overridePatrols = null) => {
+  const saveSchedule = async (overridePatrols = null, overrideDate = null) => {
     try {
       // Defesa: se for chamado por um evento de clique, overridePatrols será o objeto de evento.
       // Nesse caso, ignoramos e usamos o state.patrols.
       const patrolsToSave = Array.isArray(overridePatrols) ? overridePatrols : state.patrols;
+      const targetDate = (typeof overrideDate === 'string' && overrideDate) ? overrideDate : selectedDate;
 
       if (!patrolsToSave || patrolsToSave.length === 0) return;
 
+      setIsSaving(true);
+
+      // Saneamento do payload: Envia apenas os atributos necessários para persistência no banco.
+      // Remove árvores pesadas de disponibilidade (availability_json, turnos_completos, etc.),
+      // prevenindo o erro HTTP 413 (Payload Too Large).
+      const sanitizedPatrols = patrolsToSave.map(patrol => ({
+        id: patrol.id,
+        name: patrol.name,
+        duration: patrol.duration,
+        timeSpan: patrol.timeSpan,
+        publicado: patrol.publicado !== false,
+        members: Array.isArray(patrol.members)
+          ? patrol.members.map(member => {
+              if (!member) return null;
+              return {
+                id: member.id,
+                id_militar: member.id_militar,
+                name: member.name,
+                rank: member.rank,
+                numero_ordem: member.numero_ordem
+              };
+            })
+          : []
+      }));
+
       await axios.post(`${API_URL}/schedules`, {
-        date: selectedDate,
+        date: targetDate,
         id_ciclo: selectedCycleId,
-        patrols: patrolsToSave
+        patrols: sanitizedPatrols
       });
 
       // Recarregar do banco após o salvamento para garantir sincronia total
@@ -192,6 +219,9 @@ export function AdminDashboardV2() {
     } catch (error) {
       console.error('Erro ao salvar escala:', error);
       alert('Erro ao sincronizar com o banco: ' + (error.response?.data?.error || error.message));
+      throw error;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -260,7 +290,16 @@ export function AdminDashboardV2() {
     });
   };
 
-  const openSelectionModal = (patrolId) => { setSelectionMode({ patrolId, selectedMembers: [] }); setSelectedMembers([]); };
+  const openSelectionModal = (patrolId) => {
+    const existing = state.patrols?.find(p => p.id === patrolId);
+    setSelectionMode({ patrolId, selectedMembers: [] });
+    setSelectedMembers([]);
+    if (existing) {
+      setNewPatrolName(existing.name || 'GSVR');
+      setNewPatrolDuration(existing.duration || '6h');
+      setNewPatrolShift(existing.timeSpan || '07:00 às 13:00');
+    }
+  };
   const closeSelectionModal = () => { setSelectionMode(null); setSelectedMembers([]); };
 
   const toggleMemberSelection = (member) => {
@@ -277,54 +316,74 @@ export function AdminDashboardV2() {
 
   const confirmSelection = async () => {
     if (!selectionMode) return;
+    if (selectedMembers.length === 0) {
+      alert('Atenção: Selecione ao menos 1 militar nos cartões abaixo para compor a guarnição antes de salvar.');
+      return;
+    }
     const { patrolId, slotIndex } = selectionMode;
 
-    let updatedPatrols = [];
+    const currentPatrols = Array.isArray(state.patrols) ? [...state.patrols] : [];
+    let newPatrols = [];
 
-    setState(prev => {
-      let newPatrols = [...prev.patrols];
+    if (slotIndex !== undefined) {
+      // MODO SUBSTITUIÇÃO DE SLOT ÚNICO
+      newPatrols = currentPatrols.map(p => {
+        if (p.id === patrolId) {
+          const newMembers = [...p.members];
+          if (selectedMembers.length > 0) newMembers[slotIndex] = selectedMembers[0];
+          return { ...p, members: newMembers };
+        }
+        return p;
+      });
+    } else {
+      // MODO CRIAÇÃO/EDIÇÃO DE GUARNIÇÃO COMPLETA
+      const newMembers = [null, null, null];
+      selectedMembers.forEach((m, idx) => { if (idx < 3) newMembers[idx] = m; });
 
-      if (slotIndex !== undefined) {
-        // MODO SUBSTITUIÇÃO DE SLOT ÚNICO
-        newPatrols = newPatrols.map(p => {
+      if (patrolId === 'NEW') {
+        const finalName = (newPatrolName || '').trim() || 'GSVR';
+        const finalShift = newPatrolShift || getTimeOptions(newPatrolDuration)[7] || '07:00 às 13:00';
+        newPatrols = [
+          ...currentPatrols,
+          {
+            id: `p${Date.now()}`,
+            name: finalName,
+            duration: newPatrolDuration,
+            timeSpan: finalShift,
+            members: newMembers
+          }
+        ];
+      } else {
+        newPatrols = currentPatrols.map(p => {
           if (p.id === patrolId) {
-            const newMembers = [...p.members];
-            if (selectedMembers.length > 0) newMembers[slotIndex] = selectedMembers[0];
-            return { ...p, members: newMembers };
+            const finalName = (newPatrolName || '').trim() || p.name || 'GSVR';
+            const finalShift = newPatrolShift || p.timeSpan || '07:00 às 13:00';
+            const finalDuration = newPatrolDuration || p.duration || '6h';
+            return {
+              ...p,
+              name: finalName,
+              duration: finalDuration,
+              timeSpan: finalShift,
+              members: newMembers
+            };
           }
           return p;
         });
-      } else {
-        // MODO CRIAÇÃO/EDIÇÃO DE GUARNÇÃO COMPLETA
-        const newMembers = [null, null, null];
-        selectedMembers.forEach((m, idx) => { if (idx < 3) newMembers[idx] = m; });
-
-        if (patrolId === 'NEW') {
-          newPatrols.push({
-            id: `p${Date.now()}`,
-            name: 'Força Tarefa',
-            duration: newPatrolDuration,
-            timeSpan: newPatrolShift,
-            members: newMembers
-          });
-        } else {
-          newPatrols = newPatrols.map(p => {
-            if (p.id === patrolId) return { ...p, members: newMembers };
-            return p;
-          });
-        }
       }
+    }
 
-      updatedPatrols = newPatrols;
-      return { ...prev, patrols: newPatrols };
-    });
+    // Atualiza estado local imediatamente
+    setState(prev => ({ ...prev, patrols: newPatrols }));
 
-    closeSelectionModal();
-
-    // Salvar automaticamente no banco de dados
-    if (updatedPatrols.length > 0) {
-      setIsSaving(true);
-      await saveSchedule(updatedPatrols);
+    // Persiste no banco de dados imediatamente e fecha o modal ao concluir
+    setIsSaving(true);
+    try {
+      await saveSchedule(newPatrols, selectedDate);
+      closeSelectionModal();
+    } catch (err) {
+      console.error('Erro ao persistir escala da guarnição:', err);
+      // Mantém o modal aberto para não perder as seleções caso haja falha
+    } finally {
       setIsSaving(false);
     }
   };
@@ -407,6 +466,9 @@ export function AdminDashboardV2() {
   const addPatrol = () => {
     setSelectionMode({ patrolId: 'NEW', selectedMembers: [] });
     setSelectedMembers([]);
+    setNewPatrolName('GSVR');
+    setNewPatrolDuration('6h');
+    setNewPatrolShift('07:00 às 13:00');
   };
   const removePatrol = async (patrolId) => {
     const patrolToRemove = state.patrols.find(p => p.id === patrolId);
@@ -872,28 +934,29 @@ export function AdminDashboardV2() {
 
               <button
                 onClick={() => saveSchedule()}
+                disabled={isSaving}
                 style={{
                   width: '100%',
                   padding: '1rem',
-                  background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+                  background: isSaving ? '#94a3b8' : 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '14px',
                   fontWeight: 700,
                   fontSize: '0.95rem',
-                  cursor: 'pointer',
+                  cursor: isSaving ? 'wait' : 'pointer',
                   transition: transitions,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.75rem',
-                  boxShadow: '0 10px 20px rgba(13, 56, 120, 0.2)'
+                  boxShadow: isSaving ? 'none' : '0 10px 20px rgba(13, 56, 120, 0.2)'
                 }}
-                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                onMouseOver={e => !isSaving && (e.currentTarget.style.transform = 'translateY(-2px)')}
+                onMouseOut={e => (e.currentTarget.style.transform = 'translateY(0)')}
               >
                 <Check size={20} strokeWidth={3} />
-                Salvar Escala
+                {isSaving ? 'Salvando...' : 'Salvar Escala'}
               </button>
 
               <button
@@ -1480,7 +1543,31 @@ export function AdminDashboardV2() {
                 </div>
 
                 {selectionMode && (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Nome da Guarnição</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: GSVR, Força Tarefa..."
+                        style={{
+                          padding: '0.68rem 1rem',
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.border}`,
+                          background: colors.white,
+                          fontWeight: 700,
+                          outline: 'none',
+                          fontSize: '0.9rem',
+                          color: colors.primary,
+                          boxShadow: shadowSm,
+                          minWidth: '170px'
+                        }}
+                        value={selectionMode.patrolId === 'NEW' ? newPatrolName : (state.patrols?.find(p => p.id === selectionMode.patrolId)?.name || '')}
+                        onChange={e => {
+                          if (selectionMode.patrolId === 'NEW') setNewPatrolName(e.target.value);
+                          else handlePatrolSettingChange(selectionMode.patrolId, 'name', e.target.value);
+                        }}
+                      />
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Duração</label>
                       <select
@@ -1498,8 +1585,16 @@ export function AdminDashboardV2() {
                         }}
                         value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration}
                         onChange={e => {
-                          if (selectionMode.patrolId === 'NEW') setNewPatrolDuration(e.target.value);
-                          else handleDurationChange(selectionMode.patrolId, e.target.value);
+                          const dur = e.target.value;
+                          if (selectionMode.patrolId === 'NEW') {
+                            setNewPatrolDuration(dur);
+                            const opts = getTimeOptions(dur);
+                            if (opts.length > 0 && !opts.includes(newPatrolShift)) {
+                              setNewPatrolShift(opts[7] || opts[0]);
+                            }
+                          } else {
+                            handleDurationChange(selectionMode.patrolId, dur);
+                          }
                         }}
                       >
                         {['6h', '8h'].map(d => <option key={d} value={d}>Duração: {d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
@@ -1762,7 +1857,7 @@ export function AdminDashboardV2() {
 
             {/* Modal Footer */}
             <div style={{
-              padding: '1.5rem 2.5rem',
+              padding: '1.25rem 2.5rem',
               borderTop: `1px solid ${colors.border}`,
               display: 'flex',
               justifyContent: 'space-between',
@@ -1770,12 +1865,19 @@ export function AdminDashboardV2() {
               background: colors.white
             }}>
               <div>
-                <span style={{ fontSize: '1.1rem', color: colors.text, fontWeight: 700 }}>
-                  {selectedMembers.length} selecionados
-                </span>
-                <span style={{ marginLeft: '0.5rem', color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>
-                  (limite de {MAX_MEMBERS})
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '1.1rem', color: colors.text, fontWeight: 700 }}>
+                    {selectedMembers.length} selecionados
+                  </span>
+                  <span style={{ color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>
+                    (limite de {MAX_MEMBERS})
+                  </span>
+                </div>
+                {selectedMembers.length === 0 && (
+                  <div style={{ color: '#d97706', fontSize: '0.8rem', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>ℹ️ Clique nos militares acima para selecioná-los para a guarnição</span>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button
@@ -1797,14 +1899,15 @@ export function AdminDashboardV2() {
                 </button>
                 <button
                   onClick={confirmSelection}
-                  disabled={selectedMembers.length === 0 || isSaving}
+                  disabled={isSaving}
+                  title={selectedMembers.length === 0 ? "Selecione ao menos 1 militar nos cartões acima para salvar" : "Salvar escala"}
                   style={{
                     padding: '0.85rem 3rem',
-                    background: selectedMembers.length > 0 && !isSaving ? colors.primary : colors.accent,
+                    background: selectedMembers.length > 0 && !isSaving ? colors.primary : '#94a3b8',
                     color: 'white',
                     border: 'none',
                     borderRadius: '12px',
-                    cursor: selectedMembers.length > 0 && !isSaving ? 'pointer' : 'not-allowed',
+                    cursor: isSaving ? 'wait' : 'pointer',
                     fontWeight: 700,
                     boxShadow: selectedMembers.length > 0 && !isSaving ? '0 10px 20px rgba(13, 56, 120, 0.2)' : 'none',
                     transition: transitions,

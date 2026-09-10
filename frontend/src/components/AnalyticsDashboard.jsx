@@ -62,7 +62,7 @@ export function AnalyticsDashboard() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [memoNumber, setMemoNumber] = useState('124/2026/Secretaria do 9º Batalhão de Polícia Militar');
   const [memoDate, setMemoDate] = useState('');
-  const [memoSender, setMemoSender] = useState('ADEMAR SIQUEIRA DA SILVA NETO - TEN CEL QOEM PM');
+  const [memoSender, setMemoSender] = useState('PEDRO BARBOSA DE OLIVEIRA JÚNIOR - TEN CEL QOEM PM');
   const [memoSenderTitle, setMemoSenderTitle] = useState('Comandante do 9º BPM');
   const [memoRecipient, setMemoRecipient] = useState('Ilmo. Senhor Cel QOEM - Comandante do CPRS');
   const [memoPortaria, setMemoPortaria] = useState('Portaria PMAL nº 34/2025');
