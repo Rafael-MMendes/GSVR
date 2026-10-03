@@ -1600,6 +1600,146 @@ app.delete('/api/metas/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// PLANILHA_GASTOS_FT (Matriz de Quantitativo e Gastos da FT)
+// ============================================================
+app.get('/api/ciclos/:id/gastos-matriz', async (req, res) => {
+  try {
+    const idCiclo = parseInt(req.params.id, 10);
+    const ciclo = await db.get(`
+      SELECT c.*, o.sigla as opm_sigla, o.descricao as opm_descricao
+      FROM CICLOS c
+      LEFT JOIN OPM o ON c.id_opm = o.id_opm
+      WHERE c.id_ciclo = $1
+    `, [idCiclo]);
+
+    if (!ciclo) return res.status(404).json({ error: "Ciclo não encontrado." });
+
+    const row = await db.get('SELECT * FROM PLANILHA_GASTOS_FT WHERE id_ciclo = $1', [idCiclo]);
+
+    // Retorna a matriz salva se existir
+    if (row && row.dados_matriz) {
+      return res.json({
+        id_ciclo: idCiclo,
+        ciclo,
+        dados_matriz: row.dados_matriz,
+        valor_total_ft: parseFloat(row.valor_total_ft || ciclo.valor_total_previsto || 85000),
+        pm_fora_6h: parseInt(row.pm_fora_6h || 0, 10),
+        pm_fora_8h: parseInt(row.pm_fora_8h || 0, 10),
+        updated_at: row.updated_at
+      });
+    }
+
+    // Caso não exista ainda, gera a estrutura padrão de datas com base no ciclo
+    const start = new Date(ciclo.data_inicio);
+    const end = new Date(ciclo.data_fim);
+    const columns = [];
+    const MESES = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+
+    let curr = new Date(start);
+    let colIdx = 4;
+    while (curr <= end) {
+      const year = curr.getUTCFullYear();
+      const month = curr.getUTCMonth();
+      const day = curr.getUTCDate();
+      const dataIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      columns.push({
+        col_idx: colIdx++,
+        mes: MESES[month],
+        dia: day,
+        data_iso: dataIso
+      });
+      curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+
+    const defaultShifts = [
+      { id: "s1", horario: "14h às 20h", duracao: "6h", valor_diaria: 192.03, row: 14 },
+      { id: "s2", horario: "18h às 00h", duracao: "6h", valor_diaria: 192.03, row: 15 },
+      { id: "s3", horario: "20h às 02h", duracao: "6h", valor_diaria: 192.03, row: 16 },
+      { id: "s4", horario: "14h às 22h", duracao: "8h", valor_diaria: 250.00, row: 17 },
+      { id: "s5", horario: "18h às 02h", duracao: "8h", valor_diaria: 250.00, row: 18 }
+    ];
+
+    const matrix = {};
+    defaultShifts.forEach(s => {
+      matrix[s.id] = {};
+      columns.forEach(c => {
+        matrix[s.id][c.data_iso] = 0;
+      });
+    });
+
+    res.json({
+      id_ciclo: idCiclo,
+      ciclo,
+      dados_matriz: {
+        columns,
+        shifts: defaultShifts,
+        matrix,
+        valor_total_ft: parseFloat(ciclo.valor_total_previsto || 85000),
+        pm_fora_6h: 0,
+        pm_fora_8h: 0
+      },
+      valor_total_ft: parseFloat(ciclo.valor_total_previsto || 85000),
+      pm_fora_6h: 0,
+      pm_fora_8h: 0
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/ciclos/:id/gastos-matriz', async (req, res) => {
+  try {
+    const idCiclo = parseInt(req.params.id, 10);
+    const { dados_matriz, valor_total_ft, pm_fora_6h, pm_fora_8h } = req.body;
+
+    if (!dados_matriz) {
+      return res.status(400).json({ error: "dados_matriz é obrigatório." });
+    }
+
+    await db.run(`
+      INSERT INTO PLANILHA_GASTOS_FT (id_ciclo, dados_matriz, valor_total_ft, pm_fora_6h, pm_fora_8h, updated_at)
+      VALUES ($1, $2::jsonb, $3, $4, $5, NOW())
+      ON CONFLICT (id_ciclo) DO UPDATE SET
+        dados_matriz = EXCLUDED.dados_matriz,
+        valor_total_ft = EXCLUDED.valor_total_ft,
+        pm_fora_6h = EXCLUDED.pm_fora_6h,
+        pm_fora_8h = EXCLUDED.pm_fora_8h,
+        updated_at = NOW()
+    `, [
+      idCiclo,
+      JSON.stringify(dados_matriz),
+      valor_total_ft || 85000.00,
+      pm_fora_6h || 0,
+      pm_fora_8h || 0
+    ]);
+
+    res.json({ success: true, message: "Matriz de gastos salva com sucesso." });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/ciclos/:id/gastos-matriz/sync-escala', async (req, res) => {
+  try {
+    const idCiclo = parseInt(req.params.id, 10);
+    const { rows } = await db.query(`
+      SELECT TO_CHAR(data_servico, 'YYYY-MM-DD') as data_iso,
+             horario_servico,
+             COUNT(DISTINCT id_guarnicao) as qtd_gu
+      FROM ESCALA_PLANEJAMENTO
+      WHERE id_ciclo = $1
+      GROUP BY data_servico, horario_servico
+      ORDER BY data_servico ASC
+    `, [idCiclo]);
+
+    res.json({ success: true, rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // EMERGENCY MIGRATION ENDPOINT
 app.get('/api/admin/migrate-fix', async (req, res) => {
   try {

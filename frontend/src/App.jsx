@@ -19,12 +19,14 @@ import { UserManager } from './components/UserManager';
 import { ProfilePage } from './components/ProfilePage';
 import { RolesManager } from './components/RolesManager';
 import { TiposServicoManager } from './components/TiposServicoManager';
+import { ConferenciaOperacional } from './components/ConferenciaOperacional';
 import { Footer } from './components/Footer';
+import { QuantitativoGastosFT } from './components/QuantitativoGastosFT';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet, Target
+  FileSpreadsheet, Target, GitCompareArrows
 } from 'lucide-react';
 
 // ============================================================
@@ -209,7 +211,7 @@ function App() {
               {hasPermission('financeiro:read') && (
                 <div className="nav-group">
                   <span
-                    className={`nav-category ${(['analytics', 'financeiro', 'metas'].includes(currentView)) ? 'active' : ''}`}
+                    className={`nav-category ${(['analytics', 'financeiro', 'metas', 'quantitativo-gastos'].includes(currentView)) ? 'active' : ''}`}
                     onClick={() => toggleDropdown('dashboards')}
                   >
                     <BarChart2 size={18} /> Dashboards {chevron('dashboards')}
@@ -224,6 +226,11 @@ function App() {
                     {hasPermission('ciclos:read') && (
                       <a href="#" className={`dropdown-item ${currentView === 'metas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('metas'); }}>
                         <Target size={16} /> Metas de Alocação
+                      </a>
+                    )}
+                    {(hasPermission('financeiro:read') || isAdmin) && (
+                      <a href="#" className={`dropdown-item ${currentView === 'quantitativo-gastos' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('quantitativo-gastos'); }}>
+                        <FileSpreadsheet size={16} /> Quantitativo e Gastos FT
                       </a>
                     )}
                   </div>
@@ -321,6 +328,7 @@ function App() {
         {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin user={user} />}
         {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
         {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
+        {currentView === 'quantitativo-gastos' && (hasPermission('financeiro:read') || isAdmin) && <QuantitativoGastosFT />}
         {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
         {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
         {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}

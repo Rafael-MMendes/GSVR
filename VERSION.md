@@ -1,3 +1,57 @@
+## v1.35.2 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Ferramenta de Formatação e Marcação de Cores na Matriz de Guarnições (`QuantitativoGastosFT.jsx`)**:
+  - **[Barra de Ferramentas de Marca-texto]**: Adicionada barra superior com paleta predefinida em tons pastéis (Amarelo, Verde, Azul, Laranja, Coral/Vermelho, Roxo/Lavanda e Cinza), seletor de cor livre HTML5 e ferramenta borracha para remover destaques.
+  - **[Coloração Multinível (Célula, Linha e Coluna)]**:
+    - **Modo Pincel (Marca-texto)**: Ao ativar o botão "Modo Marca-texto", cliques diretamente nas células colorem a célula individual; cliques no cabeçalho do dia colorem a coluna inteira; cliques no cabeçalho do turno/horário colorem a linha inteira.
+    - **Menu de Contexto Flutuante**: Clicar com o botão direito do mouse em qualquer célula, linha ou coluna abre um popup com seleção direta de cores, opções rápidas para estender a cor a toda a linha ou coluna, e botão de limpeza pontual.
+  - **[Persistência Completa]**: As cores e estilos personalizados são serializados em `dados_matriz.custom_colors` na tabela `PLANILHA_GASTOS_FT` no PostgreSQL, sendo preservados entre sessões e carregados automaticamente por ciclo.
+  - **[Impressão e PDF]**: As cores de destaque personalizadas permanecem visíveis e calibradas na impressão e exportação em PDF.
+
+---
+
+## v1.35.1 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Campos Editáveis na Tabela de Categorias e Diárias da Força Tarefa (`QuantitativoGastosFT.jsx`)**:
+  - **[Categorias e Rótulos Editáveis]**: Permitida a edição inline direta dos nomes das categorias (padrão `VALOR FT 6H` e `VALOR FT 8H`), permitindo renomear livremente as faixas de serviço.
+  - **[Valores Unitários de Diária Customizáveis]**: Tornados totalmente editáveis os valores de diária de 6h (padrão R$ 192,03) e 8h (padrão R$ 250,00), com recálculo automático e instantâneo de toda a apuração financeira:
+    - Valor FT 6H (`Q. PM 6H * Valor Diária 6H`);
+    - Valor PM Fora 6H (`Q. PM Fora 6H * Valor Diária 6H`);
+    - Valor FT 8H (`Q. PM 8H * Valor Diária 8H`);
+    - Valor PM Fora 8H (`Q. PM Fora 8H * Valor Diária 8H`);
+    - Total Gasto SVR (`(Valor FT 6H + Valor FT 8H) - (PM Fora 6H + PM Fora 8H)`);
+    - Saldo Restante do teto orçamentário.
+  - **[Persistência e Exportação]**: Os rótulos e valores customizados das diárias são persistidos na base de dados (`PLANILHA_GASTOS_FT`) ao salvar a matriz e são fielmente incluídos na exportação em Excel (`.xlsx`) e no formulário de impressão oficial.
+
+---
+
+## v1.35.0 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Novo Componente de Quantitativo e Gastos de Força Tarefa (`QuantitativoGastosFT.jsx`)**:
+  - **[Fidelidade à Planilha de Gastos]**: Implementado novo módulo interativo que reproduz integralmente a lógica operacional e financeira da planilha oficial militar de Força Tarefa (`GASTOS SETEMBOUTUBRO` em `novo.xlsx`).
+  - **[Grade Dinâmica por Turnos e Dias]**:
+    - Matriz de alocação organizada pelo período do ciclo (dias 16 ao 15 do mês subsequente) com agrupadores mensais e marcação de dias da semana e finais de semana.
+    - Suporte a turnos padrão de 6h (`14h às 20h`, `18h às 00h`, `20h às 02h` com diária de R$ 192,03) e 8h (`14h às 22h`, `18h às 02h` com diária de R$ 250,00).
+    - Edição inline direta nas células da matriz com recálculo automático instantâneo dos totais verticais e horizontais e suporte a anotações de eventos especiais (ex: Eleições).
+  - **[Apuração Financeira e Saldo da FT]**:
+    - Cálculo automático de Total de Guarnições, Quantidade de Policiais Militares (3 por guarnição), Valor Total FT 6H e 8H, dedução de diárias de militares de outras OPMs (`PM Fora`) e apuração do Saldo Restante do teto da Força Tarefa.
+  - **[Sincronização e Persistência no Backend]**:
+    - Criada a tabela `PLANILHA_GASTOS_FT` no PostgreSQL e rotas na API (`GET/POST /api/ciclos/:id/gastos-matriz` e `/sync-escala`), permitindo salvar matrizes de planejamento por ciclo e sincronizar diretamente com as guarnições reais cadastradas em `ESCALA_PLANEJAMENTO`.
+  - **[Exportação e Impressão Oficial]**:
+    - Exportação direta para planilha Excel (`.xlsx`) com fórmulas e cabeçalho institucional via biblioteca `xlsx`.
+    - Suporte à impressão e geração de PDF com cabeçalho oficial da Secretaria de Segurança Pública / PMAL e campos de assinatura para Oficial de Operações e Comandante da OPM.
+
+---
+
 ## v1.34.0 — 2026-10-03
 **Autor:** PMAL-DATEN
 **Email:** unknown

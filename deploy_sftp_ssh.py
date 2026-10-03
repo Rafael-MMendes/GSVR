@@ -36,6 +36,21 @@ try:
     print(f"Enviando {local_footer_jsx} -> {remote_footer_jsx}...")
     sftp.put(local_footer_jsx, remote_footer_jsx)
 
+    local_app_jsx = os.path.abspath("frontend/src/App.jsx")
+    remote_app_jsx = "/home/vps_9bpm/projetos/GSVR - prod/frontend/src/App.jsx"
+    print(f"Enviando {local_app_jsx} -> {remote_app_jsx}...")
+    sftp.put(local_app_jsx, remote_app_jsx)
+
+    local_quant_jsx = os.path.abspath("frontend/src/components/QuantitativoGastosFT.jsx")
+    remote_quant_jsx = "/home/vps_9bpm/projetos/GSVR - prod/frontend/src/components/QuantitativoGastosFT.jsx"
+    print(f"Enviando {local_quant_jsx} -> {remote_quant_jsx}...")
+    sftp.put(local_quant_jsx, remote_quant_jsx)
+
+    local_pkg_json = os.path.abspath("frontend/package.json")
+    remote_pkg_json = "/home/vps_9bpm/projetos/GSVR - prod/frontend/package.json"
+    print(f"Enviando {local_pkg_json} -> {remote_pkg_json}...")
+    sftp.put(local_pkg_json, remote_pkg_json)
+
     # 3. Enviar VERSION.md
     local_version_md = os.path.abspath("VERSION.md")
     remote_version_md = "/home/vps_9bpm/projetos/GSVR - prod/VERSION.md"

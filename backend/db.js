@@ -34,7 +34,10 @@ const db = {
     const isInsert = sql.toUpperCase().includes('INSERT');
     const hasReturning = sql.toUpperCase().includes('RETURNING');
 
-    let internalSql = sql;
+    let internalSql = sql.trim();
+    if (internalSql.endsWith(';')) {
+      internalSql = internalSql.slice(0, -1).trim();
+    }
     if (isInsert && !hasReturning) {
       internalSql += ' RETURNING *';
     }
@@ -295,6 +298,17 @@ async function setupDB() {
               carga_horaria INTEGER NOT NULL,
               valor_remuneracao DECIMAL(10, 2) NOT NULL,
               ativo BOOLEAN DEFAULT TRUE
+          );
+
+          -- 5.2 Tabela PLANILHA_GASTOS_FT (Matriz de Quantitativo e Gastos da FT por Ciclo)
+          CREATE TABLE IF NOT EXISTS PLANILHA_GASTOS_FT (
+              id_ciclo INTEGER PRIMARY KEY REFERENCES CICLOS(id_ciclo) ON DELETE CASCADE,
+              dados_matriz JSONB NOT NULL,
+              valor_total_ft NUMERIC(12,2) DEFAULT 85000.00,
+              pm_fora_6h INTEGER DEFAULT 0,
+              pm_fora_8h INTEGER DEFAULT 0,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
           );
 
           -- Migração para a nova estrutura de Escala (Unificação de Viatura/Local para Nome do Recurso)
