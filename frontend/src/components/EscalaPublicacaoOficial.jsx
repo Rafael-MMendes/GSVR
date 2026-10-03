@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft, Download } from 'lucide-react';
+import { Shield, Clock, Calendar, User, Printer, FileText, ChevronLeft, Download, Image as ImageIcon } from 'lucide-react';
 import { formatPhone } from '../utils/formatters';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -19,7 +19,10 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
   const ROLES = ['Comandante', 'Motorista', 'Patrulheiro'];
   const [patrolColors, setPatrolColors] = useState({});
   const printRef = useRef(null);
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingJpg, setIsExportingJpg] = useState(false);
+
+  const isExporting = isExportingPdf || isExportingJpg;
 
   const getPatrolColor = (patrolId) => patrolColors[patrolId] || '#ffffff';
   const handleColorChange = (patrolId, color) => {
@@ -55,7 +58,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
     const larguraMaximaOriginal = elementoImpressao.style.maxWidth;
 
     try {
-      setIsExporting(true);
+      setIsExportingPdf(true);
 
       // Forçar largura exata de 900px para garantir cálculos idênticos ao do html2canvas
       elementoImpressao.style.width = '900px';
@@ -142,7 +145,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
       console.error('Erro ao gerar PDF:', erro);
       alert('Houve um erro ao gerar o PDF.');
     } finally {
-      setIsExporting(false);
+      setIsExportingPdf(false);
 
       // Restaurar largura original do container
       elementoImpressao.style.width = larguraOriginal;
@@ -160,6 +163,82 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
       espacadoresCriadosParaQuebra.forEach(espacador => {
         if (espacador && espacador.parentNode) {
           espacador.parentNode.removeChild(espacador);
+        }
+      });
+    }
+  };
+
+  const handleExportJPG = async () => {
+    if (!printRef.current) return;
+    const elementoImpressao = printRef.current;
+    let exibicoesOriginais = [];
+
+    // Guardar estilos originais de largura para restauração
+    const larguraOriginal = elementoImpressao.style.width;
+    const larguraMaximaOriginal = elementoImpressao.style.maxWidth;
+
+    try {
+      setIsExportingJpg(true);
+
+      // Forçar largura exata de 900px para garantir cálculos e proporções idênticos ao do PDF
+      elementoImpressao.style.width = '900px';
+      elementoImpressao.style.maxWidth = '900px';
+
+      // Ocultar temporariamente elementos com classe 'no-print' (seletores de cor)
+      const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
+      exibicoesOriginais = Array.from(elementosSemImpressao).map(el => el.style.display);
+      elementosSemImpressao.forEach(el => el.style.display = 'none');
+
+      const capturaDeTela = await html2canvas(elementoImpressao, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 900 // Largura fixa de 900px correspondente ao PDF
+      });
+
+      const dataFormatadaParaNomeArquivo = formatDate(date).replace(/\//g, '-');
+      const nomeArquivo = `Escala_do_dia_${dataFormatadaParaNomeArquivo}.jpg`;
+
+      if (capturaDeTela.toBlob) {
+        capturaDeTela.toBlob((blob) => {
+          if (!blob) {
+            alert('Houve um erro ao processar o arquivo JPG.');
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = nomeArquivo;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 'image/jpeg', 0.95);
+      } else {
+        const dadosDaImagem = capturaDeTela.toDataURL('image/jpeg', 0.95);
+        const link = document.createElement('a');
+        link.href = dadosDaImagem;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (erro) {
+      console.error('Erro ao gerar JPG:', erro);
+      alert('Houve um erro ao gerar o JPG.');
+    } finally {
+      setIsExportingJpg(false);
+
+      // Restaurar largura original do container
+      elementoImpressao.style.width = larguraOriginal;
+      elementoImpressao.style.maxWidth = larguraMaximaOriginal;
+
+      // Restaurar visibilidade dos elementos no-print
+      const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
+      elementosSemImpressao.forEach((el, index) => {
+        if (exibicoesOriginais[index] !== undefined) {
+          el.style.display = exibicoesOriginais[index];
         }
       });
     }
@@ -261,27 +340,51 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           <ChevronLeft size={18} /> Voltar ao Editor
         </button>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           <button
-            onClick={handleExportPDF}
+            onClick={handleExportJPG}
             disabled={isExporting}
+            title="Exportar escala como imagem de alta resolução (JPG)"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.6rem',
-              padding: '0.6rem 1.5rem',
+              padding: '0.6rem 1.3rem',
               borderRadius: '10px',
-              border: '1px solid #0f172a',
+              border: '1px solid #cbd5e1',
               background: 'white',
-              color: '#0f172a',
+              color: '#1e293b',
               fontWeight: 700,
               cursor: isExporting ? 'wait' : 'pointer',
-              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.05)',
+              boxShadow: '0 2px 8px rgba(15, 23, 42, 0.05)',
               transition: 'all 0.2s',
               opacity: isExporting ? 0.7 : 1
             }}
           >
-            <Download size={18} /> {isExporting ? 'Gerando...' : 'Exportar PDF'}
+            <ImageIcon size={18} color="#0284c7" /> {isExportingJpg ? 'Gerando JPG...' : 'Exportar JPG'}
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            title="Exportar escala diagramada em documento oficial (PDF)"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.6rem 1.3rem',
+              borderRadius: '10px',
+              border: '1px solid #0f172a',
+              background: '#0f172a',
+              color: 'white',
+              fontWeight: 700,
+              cursor: isExporting ? 'wait' : 'pointer',
+              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.1)',
+              transition: 'all 0.2s',
+              opacity: isExporting ? 0.7 : 1
+            }}
+          >
+            <Download size={18} /> {isExportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
           </button>
         </div>
       </div>

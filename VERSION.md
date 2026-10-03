@@ -1,3 +1,15 @@
+## v1.35.4 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Exportação em JPG de Alta Resolução na Escala Oficial (`EscalaPublicacaoOficial.jsx`)**:
+  - **[Fidelidade Estética e Diagramação Idêntica ao PDF]**: Desenvolvida a função `handleExportJPG`, garantindo a mesma formatação visual da exportação em PDF (fixação de largura em `900px`, ocultação temporária de controles interativos `.no-print`, preservação das cores customizadas das guarnições, brasão institucional e rodapé oficial).
+  - **[Renderização Nítida e Download Otimizado]**: Configurada a captura via `html2canvas` com `scale: 2`, `backgroundColor: '#ffffff'`, `windowWidth: 900` e conversão direta para formato JPEG com 95% de qualidade (`image/jpeg`, 0.95), gerando download automático do arquivo `Escala_do_dia_{DD-MM-YYYY}.jpg` via Blob/ObjectURL de alta performance.
+  - **[Barra de Ações e Feedback Visual]**: Inserido botão dedicado "Exportar JPG" com ícone institucional (`ImageIcon`), acompanhado de controle de estado (`isExportingJpg`), desabilitação concorrente durante o processamento e labels dinâmicas ("Gerando JPG...").
+
+---
+
 ## v1.35.3 — 2026-10-03
 **Autor:** PMAL-DATEN
 **Email:** unknown
