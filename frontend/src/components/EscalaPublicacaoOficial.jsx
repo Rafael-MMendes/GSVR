@@ -92,7 +92,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           // Adicionamos um recuo de 35px no topo da nova página para que o cabeçalho do turno desça um pouco
           const MARGEM_TOPO_NOVA_PAGINA = 35;
           const espacoRestanteCalculado = (paginaInicioCalculada + 1) * ALTURA_PAGINA_A4 - topoCalculado + MARGEM_TOPO_NOVA_PAGINA;
-          
+
           const divEspacadora = document.createElement('div');
           divEspacadora.className = 'espacador-impressao-pdf';
           divEspacadora.style.height = `${espacoRestanteCalculado}px`;
@@ -101,7 +101,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           divEspacadora.style.margin = '0';
           divEspacadora.style.padding = '0';
           divEspacadora.style.border = 'none';
-          
+
           elementoIndividual.parentNode.insertBefore(divEspacadora, elementoIndividual);
           espacadoresCriadosParaQuebra.push(divEspacadora);
         }
@@ -361,7 +361,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               opacity: isExporting ? 0.7 : 1
             }}
           >
-            <ImageIcon size={18} color="#0284c7" /> {isExportingJpg ? 'Gerando JPG...' : 'Exportar JPG'}
+            <ImageIcon size={18} color="#0284c7" /> {isExportingJpg ? 'Gerando...' : 'Exportar Imagem'}
           </button>
 
           <button
@@ -418,15 +418,15 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <img 
-              src="/pmal.png" 
-              alt="Brasão PMAL" 
-              style={{ 
+            <img
+              src="/pmal.png"
+              alt="Brasão PMAL"
+              style={{
                 height: '90px',
                 width: 'auto',
                 maxWidth: '100%',
                 objectFit: 'contain'
-              }} 
+              }}
             />
           </div>
 
