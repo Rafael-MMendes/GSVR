@@ -2,11 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import {
   FileSpreadsheet, Calendar, DollarSign, Users, Shield, Save,
-  RefreshCw, Download, Printer, CheckCircle2, AlertCircle, Info,
-  TrendingUp, TrendingDown, ArrowRight, Sparkles, Paintbrush,
+  RefreshCw, Printer, CheckCircle2, AlertCircle, Info,
+  TrendingUp, TrendingDown, ArrowRight, Paintbrush,
   Eraser, Palette, Check, Trash2, X
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -396,96 +395,7 @@ export function QuantitativoGastosFT() {
     }
   };
 
-  // 7. Ação: Restaurar Planilha Modelo Original (novo.xlsx)
-  const handleLoadModel = async () => {
-    if (!confirm('Deseja carregar a distribuição exata da planilha modelo oficial (Setembro/Outubro)?')) return;
-    setLoading(true);
-    try {
-      // Recarrega do banco se ciclo 6, ou recarrega a matriz original
-      const res = await axios.get(`${API_URL}/ciclos/6/gastos-matriz`);
-      if (res.data.dados_matriz) {
-        setMatrix(res.data.dados_matriz.matrix);
-        setValorTotalFt(res.data.valor_total_ft || 85000);
-        setPmFora6h(res.data.pm_fora_6h || 0);
-        setPmFora8h(res.data.pm_fora_8h || 0);
-        setLabel6h(res.data.dados_matriz.label_6h || 'VALOR FT 6H');
-        setLabel8h(res.data.dados_matriz.label_8h || 'VALOR FT 8H');
-        setValorDiaria6h(parseFloat(res.data.dados_matriz.valor_diaria_6h !== undefined ? res.data.dados_matriz.valor_diaria_6h : 192.03));
-        setValorDiaria8h(parseFloat(res.data.dados_matriz.valor_diaria_8h !== undefined ? res.data.dados_matriz.valor_diaria_8h : 250.00));
-        setCustomColors(res.data.dados_matriz.custom_colors || { cells: {}, rows: {}, cols: {} });
-        showFeedback('success', 'Planilha modelo de Setembro/Outubro carregada com sucesso!');
-      }
-    } catch (err) {
-      console.error('Erro ao restaurar modelo:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // 8. Ação: Exportar para Excel (.xlsx) Fiel à Planilha
-  const handleExportExcel = () => {
-    try {
-      const wb = XLSX.utils.book_new();
-
-      // Monta as linhas da aba GASTOS
-      const sheetData = [];
-
-      // Cabeçalho institucional
-      sheetData.push(['', 'SECRETARIA DE ESTADO DA DEFESA SOCIAL']);
-      sheetData.push(['', 'POLÍCIA MILITAR']);
-      sheetData.push(['', 'COMANDO DO POLICIAMENTO DA REGIÃO DO SERTÃO']);
-      sheetData.push([]);
-      sheetData.push(['', `PLANILHA DE QUANTITATIVO DAS GUARNIÇÕES ESCALADAS DE FORÇA TAREFA NO PERÍODO DE ${cicloData?.periodo_ciclo || '16 DE SETEMBRO - 15 DE OUTUBRO 2026'}`]);
-      sheetData.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'VALOR TOTAL DA FT', '', '', '', '', '', '', valorTotalFt]);
-      sheetData.push(['', 'VALOR TOTAL DAS DIÁRIAS (9ºBPM) :', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', calc.totalSvr]);
-      sheetData.push([]);
-
-      // Cabeçalho da grade
-      const rowOpms = ['', 'OPM', 'HORÁRIO', 'DIAS/QUANTIDADE DE GUARNIÇÕES'];
-      sheetData.push(rowOpms);
-
-      // Linha de meses
-      const rowMeses = ['', '', ''];
-      columns.forEach(col => rowMeses.push(col.mes));
-      rowMeses.push('Total GU/Dia');
-      sheetData.push(rowMeses);
-
-      // Linha de dias
-      const rowDias = ['', '', ''];
-      columns.forEach(col => rowDias.push(col.dia));
-      sheetData.push(rowDias);
-
-      // Linhas dos turnos
-      shifts.forEach((s, idx) => {
-        const rowShift = ['', idx === 0 ? '9ºBPM' : '', s.horario];
-        columns.forEach(col => {
-          const v = matrix[s.id]?.[col.data_iso];
-          rowShift.push(v === 0 ? '' : v);
-        });
-        rowShift.push(calc.shiftTotals[s.id] || 0);
-        sheetData.push(rowShift);
-      });
-
-      sheetData.push([]);
-
-      // Tabela de Apuração
-      sheetData.push(['', '', '', 'TOTAL FT', '', '', 'Q. PM', '', '', 'VALOR FT', '', '', '', 'V. PM - FORA', '', '', '', '', 'Q. FT PM FORA']);
-      sheetData.push(['', `${label6h || 'VALOR FT 6H'} (R$ ${valorDiaria6h.toFixed(2).replace('.', ',')})`, '', calc.totalGu6h, '', '', calc.qPm6h, '', '', calc.valorFt6h, '', '', '', calc.vPmFora6h, '', '', '', '', pmFora6h]);
-      sheetData.push(['', `${label8h || 'VALOR FT 8H'} (R$ ${valorDiaria8h.toFixed(2).replace('.', ',')})`, '', calc.totalGu8h, '', '', calc.qPm8h, '', '', calc.valorFt8h, '', '', '', calc.vPmFora8h, '', '', '', '', pmFora8h]);
-      sheetData.push(['', 'TOTAL SVR', '', calc.totalSvr, '', '', '', '', '', '', '', '', '', calc.saldoRestante, '', '', '', '', '', '', '', '', '', '', '', '', '', 'Q. FT PM 9ºBPM']);
-      sheetData.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', calc.qFtPm9Bpm]);
-      sheetData.push([]);
-      sheetData.push(['', `Quartel em Delmiro Gouveia/AL, ${cicloData?.period_name || 'SETEMBRO/OUTUBRO de 2026'}.`]);
-
-      const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      XLSX.utils.book_append_sheet(wb, ws, 'GASTOS_FT');
-      XLSX.writeFile(wb, `Quantitativo_Gastos_FT_Ciclo_${selectedCicloId}.xlsx`);
-      showFeedback('success', 'Planilha Excel exportada com sucesso!');
-    } catch (err) {
-      console.error('Erro ao exportar Excel:', err);
-      showFeedback('error', 'Falha ao gerar arquivo Excel.');
-    }
-  };
 
   // 9. Ação: Imprimir
   const handlePrint = () => {
@@ -578,32 +488,7 @@ export function QuantitativoGastosFT() {
             {syncing ? 'Sincronizando...' : 'Carregar da Escala'}
           </button>
 
-          <button
-            onClick={handleLoadModel}
-            title="Restaura os valores exatos da planilha modelo de Setembro/Outubro"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.6rem 0.9rem', fontSize: '0.82rem', fontWeight: 600,
-              background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1',
-              borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            <Sparkles size={15} color="#d97706" />
-            Planilha Modelo (Set/Out)
-          </button>
 
-          <button
-            onClick={handleExportExcel}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.6rem 0.9rem', fontSize: '0.82rem', fontWeight: 600,
-              background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
-              borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            <Download size={15} />
-            Exportar Excel
-          </button>
 
           <button
             onClick={handlePrint}

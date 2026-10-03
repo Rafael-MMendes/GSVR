@@ -1,3 +1,14 @@
+## v1.35.3 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Ajuste na Interface de Ações do Quantitativo de Gastos (`QuantitativoGastosFT.jsx`)**:
+  - Removidos os botões de ação "Planilha Modelo (Set/Out)" e "Exportar Excel" da barra superior.
+  - Limpeza de dependências e handlers obsoletos de exportação e carga estática da planilha modelo.
+
+---
+
 ## v1.35.2 — 2026-10-03
 **Autor:** PMAL-DATEN
 **Email:** unknown
