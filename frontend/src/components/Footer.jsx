@@ -1,8 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Shield, Code, Heart } from 'lucide-react';
+
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
 export function Footer({ isPdf = false }) {
   const year = new Date().getFullYear();
+  const [devs, setDevs] = useState({
+    rafael: '2º Sgt Rafael Monteiro Mendes',
+    alan: '2º Sgt Alan Kleber de Menezes Soares'
+  });
+
+  useEffect(() => {
+    let isMounted = true;
+    axios.get(`${API_URL}/efetivo/desenvolvedores`)
+      .then(res => {
+        if (!isMounted || !Array.isArray(res.data) || res.data.length === 0) return;
+        
+        const mRafael = res.data.find(m => 
+          m.nome_completo && m.nome_completo.toUpperCase().includes('RAFAEL MONTEIRO MENDES')
+        );
+        const mAlan = res.data.find(m => 
+          m.nome_completo && m.nome_completo.toUpperCase().includes('ALAN KLEBER DE MENEZES SOARES')
+        );
+
+        setDevs({
+          rafael: mRafael ? `${mRafael.posto_graduacao} ${mRafael.nome_completo}`.trim() : '2º Sgt Rafael Monteiro Mendes',
+          alan: mAlan ? `${mAlan.posto_graduacao} ${mAlan.nome_completo}`.trim() : '2º Sgt Alan Kleber de Menezes Soares'
+        });
+      })
+      .catch(err => {
+        console.warn('[Footer] Erro ao buscar desenvolvedores:', err.message);
+      });
+
+    return () => { isMounted = false; };
+  }, []);
 
   const footerStyle = {
     padding: isPdf ? '20px 0' : '2.5rem 2rem',
@@ -47,9 +79,9 @@ export function Footer({ isPdf = false }) {
             <Code size={isPdf ? 12 : 16} />
             <span>Desenvolvido por:</span>
           </div>
-          <div style={devItemStyle}>2º Sgt Rafael Monteiro Mendes</div>
+          <div style={devItemStyle}>{devs.rafael}</div>
           {!isPdf && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#cbd5e1' }} />}
-          <div style={devItemStyle}>3º Sgt Alan Kleber de Menezes Soares</div>
+          <div style={devItemStyle}>{devs.alan}</div>
         </div>
 
         {!isPdf && (

@@ -71,12 +71,12 @@ export function AdminDashboardV2() {
         const activeCycle = monthsRes.data.find(c => c.status === 'Aberto') || monthsRes.data[0];
         if (activeCycle) {
           setSelectedCycleId(activeCycle.id_ciclo);
-          
+
           // Sincroniza a data selecionada: se hoje estiver fora do ciclo, usa o início do ciclo
           const today = new Date().toISOString().split('T')[0];
           const start = String(activeCycle.data_inicio).split('T')[0];
           const end = String(activeCycle.data_fim).split('T')[0];
-          
+
           if (today < start || today > end) {
             setSelectedDate(start);
           }
@@ -211,15 +211,15 @@ export function AdminDashboardV2() {
           publicado: patrol.publicado !== false,
           members: Array.isArray(patrol.members)
             ? patrol.members.map(member => {
-                if (!member) return null;
-                return {
-                  id: member.id,
-                  id_militar: member.id_militar,
-                  name: member.name,
-                  rank: member.rank,
-                  numero_ordem: member.numero_ordem
-                };
-              })
+              if (!member) return null;
+              return {
+                id: member.id,
+                id_militar: member.id_militar,
+                name: member.name,
+                rank: member.rank,
+                numero_ordem: member.numero_ordem
+              };
+            })
             : []
         };
       });
@@ -739,7 +739,7 @@ export function AdminDashboardV2() {
               <Clock size={16} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase', marginBottom: '0.2rem' }}>Ciclo Ativo</div>
-                <select 
+                <select
                   value={selectedCycleId}
                   onChange={(e) => {
                     const newId = e.target.value;
@@ -791,10 +791,10 @@ export function AdminDashboardV2() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.65rem', opacity: 0.7, textTransform: 'uppercase' }}>Militares</div>
-                  <button 
+                  <button
                     onClick={() => setShowUnavailable(!showUnavailable)}
-                    style={{ 
-                      fontSize: '0.65rem', 
+                    style={{
+                      fontSize: '0.65rem',
                       background: showUnavailable ? '#fee2e2' : '#f1f5f9',
                       border: 'none',
                       padding: '2px 8px',
@@ -980,7 +980,7 @@ export function AdminDashboardV2() {
                 style={{
                   width: '100%',
                   padding: '0.85rem',
-                  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                  background: 'linear-gradient(135deg, #ea580c 0%, #f97316 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '12px',
@@ -992,10 +992,16 @@ export function AdminDashboardV2() {
                   gap: '0.75rem',
                   marginTop: '0.5rem',
                   fontWeight: 700,
-                  boxShadow: '0 4px 6px rgba(15, 23, 42, 0.2)'
+                  boxShadow: '0 4px 12px rgba(234, 88, 12, 0.35)'
                 }}
-                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                onMouseOver={e => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(234, 88, 12, 0.45)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(234, 88, 12, 0.35)';
+                }}
               >
                 <FileText size={18} />
                 <span>Publicar Escala</span>

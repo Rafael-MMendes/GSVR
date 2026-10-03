@@ -18,6 +18,8 @@
   - **[Relatório e Painel de Métricas no Frontend]**:
     - O componente `EfetivoImport.jsx` foi aprimorado com cards de estatísticas detalhadas: Total na Planilha, Atualizados, Novos Inseridos, Inalterados, Inativados Lógicos, Duplicidades e Erros.
     - Abas interativas permitem inspecionar divergências de campos atualizados (mostrando "De ➔ Para"), relação de militares inativados e registros com inconsistência.
+  - **[Identidade Visual - Admin Dashboard]**: Atualizado o botão de ação principal "Publicar Escala" em `AdminDashboardV2.jsx` com destaque na cor laranja vibrante em degradê (`#ea580c` a `#f97316`) com sombra e transição de hover correspondentes, conferindo distinção e maior destaque à ação de publicação de escala.
+  - **[Rodapé Dinâmico - Desenvolvedores]**: Modificado o componente `Footer.jsx` e criada a rota `GET /api/efetivo/desenvolvedores` em `server.js` para carregar dinamicamente `posto_graduacao` e `nome_completo` da tabela `EFETIVO` para os militares desenvolvedores (Rafael Monteiro Mendes e Alan Kleber de Menezes Soares), garantindo atualização automática e fiel das graduações (ex: 2º Sgt) a partir do banco de dados.
 
 ---
 

@@ -992,6 +992,24 @@ app.get('/api/efetivo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/efetivo/desenvolvedores', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT id_militar, posto_graduacao, nome_completo, nome_guerra
+      FROM EFETIVO
+      WHERE UPPER(nome_completo) LIKE '%RAFAEL MONTEIRO MENDES%'
+         OR UPPER(nome_completo) LIKE '%ALAN KLEBER DE MENEZES SOARES%'
+      ORDER BY CASE 
+        WHEN UPPER(nome_completo) LIKE '%RAFAEL MONTEIRO MENDES%' THEN 1 
+        ELSE 2 
+      END
+    `);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/efetivo', async (req, res) => {
   try {
     const { nome_completo, nome_guerra, posto_graduacao, matricula, cpf, rgpm, opm, telefone, motorista, status_ativo } = req.body;

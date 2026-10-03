@@ -31,6 +31,11 @@ try:
     print(f"Enviando {local_admin_jsx} -> {remote_admin_jsx}...")
     sftp.put(local_admin_jsx, remote_admin_jsx)
 
+    local_footer_jsx = os.path.abspath("frontend/src/components/Footer.jsx")
+    remote_footer_jsx = "/home/vps_9bpm/projetos/GSVR - prod/frontend/src/components/Footer.jsx"
+    print(f"Enviando {local_footer_jsx} -> {remote_footer_jsx}...")
+    sftp.put(local_footer_jsx, remote_footer_jsx)
+
     # 3. Enviar VERSION.md
     local_version_md = os.path.abspath("VERSION.md")
     remote_version_md = "/home/vps_9bpm/projetos/GSVR - prod/VERSION.md"
