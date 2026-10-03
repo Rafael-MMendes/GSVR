@@ -1,3 +1,40 @@
+## v1.34.0 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Sincronização Bidirecional e Inteligente entre Planilha de Efetivo e Banco de Dados**:
+  - **[Identificador Único Estável]**: Adotado o **CPF** (normalizado com 11 dígitos numéricos com zero à esquerda via `padCpf`) como chave primária de confronto unívoco de identidade, eliminando riscos decorrentes de homônimos ou variações de grafia de nomes. Como chave secundária/alternativa de busca, utiliza-se a **Matrícula**.
+  - **[Restrição de Unicidade no Banco]**: Implementada e aplicada a restrição `UNIQUE (matricula)` (`efetivo_matricula_key`) na tabela `EFETIVO` do PostgreSQL (em adição à já existente `UNIQUE (cpf)`), garantindo blindagem integral contra duplicações tanto no nível de aplicação quanto no nível de banco de dados.
+  - **[Transação Atômica ACID]**: Toda a rotina de importação e sincronização (`POST /api/efetivo/import`) foi encapsulada em uma transação de banco de dados (`db.transaction(client)`), garantindo que qualquer inconsistência ou falha execute rollback imediato, evitando estados parciais ou corrupção de dados.
+  - **[Confronto e Atualização Seletiva (Planilha como Fonte da Verdade)]**:
+    - Militares presentes tanto na planilha quanto no banco têm seus campos comparados individualmente (`nome_completo`, `nome_guerra`, `posto_graduacao`, `matricula`, `numero_ordem`, `rgpm`, `opm`, `telefone`).
+    - Havendo divergência, os dados do banco são atualizados com os valores da planilha.
+    - Campos não fornecidos na planilha (como habilitação de `motorista`, caso a planilha não contenha coluna dedicada) são estritamente preservados no banco, evitando sobrescritas indevidas.
+    - Militares sincronizados têm seu `status_ativo = TRUE` garantido.
+  - **[Inativação Lógica de Militares Ausentes]**: Militares que constam no banco de dados mas que não estão presentes na planilha importada são marcados logicamente com `status_ativo = FALSE`. Nenhuma exclusão física (`DELETE`) é realizada, resguardando o histórico de escalas, requerimentos e serviços executados.
+  - **[Inserção de Novos Militares]**: Militares novos identificados na planilha são inseridos com `status_ativo = TRUE` e provisionados automaticamente na tabela `users` com senha inicial correspondente ao CPF.
+  - **[Deduplicação Prévia de Planilha]**: A rotina processa as linhas da planilha com detecção inteligente de cabeçalhos e deduplica registros repetidos antes do envio ao banco.
+  - **[Relatório e Painel de Métricas no Frontend]**:
+    - O componente `EfetivoImport.jsx` foi aprimorado com cards de estatísticas detalhadas: Total na Planilha, Atualizados, Novos Inseridos, Inalterados, Inativados Lógicos, Duplicidades e Erros.
+    - Abas interativas permitem inspecionar divergências de campos atualizados (mostrando "De ➔ Para"), relação de militares inativados e registros com inconsistência.
+
+---
+
+## v1.33.5 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Fragmentação e Duplicação de Guarnições com Militares Isolados**:
+  - **[Causa Raiz Identificada]**: Na rota `GET /api/schedules` em `server.js`, a consulta SQL utilizava `ORDER BY ep.nome_recurso, ep.funcao`, ordenando os registros por função antes de cada guarnição. Quando havia mais de uma guarnição para o mesmo horário/recurso, a busca no array (`patrols.find`) sempre retornava a primeira guarnição encontrada. Ao detectar que o slot daquela função já estava ocupado (`patrol.members[slot] !== null`), a lógica anulava a referência (`patrol = null`) e instanciou uma nova guarnição sem testar se já existia outra instância com aquele slot livre. Isso fragmentava guarnições de mesmo nome/horário em múltiplos cards contendo apenas 1 integrante cada. Além disso, a rotina de inicialização em `db.js` executava um `UPDATE` sem cláusula `WHERE ep.id_guarnicao IS NULL`, sobrescrevendo os identificadores únicos gerados no salvamento por uma string padrão unificada (`nome_recurso + data + horario`), colidindo equipes distintas.
+  - **[Backend]**: Atualizada a ordenação SQL para `ORDER BY ep.id_guarnicao, ep.id_escala, ep.funcao`. Refatorada a busca de guarnições existentes no loop para verificar simultaneamente a correspondência de identificador/horário E a vacância do slot (`p.members[slot] === null`). Caso uma nova guarnição precise ser instanciada por colisão de slots, é atribuído um ID único sufixado (`${rawBaseId}_${count}`).
+  - **[Backend]**: Na rota `POST /api/schedules`, implementada a trava com `usedGuarnicaoIds` para assegurar que cada cartão de guarnição persistido no mesmo dia receba impreterivelmente um `id_guarnicao` exclusivo.
+  - **[Banco de Dados]**: Adicionada a restrição `WHERE ep.id_guarnicao IS NULL` no `db.js` para nunca sobrescrever guarnições já identificadas durante a inicialização do serviço. Corrigidos os registros legados na base de dados para desmembrar equipes simultâneas em IDs próprios.
+  - **[Frontend]**: Adicionado saneamento de unicidade de `id` para cada guarnição no método `loadScheduleData` e na preparação de dados de `saveSchedule` em `AdminDashboardV2.jsx`.
+
+---
+
 ## v1.33.4 — 2026-09-10
 **Autor:** PMAL-DATEN
 **Email:** unknown

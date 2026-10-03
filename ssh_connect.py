@@ -5,8 +5,8 @@ def run_query(target_date="2026-08-18"):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        print(f"Conectando via SSH ao servidor 192.168.1.119...")
-        ssh.connect('192.168.1.119', username='vps_9bpm', password='asdf1234', timeout=10)
+        print(f"Conectando via SSH ao servidor 192.168.1.102...")
+        ssh.connect('192.168.1.102', username='vps_9bpm', password='asdf1234', timeout=10)
 
         sql = f"""
         SELECT 

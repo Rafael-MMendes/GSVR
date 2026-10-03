@@ -3,8 +3,8 @@ import paramiko
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 try:
-    print("Conectando via SSH ao servidor 192.168.1.119...")
-    ssh.connect('192.168.1.119', username='vps_9bpm', password='asdf1234', timeout=10)
+    print("Conectando via SSH ao servidor 192.168.1.102...")
+    ssh.connect('192.168.1.102', username='vps_9bpm', password='asdf1234', timeout=10)
     
     stdin, stdout, stderr = ssh.exec_command('docker inspect ft-backend')
     out = stdout.read().decode('utf-8')

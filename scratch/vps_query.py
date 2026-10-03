@@ -5,7 +5,7 @@ def execute_cmd(command):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh.connect('192.168.1.119', username='vps_9bpm', password='asdf1234')
+        ssh.connect('192.168.1.102', username='vps_9bpm', password='asdf1234')
         stdin, stdout, stderr = ssh.exec_command(command)
         out = stdout.read().decode('utf-8', errors='ignore')
         err = stderr.read().decode('utf-8', errors='ignore')

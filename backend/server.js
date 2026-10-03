@@ -1130,189 +1130,287 @@ app.post('/api/efetivo/import', upload.single('file'), async (req, res) => {
     let maxMatches = 0;
 
     for (let i = 0; i < Math.min(rows.length, 30); i++) {
-        const rowData = rows[i];
-        if (!rowData || rowData.length === 0) continue;
-        const normalizedRow = rowData.map(cell => normalizeKey(cell));
-        const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
-        
-        let bonus = 0;
-        if (normalizedRow.includes('CPF')) bonus += 2;
-        if (normalizedRow.includes('MATRICULA')) bonus += 2;
-        if (normalizedRow.includes('NORDEM') || normalizedRow.includes('ORDEM')) bonus += 1;
-        
-        const score = matches + bonus;
-        if (score > maxMatches) {
-            maxMatches = score;
-            bestHeaderIndex = i;
-        }
+      const rowData = rows[i];
+      if (!rowData || rowData.length === 0) continue;
+      const normalizedRow = rowData.map(cell => normalizeKey(cell));
+      const matches = normalizedRow.filter(k => k && targetKeys.includes(k)).length;
+      
+      let bonus = 0;
+      if (normalizedRow.includes('CPF')) bonus += 2;
+      if (normalizedRow.includes('MATRICULA')) bonus += 2;
+      if (normalizedRow.includes('NORDEM') || normalizedRow.includes('ORDEM')) bonus += 1;
+      
+      const score = matches + bonus;
+      if (score > maxMatches) {
+        maxMatches = score;
+        bestHeaderIndex = i;
+      }
     }
 
     if (bestHeaderIndex === -1) bestHeaderIndex = 0;
     
-    // Converte para JSON usando o cabeçalho detectado
     const headers = rows[bestHeaderIndex];
     const dataRows = rows.slice(bestHeaderIndex + 1);
-    
-    // Transforma dataRows em objetos usando os headers detectados
-    const data = dataRows.map(row => {
-        const obj = {};
-        headers.forEach((h, i) => {
-            if (h) obj[h] = row[i];
-        });
-        return obj;
-    }).filter(obj => Object.keys(obj).length > 0);
 
-    // Log das colunas detectadas
-    console.log('[IMPORT-EFETIVO] Cabeçalho na linha:', bestHeaderIndex);
-    console.log('[IMPORT-EFETIVO] Colunas:', headers.map(h => `"${h}" → "${normalizeKey(h)}"`).join(', '));
+    // Checa se a planilha possui coluna explícita de motorista
+    const normalizedHeaders = headers.map(h => normalizeKey(h));
+    const hasMotoristaCol = normalizedHeaders.some(k => ['MOTORISTA', 'CONDUTOR', 'MOT', 'COND'].includes(k));
 
-    let stats = { imported: 0, existing: 0, skipped: 0, errors: 0 };
-    let errorDetails = [];
+    // Estatísticas da operação
+    const stats = {
+      total_planilha: 0,
+      inserted: 0,
+      updated: 0,
+      unchanged: 0,
+      deactivated: 0,
+      errors: 0,
+      duplicates_detected: 0
+    };
 
-    for (const row of data) {
+    const errorDetails = [];
+    const updatedDetails = [];
+    const deactivatedDetails = [];
+    const insertedDetails = [];
+
+    // Parse e deduplicação prévia das linhas da planilha
+    const parsedMilitaryMap = new Map();
+
+    for (let rIdx = 0; rIdx < dataRows.length; rIdx++) {
+      const row = dataRows[rIdx];
+      const rowObj = {};
+      headers.forEach((h, i) => {
+        if (h) rowObj[h] = row[i];
+      });
+      if (Object.keys(rowObj).length === 0) continue;
+
       let matricula = '', nrOrdem = '', cpf = '', nome = '', nomeGuerra = '', posto = 'SD PM';
-      let rgpm = null, opm = null, telefone = null, statusAtivo = true, motorista = 'Não';
+      let rgpm = null, opm = null, telefone = null, motorista = null;
 
-      try {
-        // Mapear cada coluna pela chave normalizada
-        Object.keys(row).forEach(key => {
-          const k = normalizeKey(key);
-          const rawVal = row[key];
-          if (isEmpty(rawVal)) return;
-          const val = String(rawVal).trim();
+      Object.keys(rowObj).forEach(key => {
+        const k = normalizeKey(key);
+        const rawVal = rowObj[key];
+        if (isEmpty(rawVal)) return;
+        const val = String(rawVal).trim();
 
-          // Matrícula (campo principal de identificação)
-          if (k === 'MATRICULA' || k.startsWith('MATRICUL'))
-            matricula = val;
-
-          // Nº Ordem (identificação militar específica)
-          else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM' || k === 'ORDEM' || k === 'NODEORDEM' || k === 'ORD' || k === 'NO')
-            nrOrdem = val;
-
-          // CPF - Garantir limpeza absoluta e padding de 11 dígitos
-          else if (k === 'CPF')
-            cpf = padCpf(val);
-
-          // Nome completo
-          else if (k === 'NOMECOMPLETO' || k === 'NOME')
-            nome = val;
-
-          // Nome de Guerra
-          else if (k.includes('GUERRA'))
-            nomeGuerra = val;
-
-          // Posto/Graduação
-          else if (k === 'PG' || k === 'POSTOGRAD' || k === 'POSTOGRADUACAO' ||
-            k.startsWith('POSTO') || k.startsWith('GRAD'))
-            posto = normalizeRank(val);
-
-          // RGPM
-          else if (k === 'RGPM' || k === 'RG' || k === 'RGPOLICIAL' || k === 'REGISTROGERAL')
-            rgpm = val;
-
-          // OPM / Lotação
-          else if (k === 'OPM' || k === 'LOTACAO' || k === 'UNIDADE' || k === 'ORGANIZACAO' || k === 'ORGAO') {
-             // Dá prioridade para a coluna OPM real se existir. Se opm já foi populado, não sobrescreve a menos que a chave atual seja 'OPM'
-             if (!opm || k === 'OPM') {
-               opm = val;
-             }
-          }
-
-          // Telefone
-          else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE')
-            telefone = val;
-
-          // Status Ativo - Forçado como verdadeiro conforme solicitado
-          else if (k === 'STATUS' || k === 'SITUACAO' || k === 'CONDICAO') {
-            statusAtivo = true;
-          }
-
-          // Motorista / Condutor
-          else if (k === 'MOTORISTA' || k === 'CONDUTOR' || k === 'MOT' || k === 'COND') {
-            const v = val.toUpperCase();
-            motorista = (v === 'SIM' || v === 'S' || v === 'TRUE' || v === '1' || v === 'MOTORISTA' || v === 'CONDUTOR') ? 'Sim' : 'Não';
-          }
-        });
-
-        // Nº Ordem como fallback de matrícula (se MATRICULA não existir na planilha)
-        // No sistema atual, 'matricula' é o Login. Se não houver matrícula no Excel, usamos o Nº de Ordem como login.
-        if (!matricula && nrOrdem) matricula = nrOrdem;
-        let loginMatricula = matricula;
-        
-        // Se houver matrícula mas não houver nrOrdem explicitamente separado, nrOrdem = matricula
-        if (!nrOrdem && matricula) nrOrdem = matricula;
-
-        // Fallback nome de guerra → primeiro nome do nome completo
-        if (!nomeGuerra && nome) {
-          nomeGuerra = nome.split(' ')[0];
+        if (k === 'MATRICULA' || k.startsWith('MATRICUL')) matricula = val;
+        else if (k === 'NORDEM' || k === 'NRORDEM' || k === 'NUMEROORDEM' || k === 'ORDEM' || k === 'NODEORDEM' || k === 'ORD' || k === 'NO') nrOrdem = val;
+        else if (k === 'CPF') cpf = padCpf(val);
+        else if (k === 'NOMECOMPLETO' || k === 'NOME') nome = deepCleanText(val);
+        else if (k.includes('GUERRA')) nomeGuerra = deepCleanText(val);
+        else if (k === 'PG' || k === 'POSTOGRAD' || k === 'POSTOGRADUACAO' || k.startsWith('POSTO') || k.startsWith('GRAD')) posto = normalizeRank(val);
+        else if (k === 'RGPM' || k === 'RG' || k === 'RGPOLICIAL' || k === 'REGISTROGERAL') rgpm = val;
+        else if (k === 'OPM' || k === 'LOTACAO' || k === 'UNIDADE' || k === 'ORGANIZACAO' || k === 'ORGAO') {
+          if (!opm || k === 'OPM') opm = val;
         }
-        // Garante que nomeGuerra não seja hífen vazio
-        if (nomeGuerra === '-' || nomeGuerra === '--') {
-          nomeGuerra = nome ? nome.split(' ')[0] : '';
+        else if (k === 'TELEFONE' || k === 'CELULAR' || k === 'TEL' || k === 'FONE') telefone = formatPhone(val);
+        else if (hasMotoristaCol && ['MOTORISTA', 'CONDUTOR', 'MOT', 'COND'].includes(k)) {
+          const v = val.toUpperCase();
+          motorista = (v === 'SIM' || v === 'S' || v === 'TRUE' || v === '1') ? 'Sim' : 'Não';
         }
+      });
 
-        // Validação dos campos obrigatórios (Matrícula ou Nº Ordem + CPF + Nome)
-        if (!matricula || !cpf || !nome) {
-          stats.skipped++;
-          if (nome || matricula || nrOrdem) {
-            errorDetails.push({
-              militar: nome || `Matrícula ${matricula}` || `Ordem ${nrOrdem}` || 'Linha sem dados',
-              error: `Campos obrigatórios ausentes — Matrícula/Ordem: "${matricula || nrOrdem}", CPF: "${cpf}", Nome: "${nome}"`
-            });
-            stats.errors++;
-          }
-          continue;
-        }
+      if (!matricula && nrOrdem) matricula = nrOrdem;
+      if (!nrOrdem && matricula) nrOrdem = matricula;
+      if (!nomeGuerra && nome) nomeGuerra = nome.split(' ')[0];
 
-        // Verifica existência por matrícula OU cpf
-        const existing = await db.get(
-          'SELECT id_militar, nome_guerra, posto_graduacao, numero_ordem FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
-          [loginMatricula, cpf]
-        );
-
-        if (existing) {
-          // Atualiza o campo OPM mesmo para militares já existentes, conforme solicitado
-          if (opm) {
-            await db.run('UPDATE EFETIVO SET opm = $1 WHERE id_militar = $2', [opm, existing.id_militar]);
-          }
-          stats.existing++;
-          continue; // Pula o insert completo mas mantém a atualização do OPM
-        }
-
-        // Inserção completa com todos os campos da tabela EFETIVO
-        await db.run(
-          `INSERT INTO EFETIVO
-          (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf, rgpm, opm, telefone, motorista, status_ativo)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-          [nome, nomeGuerra, posto, loginMatricula, nrOrdem, cpf, rgpm, opm, formatPhone(telefone), motorista, statusAtivo]
-        );
-
-        // Cria o usuário no sistema com senha padrão = CPF
-            await db.run(
-              `INSERT INTO users (numero_ordem, password, is_admin)
-               VALUES ($1, $2, 0)
-               ON CONFLICT (numero_ordem) DO UPDATE SET password = EXCLUDED.password WHERE users.password IS NULL`,
-              [loginMatricula, cpf]
-            );
-
-        stats.imported++;
-
-      } catch (err) {
+      // Validação: CPF com 11 dígitos, matrícula e nome obrigatórios
+      if (!cpf || cpf.length !== 11 || !matricula || !nome) {
         stats.errors++;
-        console.error('[IMPORT ERROR]', nome || matricula, err.message);
-        errorDetails.push({ militar: nome || `Matrícula ${matricula}` || 'Indefinido', error: err.message });
+        errorDetails.push({
+          linha: rIdx + bestHeaderIndex + 2,
+          militar: nome || `Matrícula ${matricula}` || `CPF ${cpf}` || 'Linha incompleta',
+          error: `Dados obrigatórios inválidos ou ausentes (CPF: "${cpf}", Matrícula: "${matricula}", Nome: "${nome}")`
+        });
+        continue;
+      }
+
+      stats.total_planilha++;
+
+      // Prevenção de duplicidades no próprio arquivo da planilha
+      if (parsedMilitaryMap.has(cpf)) {
+        stats.duplicates_detected++;
+        const prev = parsedMilitaryMap.get(cpf);
+        parsedMilitaryMap.set(cpf, { ...prev, ...Object.fromEntries(Object.entries({ matricula, nrOrdem, nome, nomeGuerra, posto, rgpm, opm, telefone, motorista }).filter(([_, v]) => v != null)) });
+      } else {
+        parsedMilitaryMap.set(cpf, { matricula, nrOrdem, cpf, nome, nomeGuerra, posto, rgpm, opm, telefone, motorista });
       }
     }
 
+    // --- TRANSAÇÃO ATÔMICA DE BANCO DE DADOS ---
+    await db.transaction(async (client) => {
+      // 1. Carrega todos os militares atuais do banco
+      const dbEfetivoRes = await client.query(`
+        SELECT id_militar, nome_completo, nome_guerra, posto_graduacao, 
+               matricula, numero_ordem, cpf, rgpm, opm, telefone, motorista, status_ativo
+        FROM EFETIVO
+      `);
+      
+      const dbByCpf = new Map();
+      const dbByMatricula = new Map();
+      for (const m of dbEfetivoRes.rows) {
+        if (m.cpf) dbByCpf.set(String(m.cpf).trim(), m);
+        if (m.matricula) dbByMatricula.set(String(m.matricula).trim(), m);
+      }
+
+      const processedDbIds = new Set();
+
+      // 2. Processa cada militar da planilha
+      for (const [cpf, mil] of parsedMilitaryMap.entries()) {
+        const existing = dbByCpf.get(cpf) || dbByMatricula.get(mil.matricula);
+
+        if (existing) {
+          processedDbIds.add(existing.id_militar);
+          // --- MILITAR EXISTENTE NO BANCO E NA PLANILHA ---
+          const changes = [];
+          
+          if (mil.nome && mil.nome !== (existing.nome_completo || '').trim()) {
+            changes.push(`Nome: "${existing.nome_completo}" ➔ "${mil.nome}"`);
+          }
+          if (mil.nomeGuerra && mil.nomeGuerra !== (existing.nome_guerra || '').trim()) {
+            changes.push(`Nome Guerra: "${existing.nome_guerra}" ➔ "${mil.nomeGuerra}"`);
+          }
+          if (mil.posto && mil.posto !== (existing.posto_graduacao || '').trim()) {
+            changes.push(`Posto: "${existing.posto_graduacao}" ➔ "${mil.posto}"`);
+          }
+          if (mil.matricula && mil.matricula !== (existing.matricula || '').trim()) {
+            changes.push(`Matrícula: "${existing.matricula}" ➔ "${mil.matricula}"`);
+          }
+          if (mil.nrOrdem && mil.nrOrdem !== (existing.numero_ordem || '').trim()) {
+            changes.push(`Nº Ordem: "${existing.numero_ordem}" ➔ "${mil.nrOrdem}"`);
+          }
+          if (mil.rgpm && mil.rgpm !== (existing.rgpm || '').trim()) {
+            changes.push(`RGPM: "${existing.rgpm}" ➔ "${mil.rgpm}"`);
+          }
+          if (mil.opm && mil.opm !== (existing.opm || '').trim()) {
+            changes.push(`OPM: "${existing.opm}" ➔ "${mil.opm}"`);
+          }
+          if (mil.telefone && mil.telefone !== (existing.telefone || '').trim()) {
+            changes.push(`Telefone: "${existing.telefone}" ➔ "${mil.telefone}"`);
+          }
+          if (hasMotoristaCol && mil.motorista && mil.motorista !== (existing.motorista || '').trim()) {
+            changes.push(`Motorista: "${existing.motorista}" ➔ "${mil.motorista}"`);
+          }
+          if (existing.status_ativo !== true) {
+            changes.push(`Status: Inativo ➔ Ativo`);
+          }
+
+          if (changes.length > 0) {
+            // Atualiza o banco com o valor da planilha (fonte oficial)
+            await client.query(`
+              UPDATE EFETIVO SET
+                nome_completo = $1,
+                nome_guerra = $2,
+                posto_graduacao = $3,
+                matricula = $4,
+                numero_ordem = $5,
+                rgpm = COALESCE($6, rgpm),
+                opm = COALESCE($7, opm),
+                telefone = COALESCE($8, telefone),
+                motorista = CASE WHEN $9::text IS NOT NULL THEN $9::text ELSE motorista END,
+                status_ativo = TRUE
+              WHERE id_militar = $10
+            `, [
+              mil.nome,
+              mil.nomeGuerra,
+              mil.posto,
+              mil.matricula,
+              mil.nrOrdem,
+              mil.rgpm,
+              mil.opm,
+              mil.telefone,
+              hasMotoristaCol ? mil.motorista : null,
+              existing.id_militar
+            ]);
+
+            stats.updated++;
+            updatedDetails.push({
+              id_militar: existing.id_militar,
+              militar: `${mil.posto} ${mil.nomeGuerra || mil.nome}`,
+              cpf: mil.cpf,
+              matricula: mil.matricula,
+              changes
+            });
+          } else {
+            stats.unchanged++;
+          }
+
+          // Garante usuário no sistema (users)
+          await client.query(`
+            INSERT INTO users (numero_ordem, password, is_admin)
+            VALUES ($1, $2, 0)
+            ON CONFLICT (numero_ordem) DO UPDATE SET password = EXCLUDED.password WHERE users.password IS NULL
+          `, [mil.matricula, mil.cpf]);
+
+        } else {
+          // --- MILITAR EXISTENTE NA PLANILHA, MAS INEXISTENTE NO BANCO ---
+          const insertRes = await client.query(`
+            INSERT INTO EFETIVO
+              (nome_completo, nome_guerra, posto_graduacao, matricula, numero_ordem, cpf, rgpm, opm, telefone, motorista, status_ativo)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)
+            RETURNING id_militar
+          `, [
+            mil.nome,
+            mil.nomeGuerra,
+            mil.posto,
+            mil.matricula,
+            mil.nrOrdem,
+            mil.cpf,
+            mil.rgpm,
+            mil.opm,
+            mil.telefone,
+            mil.motorista || 'Não'
+          ]);
+
+          stats.inserted++;
+          insertedDetails.push({
+            id_militar: insertRes.rows[0].id_militar,
+            militar: `${mil.posto} ${mil.nomeGuerra || mil.nome}`,
+            cpf: mil.cpf,
+            matricula: mil.matricula
+          });
+
+          // Cria usuário em users
+          await client.query(`
+            INSERT INTO users (numero_ordem, password, is_admin)
+            VALUES ($1, $2, 0)
+            ON CONFLICT (numero_ordem) DO NOTHING
+          `, [mil.matricula, mil.cpf]);
+        }
+      }
+
+      // 3. Inativação lógica dos militares existentes no banco, mas ausentes na planilha
+      for (const m of dbEfetivoRes.rows) {
+        if (!processedDbIds.has(m.id_militar)) {
+          if (m.status_ativo) {
+            await client.query('UPDATE EFETIVO SET status_ativo = FALSE WHERE id_militar = $1', [m.id_militar]);
+          }
+          stats.deactivated++;
+          deactivatedDetails.push({
+            id_militar: m.id_militar,
+            militar: `${m.posto_graduacao} ${m.nome_guerra || m.nome_completo}`,
+            cpf: m.cpf,
+            matricula: m.matricula,
+            recem_inativado: !!m.status_ativo
+          });
+        }
+      }
+    });
+
     res.json({
       success: true,
-      message: `${stats.imported} militares importados com sucesso.`,
+      message: `Sincronização de efetivo concluída com sucesso: ${stats.updated} atualizados, ${stats.inserted} novos, ${stats.unchanged} inalterados, ${stats.deactivated} inativados.`,
       stats,
-      errorDetails: errorDetails.slice(0, 50) // Limita a 50 erros exibidos
+      details: {
+        updated: updatedDetails.slice(0, 100),
+        deactivated: deactivatedDetails,
+        inserted: insertedDetails,
+        errors: errorDetails.slice(0, 50)
+      }
     });
+
   } catch (e) {
-    console.error('[IMPORT FATAL]', e.message);
-    res.status(500).json({ error: "Falha ao ler o arquivo Excel: " + e.message });
+    console.error('[IMPORT SYNC FATAL]', e);
+    res.status(500).json({ error: "Falha na sincronização do efetivo: " + e.message });
   }
 });
 
@@ -2240,7 +2338,7 @@ app.get('/api/schedules', async (req, res) => {
         ON ep.id_tipo_servico = ts.id_tipo_servico
       WHERE ep.id_ciclo    = $1
         AND ep.data_servico = $2
-      ORDER BY ep.nome_recurso, ep.funcao
+      ORDER BY ep.id_guarnicao, ep.id_escala, ep.funcao
     `, [ciclo.id_ciclo, dataServico]);
 
     if (rows.length === 0) return res.json([]);
@@ -2258,22 +2356,23 @@ app.get('/api/schedules', async (req, res) => {
       const roleIndex = PATROL_ROLES.indexOf(row.funcao);
       const slot = roleIndex >= 0 ? roleIndex : 0;
       
-      // Localiza a guarnição correspondente pelo id_guarnicao salvo no banco (ou por nome + horário se nulo)
+      // Localiza guarnição existente que corresponda ao id_guarnicao (ou nome + horário) E que tenha o slot correspondente vago
       let patrol = patrols.find(p => 
-        row.id_guarnicao 
-          ? p.id === row.id_guarnicao 
-          : (p.name === patrolName && p.timeSpan === (row.horario_servico || ''))
+        (row.id_guarnicao 
+          ? (p.id === row.id_guarnicao || p.baseId === row.id_guarnicao)
+          : (p.name === patrolName && p.timeSpan === (row.horario_servico || '')))
+        && p.members[slot] === null
       );
-
-      // Se a vaga desse cargo específico já estiver ocupada na guarnição encontrada (ex: 2 patrulheiros), permite criar outra se necessário
-      if (patrol && patrol.members[slot] !== null) {
-        patrol = null;
-      }
 
       // Se não houver uma guarnição compatível com vaga nesse cargo, cria uma nova instância
       if (!patrol) {
+        const rawBaseId = row.id_guarnicao || `${row.patrol_id || 'p'}`;
+        const existingCount = patrols.filter(p => p.id === rawBaseId || p.baseId === rawBaseId).length;
+        const uniqueId = existingCount === 0 ? rawBaseId : `${rawBaseId}_${existingCount + 1}`;
+
         patrol = {
-          id:       row.id_guarnicao || `${row.patrol_id || 'p'}_${patrols.length}`,
+          id:       uniqueId,
+          baseId:   rawBaseId,
           name:     patrolName,
           duration: row.patrol_duration || '6h',
           timeSpan: row.horario_servico || '',
@@ -2520,8 +2619,10 @@ app.post('/api/schedules', async (req, res) => {
 
       let inserted = 0;
       const errors = [];
+      const usedGuarnicaoIds = new Set();
 
-      for (const patrol of patrols) {
+      for (let pIdx = 0; pIdx < patrols.length; pIdx++) {
+        const patrol = patrols[pIdx];
         if (!Array.isArray(patrol.members)) continue;
 
         const horarioServico = patrol.timeSpan?.trim() || '00:00 às 06:00';
@@ -2536,9 +2637,11 @@ app.post('/api/schedules', async (req, res) => {
 
         // Garante um id_guarnicao único e uniforme para TODOS os integrantes desta guarnição
         const isTempId = !patrol.id || /^p\d+$/.test(String(patrol.id)) || String(patrol.id).startsWith('p_') || String(patrol.id) === 'NEW';
-        const idGuarnicao = isTempId
-          ? `g_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-          : String(patrol.id);
+        let idGuarnicao = String(patrol.id || '');
+        if (isTempId || usedGuarnicaoIds.has(idGuarnicao)) {
+          idGuarnicao = `g_${Date.now()}_${pIdx}_${Math.random().toString(36).substring(2, 7)}`;
+        }
+        usedGuarnicaoIds.add(idGuarnicao);
 
         for (let i = 0; i < patrol.members.length; i++) {
           const member = patrol.members[i];

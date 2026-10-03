@@ -156,51 +156,104 @@ export function EfetivoImport({ onComplete }) {
 
         {result && (
           <div style={{ 
-              textAlign: 'center', padding: '2rem', background: '#f0fdf4', borderRadius: '16px', 
-              border: '1px solid #bbf7d0', marginBottom: '2rem', animation: 'fadeIn 0.5s ease-out'
+              textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '16px', 
+              border: '1px solid #e2e8f0', marginBottom: '2rem', animation: 'fadeIn 0.5s ease-out'
           }}>
             <div style={{ 
                 width: '64px', height: '64px', background: '#22c55e', color: 'white',
                 borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 1.5rem'
+                margin: '0 auto 1.5rem', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
             }}>
                 <CheckCircle2 size={40} />
             </div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>Sucesso na Importação!</h3>
-            <p style={{ color: '#15803d', marginBottom: '2rem' }}>{result.message}</p>
+            <h3 style={{ margin: '0 0 8px 0', color: '#0f172a' }}>Sincronização Concluída!</h3>
+            <p style={{ color: '#475569', marginBottom: '2rem', fontSize: '0.95rem' }}>{result.message}</p>
             
-            <div className="form-grid-stack" style={{ 
+            {/* Grid com todas as 6 métricas principais */}
+            <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-                gap: '1rem' 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', 
+                gap: '1rem',
+                marginBottom: '2rem'
             }}>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Importados</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#16a34a' }}>{result.stats.imported}</div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>📋 Planilha</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0f172a' }}>{result.stats.total_planilha || (result.stats.inserted + (result.stats.updated || 0) + (result.stats.unchanged || 0))}</div>
                 </div>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Já Existentes</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#64748b' }}>{result.stats.existing || 0}</div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#0284c7', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>🔄 Atualizados</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#0284c7' }}>{result.stats.updated || 0}</div>
                 </div>
-                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Erros</div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '700', color: '#dc2626' }}>{result.stats.errors}</div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#16a34a', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>➕ Novos</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#16a34a' }}>{result.stats.inserted || 0}</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>⏸️ Inalterados</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#64748b' }}>{result.stats.unchanged || 0}</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#d97706', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>⚠️ Inativados</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#d97706' }}>{result.stats.deactivated || 0}</div>
+                </div>
+                <div style={{ background: 'white', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#dc2626', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>❌ Erros</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#dc2626' }}>{result.stats.errors || 0}</div>
                 </div>
             </div>
 
-            {result.errorDetails && result.errorDetails.length > 0 && (
-                <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                    <h5 style={{ fontSize: '0.875rem', color: '#b91c1c', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <AlertCircle size={14} /> Detalhamento de Erros:
-                    </h5>
-                    <div style={{ 
-                        background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', 
-                        padding: '0.75rem', fontSize: '0.75rem', color: '#991b1b',
-                        maxHeight: '150px', overflowY: 'auto'
-                    }}>
-                        {result.errorDetails.map((err, i) => (
-                            <div key={i} style={{ marginBottom: '4px', paddingBottom: '4px', borderBottom: i < result.errorDetails.length - 1 ? '1px solid #fecaca' : 'none' }}>
-                                <strong>{err.militar}:</strong> {err.error}
+            {/* Detalhes de Militares Atualizados */}
+            {result.details?.updated && result.details.updated.length > 0 && (
+                <div style={{ marginTop: '1.5rem', textAlign: 'left', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                    <div style={{ padding: '0.75rem 1rem', background: '#f0f9ff', borderBottom: '1px solid #e2e8f0', fontWeight: 600, fontSize: '0.85rem', color: '#0369a1' }}>
+                        🔄 Divergências Atualizadas ({result.details.updated.length}):
+                    </div>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '0.5rem 1rem', fontSize: '0.78rem' }}>
+                        {result.details.updated.map((item, i) => (
+                            <div key={i} style={{ padding: '6px 0', borderBottom: i < result.details.updated.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                <div style={{ fontWeight: 600, color: '#1e293b' }}>
+                                    {item.militar} <span style={{ color: '#94a3b8', fontWeight: 400 }}>| CPF: {item.cpf}</span>
+                                </div>
+                                <div style={{ color: '#475569', fontSize: '0.72rem', marginTop: '2px' }}>
+                                    {item.changes.map((ch, idx) => (
+                                        <span key={idx} style={{ display: 'inline-block', background: '#e0f2fe', color: '#0284c7', padding: '2px 6px', borderRadius: '4px', marginRight: '6px', marginTop: '2px' }}>
+                                            {ch}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Detalhes de Militares Inativados */}
+            {result.details?.deactivated && result.details.deactivated.length > 0 && (
+                <div style={{ marginTop: '1.5rem', textAlign: 'left', background: 'white', borderRadius: '12px', border: '1px solid #fef3c7', overflow: 'hidden' }}>
+                    <div style={{ padding: '0.75rem 1rem', background: '#fffbeb', borderBottom: '1px solid #fef3c7', fontWeight: 600, fontSize: '0.85rem', color: '#b45309' }}>
+                        ⚠️ Militares Inativados (ausentes na planilha importada):
+                    </div>
+                    <div style={{ maxHeight: '160px', overflowY: 'auto', padding: '0.5rem 1rem', fontSize: '0.78rem' }}>
+                        {result.details.deactivated.map((item, i) => (
+                            <div key={i} style={{ padding: '5px 0', borderBottom: i < result.details.deactivated.length - 1 ? '1px solid #fef3c7' : 'none', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontWeight: 600, color: '#92400e' }}>{item.militar}</span>
+                                <span style={{ color: '#b45309' }}>Matrícula: {item.matricula} | CPF: {item.cpf}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Detalhamento de Erros */}
+            {result.details?.errors && result.details.errors.length > 0 && (
+                <div style={{ marginTop: '1.5rem', textAlign: 'left', background: 'white', borderRadius: '12px', border: '1px solid #fee2e2', overflow: 'hidden' }}>
+                    <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', borderBottom: '1px solid #fee2e2', fontWeight: 600, fontSize: '0.85rem', color: '#b91c1c' }}>
+                        ❌ Registros Rejeitados por Erro:
+                    </div>
+                    <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '0.5rem 1rem', fontSize: '0.75rem', color: '#991b1b' }}>
+                        {result.details.errors.map((err, i) => (
+                            <div key={i} style={{ padding: '4px 0', borderBottom: i < result.details.errors.length - 1 ? '1px solid #fecaca' : 'none' }}>
+                                <strong>Linha {err.linha || '?'}: {err.militar}</strong> — {err.error}
                             </div>
                         ))}
                     </div>
@@ -212,7 +265,7 @@ export function EfetivoImport({ onComplete }) {
                 style={{ marginTop: '2.5rem', paddingLeft: '2rem', paddingRight: '2rem' }}
                 onClick={() => setResult(null)}
             >
-                Nova Importação
+                Nova Sincronização
             </button>
           </div>
         )}

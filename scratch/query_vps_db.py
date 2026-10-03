@@ -2,7 +2,7 @@ import paramiko
 import sys
 
 def run_queries():
-    hostname = '192.168.1.119'
+    hostname = '192.168.1.102'
     username = 'vps_9bpm'
     password = 'asdf1234'
     

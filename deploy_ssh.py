@@ -3,8 +3,8 @@ import paramiko
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 try:
-    print("Conectando via SSH ao servidor 192.168.1.119...")
-    ssh.connect('192.168.1.119', username='vps_9bpm', password='asdf1234', timeout=10)
+    print("Conectando via SSH ao servidor 192.168.1.102...")
+    ssh.connect('192.168.1.102', username='vps_9bpm', password='asdf1234', timeout=10)
     print("Conectado com sucesso!")
     
     # 1. Aplicar alteração diretamente no banco de dados via ft-postgres
@@ -14,7 +14,7 @@ try:
         "LOWER(REGEXP_REPLACE(ep.nome_recurso, '[^a-zA-Z0-9]', '_', 'g')), '_', "
         "TO_CHAR(ep.data_servico, 'YYYYMMDD'), '_', "
         "LOWER(REGEXP_REPLACE(ep.horario_servico, '[^a-zA-Z0-9]', '', 'g'))"
-        ") FROM 1 FOR 150);"
+        ") FROM 1 FOR 150) WHERE ep.id_guarnicao IS NULL;"
     )
     
     cmd = f'docker exec -i ft-postgres psql -U postgres -d escala_ft -c "{sql_cmd}"'

@@ -115,7 +115,15 @@ export function AdminDashboardV2() {
       patrols = [];
     }
 
-    patrols = patrols.map(p => ({ ...p, name: normalizePatrolName(p.name) }));
+    const seenPatrolIds = new Set();
+    patrols = patrols.map((p, idx) => {
+      let uniqueId = p.id || `p_${idx}`;
+      if (seenPatrolIds.has(uniqueId)) {
+        uniqueId = `${uniqueId}_${idx}`;
+      }
+      seenPatrolIds.add(uniqueId);
+      return { ...p, id: uniqueId, name: normalizePatrolName(p.name) };
+    });
 
     const assignedIds = new Set();
     patrols.forEach(patrol => {
@@ -188,25 +196,33 @@ export function AdminDashboardV2() {
       // Saneamento do payload: Envia apenas os atributos necessários para persistência no banco.
       // Remove árvores pesadas de disponibilidade (availability_json, turnos_completos, etc.),
       // prevenindo o erro HTTP 413 (Payload Too Large).
-      const sanitizedPatrols = patrolsToSave.map(patrol => ({
-        id: patrol.id,
-        name: patrol.name,
-        duration: patrol.duration,
-        timeSpan: patrol.timeSpan,
-        publicado: patrol.publicado !== false,
-        members: Array.isArray(patrol.members)
-          ? patrol.members.map(member => {
-              if (!member) return null;
-              return {
-                id: member.id,
-                id_militar: member.id_militar,
-                name: member.name,
-                rank: member.rank,
-                numero_ordem: member.numero_ordem
-              };
-            })
-          : []
-      }));
+      const seenSaveIds = new Set();
+      const sanitizedPatrols = patrolsToSave.map((patrol, idx) => {
+        let pId = patrol.id;
+        if (!pId || seenSaveIds.has(pId)) {
+          pId = `p_${Date.now()}_${idx}`;
+        }
+        seenSaveIds.add(pId);
+        return {
+          id: pId,
+          name: patrol.name,
+          duration: patrol.duration,
+          timeSpan: patrol.timeSpan,
+          publicado: patrol.publicado !== false,
+          members: Array.isArray(patrol.members)
+            ? patrol.members.map(member => {
+                if (!member) return null;
+                return {
+                  id: member.id,
+                  id_militar: member.id_militar,
+                  name: member.name,
+                  rank: member.rank,
+                  numero_ordem: member.numero_ordem
+                };
+              })
+            : []
+        };
+      });
 
       await axios.post(`${API_URL}/schedules`, {
         date: targetDate,

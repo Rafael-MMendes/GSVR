@@ -196,6 +196,12 @@ async function setupDB() {
             ) THEN
                 ALTER TABLE REQUERIMENTOS ADD CONSTRAINT uq_requerimentos_militar_ciclo UNIQUE (id_militar, id_ciclo);
             END IF;
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint 
+                WHERE conname='efetivo_matricula_key'
+            ) THEN
+                ALTER TABLE EFETIVO ADD CONSTRAINT efetivo_matricula_key UNIQUE (matricula);
+            END IF;
           END $$;
 
           -- 3. Tabela CICLOS
@@ -356,7 +362,7 @@ async function setupDB() {
               ALTER TABLE ESCALA_PLANEJAMENTO ALTER COLUMN id_guarnicao TYPE VARCHAR(150);
             END IF;
 
-            -- Preenche retroativamente id_guarnicao para registros antigos agrupando por id_ciclo, data_servico, horario_servico e nome_recurso
+            -- Preenche retroativamente id_guarnicao SOMENTE para registros antigos onde id_guarnicao IS NULL
             UPDATE ESCALA_PLANEJAMENTO ep
             SET id_guarnicao = SUBSTRING(CONCAT(
               LOWER(REGEXP_REPLACE(ep.nome_recurso, '[^a-zA-Z0-9]', '_', 'g')),
@@ -364,7 +370,8 @@ async function setupDB() {
               TO_CHAR(ep.data_servico, 'YYYYMMDD'),
               '_',
               LOWER(REGEXP_REPLACE(ep.horario_servico, '[^a-zA-Z0-9]', '', 'g'))
-            ) FROM 1 FOR 150);
+            ) FROM 1 FOR 150)
+            WHERE ep.id_guarnicao IS NULL;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='escala_planejamento' AND column_name='id_tipo_servico') THEN
               ALTER TABLE ESCALA_PLANEJAMENTO ADD COLUMN id_tipo_servico INTEGER REFERENCES TIPOS_SERVICO(id_tipo_servico);
             END IF;
