@@ -1,3 +1,16 @@
+## v1.35.5 — 2026-10-03
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Paginação Automática em Fatias de 3 Equipes por Imagem na Escala Oficial (`EscalaPublicacaoOficial.jsx`)**:
+  - **[Fatiamento e Isolamento Dinâmico]**: Ajustada a função `handleExportJPG` para segmentar a escala a cada 3 equipes/guarnições publicadas (`EQUIPES_POR_IMAGEM = 3`). Caso haja mais de 3 guarnições (ex: 4, 5, 7+ equipes), são geradas imagens sequenciais contendo até 3 equipes cada uma com as equipes restantes na última imagem.
+  - **[Integridade Institucional em Cada Imagem]**: Cada imagem gerada preserva integralmente o cabeçalho oficial (Brasão da PMAL, OPM, Batalhão, Data, Ciclo), os turnos/horários de embarque correspondentes e o rodapé com os desenvolvedores da P3 e direitos reservados.
+  - **[Identificação de Partes e Nomenclatura]**: Quando a escala é dividida em múltiplas imagens, adiciona-se uma badge visual discreta e elegante no cabeçalho (`PARTE X DE Y`) e os arquivos são nomeados como `Escala_do_dia_{DD-MM-YYYY}_parte_{X}_de_{Y}.jpg` (ou nome único simples se houver apenas 1 parte).
+  - **[Feedback de Progresso e Segurança de Downloads]**: O botão "Exportar Imagem" exibe o progresso em tempo real (`Gerando (1/2)...`, `Gerando (2/2)...`), com intervalo assíncrono controlado entre fatias para evitar bloqueios de múltiplos downloads automáticos pelo navegador.
+
+---
+
 ## v1.35.4 — 2026-10-03
 **Autor:** PMAL-DATEN
 **Email:** unknown

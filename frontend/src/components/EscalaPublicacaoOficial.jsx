@@ -21,6 +21,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
   const printRef = useRef(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingJpg, setIsExportingJpg] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
 
   const isExporting = isExportingPdf || isExportingJpg;
 
@@ -171,7 +172,9 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
   const handleExportJPG = async () => {
     if (!printRef.current) return;
     const elementoImpressao = printRef.current;
-    let exibicoesOriginais = [];
+    let exibicoesOriginaisNoPrint = [];
+    let exibicoesOriginaisGuarnicoes = [];
+    let exibicoesOriginaisTurnos = [];
 
     // Guardar estilos originais de largura para restauração
     const larguraOriginal = elementoImpressao.style.width;
@@ -186,49 +189,131 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
 
       // Ocultar temporariamente elementos com classe 'no-print' (seletores de cor)
       const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
-      exibicoesOriginais = Array.from(elementosSemImpressao).map(el => el.style.display);
+      exibicoesOriginaisNoPrint = Array.from(elementosSemImpressao).map(el => el.style.display);
       elementosSemImpressao.forEach(el => el.style.display = 'none');
 
-      const capturaDeTela = await html2canvas(elementoImpressao, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 900 // Largura fixa de 900px correspondente ao PDF
-      });
+      // Selecionar todos os blocos de guarnição e de turnos
+      const blocosGuarnicao = Array.from(elementoImpressao.querySelectorAll('.bloco-guarnicao'));
+      const blocosTurno = Array.from(elementoImpressao.querySelectorAll('.shift-block'));
+      exibicoesOriginaisGuarnicoes = blocosGuarnicao.map(b => b.style.display);
+      exibicoesOriginaisTurnos = blocosTurno.map(t => t.style.display);
 
       const dataFormatadaParaNomeArquivo = formatDate(date).replace(/\//g, '-');
-      const nomeArquivo = `Escala_do_dia_${dataFormatadaParaNomeArquivo}.jpg`;
+      const EQUIPES_POR_IMAGEM = 3;
+      const totalPaginas = Math.max(1, Math.ceil(blocosGuarnicao.length / EQUIPES_POR_IMAGEM));
 
-      if (capturaDeTela.toBlob) {
-        capturaDeTela.toBlob((blob) => {
-          if (!blob) {
-            alert('Houve um erro ao processar o arquivo JPG.');
-            return;
+      for (let p = 0; p < totalPaginas; p++) {
+        setExportProgress({ current: p + 1, total: totalPaginas });
+        const inicio = p * EQUIPES_POR_IMAGEM;
+        const fim = inicio + EQUIPES_POR_IMAGEM;
+
+        // Se houver guarnições, exibe apenas as da fatia atual (até 3 equipes)
+        if (blocosGuarnicao.length > 0) {
+          blocosGuarnicao.forEach((bloco, idx) => {
+            if (idx >= inicio && idx < fim) {
+              bloco.style.display = exibicoesOriginaisGuarnicoes[idx] || '';
+            } else {
+              bloco.style.display = 'none';
+            }
+          });
+
+          // Ocultar blocos de turno cujas guarnições não estão visíveis nesta imagem
+          blocosTurno.forEach((turnoBlock) => {
+            const possuiGuarnicaoVisivel = Array.from(turnoBlock.querySelectorAll('.bloco-guarnicao')).some(b => b.style.display !== 'none');
+            turnoBlock.style.display = possuiGuarnicaoVisivel ? '' : 'none';
+          });
+        }
+
+        // Se houver mais de uma página, adiciona badge indicadora elegante no cabeçalho
+        let badgeParte = null;
+        if (totalPaginas > 1) {
+          badgeParte = document.createElement('div');
+          badgeParte.className = 'badge-parte-temporaria';
+          badgeParte.style.marginTop = '1rem';
+          badgeParte.style.textAlign = 'center';
+          badgeParte.innerHTML = `
+            <span style="
+              display: inline-block;
+              background: #0f172a;
+              color: #ffffff;
+              font-size: 0.75rem;
+              font-weight: 800;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              padding: 4px 14px;
+              border-radius: 9999px;
+            ">
+              PARTE ${p + 1} DE ${totalPaginas} (EQUIPES ${inicio + 1} A ${Math.min(fim, blocosGuarnicao.length)})
+            </span>
+          `;
+          const headerContainer = elementoImpressao.querySelector('.header-institucional') || elementoImpressao.firstElementChild;
+          if (headerContainer) {
+            headerContainer.appendChild(badgeParte);
           }
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = nomeArquivo;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 'image/jpeg', 0.95);
-      } else {
-        const dadosDaImagem = capturaDeTela.toDataURL('image/jpeg', 0.95);
-        const link = document.createElement('a');
-        link.href = dadosDaImagem;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        }
+
+        const capturaDeTela = await html2canvas(elementoImpressao, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 900 // Largura fixa de 900px correspondente ao PDF
+        });
+
+        if (badgeParte && badgeParte.parentNode) {
+          badgeParte.parentNode.removeChild(badgeParte);
+        }
+
+        const nomeArquivo = totalPaginas === 1
+          ? `Escala_do_dia_${dataFormatadaParaNomeArquivo}.jpg`
+          : `Escala_do_dia_${dataFormatadaParaNomeArquivo}_parte_${p + 1}_de_${totalPaginas}.jpg`;
+
+        await new Promise((resolve) => {
+          if (capturaDeTela.toBlob) {
+            capturaDeTela.toBlob((blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nomeArquivo;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => {
+                  URL.revokeObjectURL(url);
+                  resolve();
+                }, 300);
+              } else {
+                resolve();
+              }
+            }, 'image/jpeg', 0.95);
+          } else {
+            const dadosDaImagem = capturaDeTela.toDataURL('image/jpeg', 0.95);
+            const link = document.createElement('a');
+            link.href = dadosDaImagem;
+            link.download = nomeArquivo;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            resolve();
+          }
+        });
+
+        // Intervalo de segurança para que o navegador processe múltiplos downloads
+        if (p < totalPaginas - 1) {
+          await new Promise(r => setTimeout(r, 500));
+        }
       }
     } catch (erro) {
-      console.error('Erro ao gerar JPG:', erro);
-      alert('Houve um erro ao gerar o JPG.');
+      console.error('Erro ao gerar imagens JPG:', erro);
+      alert('Houve um erro ao gerar as imagens da escala.');
     } finally {
       setIsExportingJpg(false);
+      setExportProgress(null);
+
+      // Remover qualquer badge residual
+      const badgesResiduais = elementoImpressao.querySelectorAll('.badge-parte-temporaria');
+      badgesResiduais.forEach(b => b.remove());
 
       // Restaurar largura original do container
       elementoImpressao.style.width = larguraOriginal;
@@ -237,8 +322,27 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
       // Restaurar visibilidade dos elementos no-print
       const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
       elementosSemImpressao.forEach((el, index) => {
-        if (exibicoesOriginais[index] !== undefined) {
-          el.style.display = exibicoesOriginais[index];
+        if (exibicoesOriginaisNoPrint[index] !== undefined) {
+          el.style.display = exibicoesOriginaisNoPrint[index];
+        }
+      });
+
+      // Restaurar visibilidade de todos os blocos de guarnição e turnos
+      const blocosGuarnicao = Array.from(elementoImpressao.querySelectorAll('.bloco-guarnicao'));
+      blocosGuarnicao.forEach((bloco, idx) => {
+        if (exibicoesOriginaisGuarnicoes[idx] !== undefined) {
+          bloco.style.display = exibicoesOriginaisGuarnicoes[idx];
+        } else {
+          bloco.style.display = '';
+        }
+      });
+
+      const blocosTurno = Array.from(elementoImpressao.querySelectorAll('.shift-block'));
+      blocosTurno.forEach((turnoBlock, idx) => {
+        if (exibicoesOriginaisTurnos[idx] !== undefined) {
+          turnoBlock.style.display = exibicoesOriginaisTurnos[idx];
+        } else {
+          turnoBlock.style.display = '';
         }
       });
     }
@@ -344,7 +448,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           <button
             onClick={handleExportJPG}
             disabled={isExporting}
-            title="Exportar escala como imagem de alta resolução (JPG)"
+            title="Exportar escala como imagem (dividida a cada 3 equipes)"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -361,7 +465,11 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               opacity: isExporting ? 0.7 : 1
             }}
           >
-            <ImageIcon size={18} color="#0284c7" /> {isExportingJpg ? 'Gerando...' : 'Exportar Imagem'}
+            <ImageIcon size={18} color="#0284c7" /> {
+              isExportingJpg 
+                ? (exportProgress ? `Gerando (${exportProgress.current}/${exportProgress.total})...` : 'Gerando...') 
+                : 'Exportar Imagem'
+            }
           </button>
 
           <button
@@ -404,7 +512,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
       }}>
 
         {/* Header Institucional */}
-        <div style={{
+        <div className="header-institucional" style={{
           textAlign: 'center',
           marginBottom: '2.5rem',
           borderBottom: '2px solid #0f172a',
