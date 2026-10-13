@@ -1,3 +1,42 @@
+## v1.36.2 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Redesenho do Painel de Indicadores e Expansão do Card de Próximo Serviço em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - **[Expansão Vertical do Card de Destaque]**: O card azul ("Próximo Serviço de Força Tarefa Agendado") preserva sua largura proeminente na grade e teve sua altura estendida para baixo, exibindo uma grade enriquecida de 6 atributos operacionais essenciais (Horário do Turno, Viatura/Posto designado, Função operacional na guarnição, Estimativa de Remuneração, OPM Responsável e Apresentação/Embarque).
+  - **[Realocação e Simetria dos Indicadores]**: O card de "Serviços Executados no Ciclo", que anteriormente ficava isolado na linha de baixo, foi realocado para o painel lateral em um grid 2x2 harmonioso ao lado dos cards de "Escalas Futuras" e "Total no Ciclo".
+  - **[Novo Indicador de Progresso no Ciclo]**: Inserido quarto indicador operacional ("Progresso no Ciclo") com percentual de cumprimento das escalas, indicador de ciclo ativo e barra de progresso visual estilizada.
+  - **[Contagem Regressiva e Responsividade]**: Adicionados pill dinâmico com proximidade do serviço ("Hoje", "Amanhã", "Em X dias"), status de confirmação e regras de layout responsivo com adaptação suave para desktops, tablets e dispositivos móveis.
+
+---
+
+## v1.36.1 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Ajustes de Nomenclatura e Métricas Operacionais por Ciclo em "Minhas Escalas" (`MinhasEscalas.jsx` / `server.js`)**:
+  - **[Padronização Terminológica]**: Substituída a nomenclatura "plantão / plantões" por "serviço de força tarefa / serviços de força tarefa" em todos os pontos da tela do militar (cabeçalho, card de próximo serviço agendado, botão de detalhes, badges de status, opções de filtros e modal de detalhamento).
+  - **[Métricas Operacionais Baseadas no Ciclo]**: Adaptados os cards de indicadores para apresentar os totais e serviços executados com base no ciclo operacional vigente (`total_escalas_ciclo` e `total_executadas_ciclo`), substituindo o cômputo restrito ao mês civil.
+  - **[Identificação do Ciclo Atual]**: Exibição dinâmica do período do ciclo ativo (ex: `16/09/2026 a 15/10/2026`) no card de indicadores e contagem precisa de serviços cumpridos vinculada ao ciclo de referência.
+
+---
+
+## v1.36.0 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Implementação da Área do Usuário para Visualização de Escalas ("Minhas Escalas")**:
+  - **[Isolamento e Segurança de Dados no Servidor]**: Implementadas as rotas `GET /api/my-schedules` e `GET /api/my-schedules/:id` protegidas por middleware JWT (`authenticate`), validando a identidade militar diretamente do token de sessão no backend (`req.user.numero_ordem` vinculado ao cadastro em `EFETIVO`), impedindo manipulação de parâmetros pelo cliente.
+  - **[Interface Exclusiva para Usuário Padrão (`MinhasEscalas.jsx`)]**: Criada interface moderna e responsiva com cabeçalho de identificação funcional, cards de indicadores resumidos (Total de escalas futuras, no mês atual, já realizadas e destaque do próximo plantão com data, dia e horário).
+  - **[Filtros e Pesquisa Avançada]**: Filtros por período (data inicial e final), situação (todas, futuras/confirmadas, hoje, realizadas) e busca textual sobre postos, locais e horários.
+  - **[Detalhamento Seguro de Escalas com Modal]**: Consulta validada no backend que exibe informações detalhadas de viatura, horários de início/embarque, função, remuneração prevista e composição de guarnição de serviço (com preservação de privacidade, sem expor dados sensíveis de terceiros).
+  - **[Controle de Acesso e Preservação Administrativa]**: Usuários padrão têm acesso restrito e navegam diretamente para "Minhas Escalas" ao autenticar; perfis de gerência e administração preservam 100% de suas ferramentas operacionais e ganham acesso pessoal aos seus próprios plantões.
+
+---
+
 ## v1.35.5 — 2026-10-03
 **Autor:** PMAL-DATEN
 **Email:** unknown

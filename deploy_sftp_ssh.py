@@ -51,6 +51,11 @@ try:
     print(f"Enviando {local_escala_pub} -> {remote_escala_pub}...")
     sftp.put(local_escala_pub, remote_escala_pub)
 
+    local_minhas_jsx = os.path.abspath("frontend/src/components/MinhasEscalas.jsx")
+    remote_minhas_jsx = "/home/vps_9bpm/projetos/GSVR - prod/frontend/src/components/MinhasEscalas.jsx"
+    print(f"Enviando {local_minhas_jsx} -> {remote_minhas_jsx}...")
+    sftp.put(local_minhas_jsx, remote_minhas_jsx)
+
     local_pkg_json = os.path.abspath("frontend/package.json")
     remote_pkg_json = "/home/vps_9bpm/projetos/GSVR - prod/frontend/package.json"
     print(f"Enviando {local_pkg_json} -> {remote_pkg_json}...")

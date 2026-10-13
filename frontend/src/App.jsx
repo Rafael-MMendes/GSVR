@@ -22,11 +22,12 @@ import { TiposServicoManager } from './components/TiposServicoManager';
 import { ConferenciaOperacional } from './components/ConferenciaOperacional';
 import { Footer } from './components/Footer';
 import { QuantitativoGastosFT } from './components/QuantitativoGastosFT';
+import { MinhasEscalas } from './components/MinhasEscalas';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet, Target, GitCompareArrows
+  FileSpreadsheet, Target, GitCompareArrows, CalendarCheck
 } from 'lucide-react';
 
 // ============================================================
@@ -73,7 +74,7 @@ function App() {
   // Determina a view inicial após login/restauração de sessão
   useEffect(() => {
     if (user && currentView === 'auto') {
-      setCurrentView(user.is_admin ? 'admin-v2' : 'form');
+      setCurrentView(user.is_admin ? 'admin-v2' : 'minhas-escalas');
     }
 
     const handleNavigate = (e) => setCurrentView(e.detail);
@@ -100,7 +101,7 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData);
-    setCurrentView(userData.is_admin ? 'admin-v2' : 'form');
+    setCurrentView(userData.is_admin ? 'admin-v2' : 'minhas-escalas');
   };
 
   const handleLogout = async () => {
@@ -165,19 +166,22 @@ function App() {
         </button>
 
         <div className={`nav-links ${isMenuOpen ? 'mobile-open' : ''}`}>
-          {(isAdmin || isGerente) && (
+          {(isAdmin || isGerente) ? (
             <>
               <div className="nav-separator" />
 
               {/* Grupo: Operacional */}
               <div className="nav-group">
                 <span
-                  className={`nav-category ${(['admin', 'requerimentos', 'servicos'].includes(currentView)) ? 'active' : ''}`}
+                  className={`nav-category ${(['admin', 'requerimentos', 'servicos', 'minhas-escalas'].includes(currentView)) ? 'active' : ''}`}
                   onClick={() => toggleDropdown('operacional')}
                 >
                   <Activity size={18} /> Gestão Operacional {chevron('operacional')}
                 </span>
                 <div className={`dropdown-menu ${activeDropdown === 'operacional' ? 'open' : ''}`}>
+                  <a href="#" className={`dropdown-item ${currentView === 'minhas-escalas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('minhas-escalas'); }}>
+                    <CalendarCheck size={16} /> Minhas Escalas (Pessoal)
+                  </a>
                   {hasPermission('escalas:read') && (
                     <a href="#" className={`dropdown-item ${currentView === 'admin-v2' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('admin-v2'); }}>
                       <LayoutDashboard size={16} /> Planejamento de Escala
@@ -281,6 +285,34 @@ function App() {
                 </div>
               )}
             </>
+          ) : (
+            <>
+              <div className="nav-separator" />
+              <a
+                href="#"
+                className={`nav-link ${currentView === 'minhas-escalas' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); navigateTo('minhas-escalas'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600,
+                  color: currentView === 'minhas-escalas' ? '#38bdf8' : 'white',
+                  textDecoration: 'none', padding: '0.5rem 0.85rem', borderRadius: '8px'
+                }}
+              >
+                <CalendarCheck size={18} /> Minhas Escalas
+              </a>
+              <a
+                href="#"
+                className={`nav-link ${currentView === 'form' ? 'active' : ''}`}
+                onClick={(e) => { e.preventDefault(); navigateTo('form'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600,
+                  color: currentView === 'form' ? '#38bdf8' : 'white',
+                  textDecoration: 'none', padding: '0.5rem 0.85rem', borderRadius: '8px'
+                }}
+              >
+                <FileText size={18} /> Inscrição / Voluntariado
+              </a>
+            </>
           )}
 
           {/* Perfil do usuário */}
@@ -301,6 +333,9 @@ function App() {
               {user.nome_guerra || user.numero_ordem} {chevron('profile')}
             </span>
             <div className={`dropdown-menu ${activeDropdown === 'profile' ? 'open' : ''}`}>
+              <a href="#" className={`dropdown-item ${currentView === 'minhas-escalas' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('minhas-escalas'); }}>
+                <CalendarCheck size={16} /> Minhas Escalas
+              </a>
               <a href="#" className={`dropdown-item ${currentView === 'profile' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('profile'); }}>
                 <User size={16} /> Meu Perfil
               </a>
@@ -319,6 +354,7 @@ function App() {
       </nav>
 
       <main>
+        {currentView === 'minhas-escalas' && <MinhasEscalas user={user} />}
         {currentView === 'form' && <VolunteerForm userData={user} />}
         {currentView === 'profile' && <ProfilePage user={user} />}
 
