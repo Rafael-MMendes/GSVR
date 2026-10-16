@@ -1065,7 +1065,13 @@ export function AdminDashboardV2() {
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="v2-main-content" style={{ flex: 1, padding: '2rem', overflowY: 'auto', height: '100vh' }}>
+      <div className="v2-main-content" style={{
+        flex: 1,
+        padding: '2rem',
+        overflowY: 'scroll',
+        scrollbarGutter: 'stable',
+        height: '100vh'
+      }}>
         <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, color: colors.primary }}>
@@ -1080,13 +1086,14 @@ export function AdminDashboardV2() {
         <div style={{ flex: 1, padding: '0.5rem' }} ref={printRef}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
             gap: '1.5rem',
             paddingBottom: '4rem'
           }}>
             {state.patrols.map(patrol => (
               <div
                 key={patrol.id}
+                className="patrol-card-hover"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, patrol.id)}
                 style={{
@@ -1098,11 +1105,8 @@ export function AdminDashboardV2() {
                   overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
-                  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                   animation: 'fadeIn 0.5s ease-out'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'; e.currentTarget.style.transform = 'translateY(-5px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = shadowMd; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
                 {/* Card Header (Patrol) */}
                 <div style={{
@@ -2149,9 +2153,9 @@ export function AdminDashboardV2() {
             <div className="modal-responsive-detail" style={{
               background: colors.white,
               borderRadius: '24px',
-              width: '95%',
-              maxWidth: '1100px',
-              maxHeight: '90vh',
+              width: '96%',
+              maxWidth: '1380px',
+              maxHeight: '94vh',
               display: 'flex',
               flexDirection: 'column',
               boxShadow: shadowLg,
@@ -2343,8 +2347,8 @@ export function AdminDashboardV2() {
                         className="modal-custom-scrollbar grade-table-scroll"
                         style={{
                           overflowX: 'auto',
-                          overflowY: 'scroll',
-                          maxHeight: '145px',
+                          overflowY: 'auto',
+                          maxHeight: '280px',
                           paddingBottom: '0.6rem',
                           scrollbarWidth: 'thin',
                           scrollbarColor: '#cbd5e1 #f1f5f9'
@@ -2546,7 +2550,7 @@ export function AdminDashboardV2() {
                     className="modal-custom-scrollbar escalas-grid-responsive"
                     style={{
                       padding: '1.25rem 1.5rem',
-                      maxHeight: '185px',
+                      maxHeight: '250px',
                       overflowY: 'auto',
                       scrollbarWidth: 'thin',
                       scrollbarColor: '#cbd5e1 #f1f5f9'
@@ -2668,6 +2672,18 @@ export function AdminDashboardV2() {
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-4px); }
+        }
+        .v2-main-content {
+          scrollbar-gutter: stable;
+          overflow-y: scroll !important;
+        }
+        .patrol-card-hover {
+          transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+          will-change: transform, box-shadow;
+        }
+        .patrol-card-hover:hover {
+          transform: translateY(-4px) !important;
+          box-shadow: 0 16px 24px -4px rgba(0, 0, 0, 0.1), 0 8px 8px -4px rgba(0, 0, 0, 0.04) !important;
         }
         select {
           appearance: none;

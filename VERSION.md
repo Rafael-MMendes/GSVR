@@ -1,3 +1,27 @@
+## v1.36.17 — 2026-10-16
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção da Oscilação e Tremulação Rápida dos Cards de Guarnição ao Passar o Mouse (`AdminDashboardV2.jsx`)**:
+  - **[Estabilização do Scrollbar Gutter]**: Adicionado `scrollbar-gutter: stable` e `overflow-y: scroll` no container principal (`.v2-main-content`), eliminando a variação de 17px na largura útil que ocorria ao passar o mouse sobre os cards quando o planejamento tinha 5 ou 6 equipes, o que forçava o grid a alternar intermitentemente entre 4 e 5 colunas.
+  - **[Isolamento de Transições de Hover]**: Substituído o `transition: all 0.4s cubic-bezier(...)` e mutação de estilo inline JS por classe CSS pura `.patrol-card-hover` com transição restrita a `transform 0.2s ease` e `box-shadow 0.2s ease`, impedindo que a largura e altura dos cards animem ou saltem durante reflows.
+  - **[Calibração de Largura Mínima do Grid]**: Ajustado `grid-template-columns` para `repeat(auto-fill, minmax(min(100%, 300px), 1fr))`, garantindo estabilidade milimétrica nas colunas.
+
+---
+
+## v1.36.16 — 2026-10-16
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Ampliação do Modal de Detalhes e Expansão da Altura da Grade de Disponibilidade (`AdminDashboardV2.jsx`)**:
+  - **[Ampliação do Modal de Detalhes]**: Aumentada a largura máxima do modal para `maxWidth: 1380px` (`width: 96%`) e altura máxima para `maxHeight: 94vh`, proporcionando uma visualização panorâmica muito mais espaçosa que exibe quase todo o ciclo sem compressão lateral.
+  - **[Aumento da Altura da Grade de Disponibilidade]**: Expandida a altura do container da matriz para `maxHeight: 280px` com `overflowY: auto`, eliminando o corte horizontal da 4ª linha de turnos (`01:00 ÀS 07:00`) e garantindo que todos os turnos e caixas de seleção tenham visibilidade e espaçamento confortáveis.
+  - **[Expansão do Container de Escalas no Ciclo]**: Ajustada a altura máxima do histórico de escalas para `maxHeight: 250px`, permitindo exibição alinhada e espaçosa das escalas registradas no ciclo.
+
+---
+
 ## v1.36.15 — 2026-10-16
 **Autor:** PMAL-DATEN
 **Email:** unknown
