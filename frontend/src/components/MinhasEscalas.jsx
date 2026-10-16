@@ -10,6 +10,26 @@ import {
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
+
 export function MinhasEscalas({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -29,17 +49,60 @@ export function MinhasEscalas({ user }) {
     schedules: []
   });
 
-  // Filtros de busca
-  const [search, setSearch] = useState('');
-  const [situacaoFilter, setSituacaoFilter] = useState('todas');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('todos');
-  const [selectedYear, setSelectedYear] = useState('todos');
+  // Grade de Disponibilidade (Modulo Historico Militar / Relatorio Individual)
+  const [ciclos, setCiclos] = useState([]);
+  const [selectedCiclo, setSelectedCiclo] = useState(null);
+  const [gridDisp, setGridDisp] = useState([]);
+  const [gridLoading, setGridLoading] = useState(false);
 
-  // Paginação
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Carrega ciclos disponíveis
+  useEffect(() => {
+    const fetchCiclos = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/ciclos`);
+        if (Array.isArray(res.data)) {
+          setCiclos(res.data);
+          const active = res.data.find(c => c.status === 'Aberto') || res.data[0];
+          if (active && !selectedCiclo) {
+            setSelectedCiclo(active.id_ciclo);
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao carregar ciclos:', e);
+      }
+    };
+    fetchCiclos();
+  }, []);
+
+  // Sincroniza ciclo selecionado com o ciclo ativo da resposta de escalas
+  useEffect(() => {
+    if (data.summary?.id_ciclo_atual && !selectedCiclo) {
+      setSelectedCiclo(data.summary.id_ciclo_atual);
+    }
+  }, [data.summary?.id_ciclo_atual]);
+
+  // Carrega a Grade de Disponibilidade para o militar autenticado e ciclo selecionado
+  useEffect(() => {
+    const militarId = data.military?.id_militar;
+    if (!militarId || !selectedCiclo) return;
+
+    const fetchGrid = async () => {
+      setGridLoading(true);
+      try {
+        const res = await axios.get(
+          `${API_URL}/reports/disponibilidade-grid?id_militar=${militarId}&ciclo_id=${selectedCiclo}`
+        );
+        setGridDisp(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Erro ao carregar grade de disponibilidade:', err);
+        setGridDisp([]);
+      } finally {
+        setGridLoading(false);
+      }
+    };
+
+    fetchGrid();
+  }, [data.military?.id_militar, selectedCiclo]);
 
   // Modal de Detalhamento
   const [selectedEscalaId, setSelectedEscalaId] = useState(null);
@@ -53,15 +116,7 @@ export function MinhasEscalas({ user }) {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-      if (selectedMonth !== 'todos') params.month = selectedMonth;
-      if (selectedYear !== 'todos') params.year = selectedYear;
-      if (situacaoFilter !== 'todas') params.situacao = situacaoFilter;
-      if (search.trim()) params.search = search.trim();
-
-      const res = await axios.get(`${API_URL}/my-schedules`, { params });
+      const res = await axios.get(`${API_URL}/my-schedules`);
       if (res.data && res.data.success) {
         setData(res.data);
       } else {
@@ -78,28 +133,7 @@ export function MinhasEscalas({ user }) {
 
   useEffect(() => {
     fetchMySchedules();
-  }, [situacaoFilter, selectedMonth, selectedYear]);
-
-  // Handler para busca manual por texto ou datas
-  const handleApplyFilters = (e) => {
-    if (e) e.preventDefault();
-    setCurrentPage(1);
-    fetchMySchedules();
-  };
-
-  const handleResetFilters = () => {
-    setSearch('');
-    setSituacaoFilter('todas');
-    setStartDate('');
-    setEndDate('');
-    setSelectedMonth('todos');
-    setSelectedYear('todos');
-    setCurrentPage(1);
-    // Recarrega sem filtros
-    setTimeout(() => {
-      fetchMySchedules();
-    }, 10);
-  };
+  }, []);
 
   // Abrir Modal de Detalhamento
   const handleOpenDetail = async (id_escala) => {
@@ -131,28 +165,6 @@ export function MinhasEscalas({ user }) {
     setDetailEscala(null);
     setDetailError(null);
   };
-
-  // Filtragem local rápida (caso haja busca digitada sem submeter formulário)
-  const filteredSchedules = useMemo(() => {
-    if (!data.schedules) return [];
-    return data.schedules.filter(item => {
-      if (!search.trim()) return true;
-      const term = search.toLowerCase();
-      const recursoMatch = item.nome_recurso?.toLowerCase().includes(term);
-      const tipoMatch = item.tipo_servico?.toLowerCase().includes(term);
-      const funcaoMatch = item.funcao?.toLowerCase().includes(term);
-      const horarioMatch = item.horario_servico?.toLowerCase().includes(term);
-      const dataMatch = item.data_formatada?.includes(term);
-      return recursoMatch || tipoMatch || funcaoMatch || horarioMatch || dataMatch;
-    });
-  }, [data.schedules, search]);
-
-  // Paginação
-  const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage) || 1;
-  const paginatedSchedules = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredSchedules.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredSchedules, currentPage, itemsPerPage]);
 
   // Helper para badge de situação
   const renderSituacaoBadge = (situacao) => {
@@ -232,17 +244,57 @@ export function MinhasEscalas({ user }) {
     }
   }, [proxima]);
 
-  // Cálculo de progresso e cumprimento no ciclo operacional ativo
-  const progressoCiclo = useMemo(() => {
-    const total = Number(data.summary?.total_escalas_ciclo) || 0;
-    const exec = Number(data.summary?.total_executadas_ciclo) || 0;
-    if (total <= 0) return { percent: 0, text: 'Nenhuma escala no ciclo' };
-    const pct = Math.min(100, Math.round((exec / total) * 100));
+
+  const SHIFTS = [
+    "07:00 ÀS 13:00",
+    "13:00 ÀS 19:00",
+    "19:00 ÀS 01:00",
+    "01:00 ÀS 07:00"
+  ];
+
+  const cicloDadosAtual = useMemo(() => {
+    if (!selectedCiclo || !ciclos.length) return null;
+    return ciclos.find(c => String(c.id_ciclo) === String(selectedCiclo)) || null;
+  }, [selectedCiclo, ciclos]);
+
+  const cycleDays = useMemo(() => {
+    return getCycleDays(cicloDadosAtual?.data_inicio, cicloDadosAtual?.data_fim);
+  }, [cicloDadosAtual]);
+
+  const byDayGrid = useMemo(() => {
+    const byDay = {};
+    gridDisp.forEach(r => {
+      if (!byDay[r.dia_mes]) byDay[r.dia_mes] = {};
+      byDay[r.dia_mes][r.horario_turno] = r;
+    });
+    return byDay;
+  }, [gridDisp]);
+
+  const getCellCfg = (cell) => {
+    if (!cell || (cell.ativo !== true && cell.ativo !== false && !cell.teve_execucao)) return null;
+    if (cell.teve_execucao)
+      return { bg: '#059669', border: '#047857', xColor: '#fff', label: 'Executado', title: 'Serviço executado' };
+    if (cell.ativo === true)
+      return { bg: '#2563eb', border: '#1d4ed8', xColor: '#fff', label: 'Disponível', title: 'Disponível' };
+    if (cell.ativo === false)
+      return { bg: '#dc2626', border: '#b91c1c', xColor: '#fff', label: 'Desistência', title: 'Desistência' };
+    return null;
+  };
+
+  const gridKPIs = useMemo(() => {
+    const uniqueDays = new Set(
+      gridDisp
+        .filter(r => r.ativo === true || r.teve_execucao)
+        .map(r => r.dia_mes)
+    );
+    const executadosCount = gridDisp.filter(r => r.teve_execucao).length;
+    const disponiveisCount = gridDisp.filter(r => r.ativo === true).length;
     return {
-      percent: pct,
-      text: `${exec} de ${total} serviços cumpridos`
+      diasDisponiveis: uniqueDays.size,
+      turnosExecutados: executadosCount,
+      turnosDisponiveis: disponiveisCount
     };
-  }, [data.summary]);
+  }, [gridDisp]);
 
   const formatCurrency = (val) => {
     if (!val) return 'R$ 192,03';
@@ -280,9 +332,9 @@ export function MinhasEscalas({ user }) {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <CalendarCheck size={26} color="#60a5fa" />
+              <CalendarCheck size={26} color="#fefeffff" />
             </div>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
+            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
               Minhas Escalas
             </h1>
           </div>
@@ -364,19 +416,31 @@ export function MinhasEscalas({ user }) {
       <style>{`
         .me-hero-container {
           display: grid;
-          grid-template-columns: minmax(0, 1.28fr) minmax(0, 1fr);
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
           gap: 1.25rem;
           margin-bottom: 1.75rem;
           align-items: stretch;
+          width: 100%;
+          box-sizing: border-box;
         }
-        .me-kpi-grid {
+        .me-kpi-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 1.15rem;
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
+          justify-content: space-between;
+        }
+        .me-cycle-stats-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1rem;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.85rem;
+          margin-top: 0.85rem;
         }
         .me-hero-details-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 0.75rem;
           margin-top: 1.15rem;
         }
@@ -385,8 +449,8 @@ export function MinhasEscalas({ user }) {
             grid-template-columns: 1fr;
           }
         }
-        @media (max-width: 580px) {
-          .me-kpi-grid {
+        @media (max-width: 640px) {
+          .me-cycle-stats-grid {
             grid-template-columns: 1fr;
           }
           .me-hero-details-grid {
@@ -643,7 +707,7 @@ export function MinhasEscalas({ user }) {
             }}>
               <div style={{ fontSize: '0.76rem', color: '#bfdbfe', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <Shield size={14} color="#93c5fd" />
-                <span>Apresentação regulamentar no posto designado.</span>
+                <span>local de embarque; 30 minutos de antecedência na sede do 9º BPM.</span>
               </div>
 
               <button
@@ -671,10 +735,10 @@ export function MinhasEscalas({ user }) {
         </div>
 
         {/* ============================================================ */}
-        {/* Painel Lateral: 4 Cards de Indicadores do Ciclo & Métricas */}
+        {/* Painel Lateral: Indicadores do Ciclo (Unificado) & Guarnição */}
         {/* ============================================================ */}
-        <div className="me-kpi-grid">
-          {/* Card 1: Escalas Futuras */}
+        <div className="me-kpi-panel">
+          {/* Card 1: Indicadores do Ciclo (Unifica: Escalas Futuras, Serviços Executados no Ciclo e Total no Ciclo) */}
           <div style={{
             background: '#ffffff',
             borderRadius: '16px',
@@ -683,632 +747,533 @@ export function MinhasEscalas({ user }) {
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            minWidth: 0,
+            boxSizing: 'border-box'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b' }}>
-                Escalas Futuras
-              </span>
-              <div style={{ background: '#ecfdf5', padding: '0.45rem', borderRadius: '10px' }}>
-                <CalendarDays size={18} color="#059669" />
+            {/* Top Bar do Card de Indicadores */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800, color: '#334155' }}>
+                  Indicadores do Ciclo
+                </span>
+                {data.summary?.periodo_ciclo && (
+                  <span style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    color: '#2563eb',
+                    background: '#eff6ff',
+                    padding: '0.12rem 0.45rem',
+                    borderRadius: '6px',
+                    border: '1px solid #bfdbfe',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {data.summary.periodo_ciclo}
+                  </span>
+                )}
+              </div>
+              <div style={{ background: '#eff6ff', padding: '0.4rem', borderRadius: '10px', flexShrink: 0 }}>
+                <CalendarCheck size={18} color="#2563eb" />
               </div>
             </div>
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#065f46' }}>
-                {data.summary?.total_futuras || 0}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem' }}>
-                Serviços de força tarefa confirmados pela frente
-              </div>
-            </div>
-          </div>
 
-          {/* Card 2: Total no Ciclo */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '1.25rem 1.4rem',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b' }}>
-                Total no Ciclo
-              </span>
-              <div style={{ background: '#eff6ff', padding: '0.45rem', borderRadius: '10px' }}>
-                <Calendar size={18} color="#2563eb" />
-              </div>
-            </div>
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#1e3a8a' }}>
-                {data.summary?.total_escalas_ciclo ?? data.summary?.total_mes_atual ?? 0}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem' }}>
-                {data.summary?.periodo_ciclo ? `Escalas no ciclo (${data.summary.periodo_ciclo})` : 'Escalas atribuídas no ciclo atual'}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Serviços Executados no Ciclo (Realocado com sucesso ao lado dos demais indicadores) */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '1.25rem 1.4rem',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b' }}>
-                Serviços Executados no Ciclo
-              </span>
-              <div style={{ background: '#f1f5f9', padding: '0.45rem', borderRadius: '10px' }}>
-                <History size={18} color="#475569" />
-              </div>
-            </div>
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#0f172a' }}>
-                {data.summary?.total_executadas_ciclo ?? data.summary?.total_realizadas_mes ?? 0}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem' }}>
-                Serviços cumpridos no ciclo atual
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Progresso do Ciclo */}
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '1.25rem 1.4rem',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, color: '#64748b' }}>
-                Progresso no Ciclo
-              </span>
-              <div style={{ background: '#ecfdf5', padding: '0.45rem', borderRadius: '10px' }}>
-                <CheckCircle2 size={18} color="#059669" />
-              </div>
-            </div>
-            <div style={{ marginTop: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <div style={{ fontSize: '1.85rem', fontWeight: 900, color: '#065f46' }}>
-                  {progressoCiclo.percent}%
-                </div>
-                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#059669', background: '#ecfdf5', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                  Ciclo Ativo
-                </div>
-              </div>
-              {/* Barra de Progresso Visual */}
+            {/* Grid com as 3 Métricas Unificadas */}
+            <div className="me-cycle-stats-grid">
+              {/* Métrica 1: Escalas Futuras */}
               <div style={{
-                width: '100%',
-                height: '6px',
-                background: '#f1f5f9',
-                borderRadius: '999px',
-                marginTop: '0.5rem',
-                overflow: 'hidden'
+                background: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.85rem 0.95rem',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minWidth: 0
               }}>
-                <div style={{
-                  width: `${progressoCiclo.percent}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #10b981 0%, #059669 100%)',
-                  borderRadius: '999px',
-                  transition: 'width 0.4s ease'
-                }} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: '#64748b' }}>
+                    Escalas Futuras
+                  </span>
+                  <div style={{ background: '#ecfdf5', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                    <CalendarDays size={15} color="#059669" />
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.45rem' }}>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#065f46', lineHeight: 1.1 }}>
+                    {data.summary?.total_futuras || 0}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    Confirmadas à frente
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.35rem' }}>
-                {progressoCiclo.text}
+
+              {/* Métrica 2: Serviços Executados no Ciclo */}
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.85rem 0.95rem',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minWidth: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: '#64748b' }}>
+                    Executados no Ciclo
+                  </span>
+                  <div style={{ background: '#f1f5f9', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                    <History size={15} color="#475569" />
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.45rem' }}>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#0f172a', lineHeight: 1.1 }}>
+                    {data.summary?.total_executadas_ciclo ?? data.summary?.total_realizadas_mes ?? 0}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    Serviços cumpridos
+                  </div>
+                </div>
+              </div>
+
+              {/* Métrica 3: Total no Ciclo */}
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: '12px',
+                padding: '0.85rem 0.95rem',
+                border: '1px solid #f1f5f9',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minWidth: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, color: '#64748b' }}>
+                    Total no Ciclo
+                  </span>
+                  <div style={{ background: '#eff6ff', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                    <Calendar size={15} color="#2563eb" />
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.45rem' }}>
+                  <div style={{ fontSize: '1.65rem', fontWeight: 900, color: '#1e3a8a', lineHeight: 1.1 }}>
+                    {data.summary?.total_escalas_ciclo ?? data.summary?.total_mes_atual ?? 0}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
+                    Escalas atribuídas
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Card 2: Composição da Guarnição do Próximo Serviço de Força Tarefa */}
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '1.25rem 1.4rem',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            flex: 1
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800, color: '#334155' }}>
+                  Composição da Guarnição
+                </span>
+                {proxima?.nome_recurso && (
+                  <span style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    color: '#1d4ed8',
+                    background: '#eff6ff',
+                    padding: '0.12rem 0.45rem',
+                    borderRadius: '6px',
+                    border: '1px solid #bfdbfe',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {proxima.nome_recurso}
+                  </span>
+                )}
+              </div>
+              <div style={{ background: '#eff6ff', padding: '0.4rem', borderRadius: '10px', flexShrink: 0 }}>
+                <Users size={18} color="#2563eb" />
+              </div>
+            </div>
+
+            <div style={{ marginTop: '0.65rem', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              {proxima ? (
+                proxima.guarnicao && proxima.guarnicao.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {proxima.guarnicao.map((m, idx) => {
+                      const funcaoLower = (m.funcao || '').toLowerCase();
+                      const isCmd = funcaoLower.includes('comandante');
+                      const isMot = funcaoLower.includes('motorista');
+                      const badgeBg = isCmd ? '#fef3c7' : isMot ? '#dcfce7' : '#f1f5f9';
+                      const badgeColor = isCmd ? '#92400e' : isMot ? '#166534' : '#475569';
+
+                      return (
+                        <div
+                          key={m.id_escala || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.35rem 0.65rem',
+                            borderRadius: '8px',
+                            background: m.is_current_user ? '#eff6ff' : '#f8fafc',
+                            border: m.is_current_user ? '1px solid #bfdbfe' : '1px solid #f1f5f9',
+                            gap: '0.5rem',
+                            minWidth: 0
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, flex: 1 }}>
+                            <span style={{
+                              fontSize: '0.67rem',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '5px',
+                              background: badgeBg,
+                              color: badgeColor,
+                              flexShrink: 0,
+                              letterSpacing: '0.02em'
+                            }}>
+                              {m.funcao || 'Membro'}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.82rem',
+                                fontWeight: m.is_current_user ? 800 : 600,
+                                color: m.is_current_user ? '#1e3a8a' : '#1e293b',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                minWidth: 0
+                              }}
+                              title={`${m.posto_graduacao || ''} ${m.nome_guerra || ''}`}
+                            >
+                              {m.posto_graduacao} {m.nome_guerra}
+                            </span>
+                          </div>
+                          {m.is_current_user && (
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              background: '#2563eb',
+                              color: '#ffffff',
+                              padding: '0.12rem 0.45rem',
+                              borderRadius: '4px',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.03em',
+                              flexShrink: 0
+                            }}>
+                              Você
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: '0.35rem 0' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e3a8a' }}>
+                      {proxima.funcao || 'Escalado'}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.15rem' }}>
+                      {militarInfo.posto_graduacao} {militarInfo.nome_guerra} (Você)
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div style={{ textAlign: 'center', padding: '0.5rem 0', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Sem guarnição agendada</div>
+                  <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: '0.15rem' }}>Aguardando próxima escala</div>
+                </div>
+              )}
+            </div>
+
+            {proxima && (
+              <div style={{
+                fontSize: '0.74rem',
+                color: '#64748b',
+                marginTop: '0.55rem',
+                paddingTop: '0.45rem',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                minWidth: 0
+              }}>
+                <span style={{ fontWeight: 600, color: '#475569' }}>
+                  Próximo Serviço Agendado
+                </span>
+                <span style={{ fontWeight: 700, color: '#2563eb' }}>
+                  {proxima.data_formatada} ({proxima.dia_semana_extenso?.split('-')[0] || ''})
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/* 3.4 FILTROS E PESQUISA */}
+      {/* 3.3 GRADE DE DISPONIBILIDADE DO MILITAR (MODULO HISTORICO)   */}
       {/* ============================================================ */}
       <div style={{
         background: '#ffffff',
-        borderRadius: '16px',
-        padding: '1.25rem 1.5rem',
+        borderRadius: '18px',
         border: '1px solid #e2e8f0',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        marginBottom: '1.5rem'
+        overflow: 'hidden',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.04)',
+        marginBottom: '2rem'
       }}>
+        {/* Cabeçalho da Grade de Disponibilidade */}
         <div style={{
+          padding: '1.25rem 1.75rem',
+          borderBottom: '1px solid #f1f5f9',
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '1rem',
+          alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '0.5rem'
+          gap: '1rem',
+          background: '#ffffff'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Filter size={18} color="#1e3a5f" />
-            <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: '#1e293b' }}>
-              Filtros de Pesquisa
-            </h3>
-          </div>
-
-          {(search || situacaoFilter !== 'todas' || startDate || endDate || selectedMonth !== 'todos' || selectedYear !== 'todos') && (
-            <button
-              onClick={handleResetFilters}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#dc2626',
-                cursor: 'pointer',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                padding: '0.25rem 0.5rem'
-              }}
-            >
-              <RotateCcw size={13} /> Limpar Todos os Filtros
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={handleApplyFilters} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          {/* Campo de Pesquisa Geral */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-              Pesquisar por Local ou Serviço
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="Ex: Piranhas, 6h, Patrulheiro..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.75rem 0.65rem 2.2rem',
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.88rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
+          {/* Lado Esquerdo: Título & Badge de Ciclo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.15)'
+            }}>
+              <CalendarCheck size={22} color="#1d4ed8" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.15rem' }}>
+                  Grade de Disponibilidade
+                </span>
+                {cicloDadosAtual?.periodo_ciclo && (
+                  <span style={{
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '8px',
+                    border: '1px solid #bfdbfe'
+                  }}>
+                    {cicloDadosAtual.periodo_ciclo}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.15rem' }}>
+                Mapa de turnos e dias com requerimentos ativos e serviços cumpridos no ciclo
+              </div>
             </div>
           </div>
 
-          {/* Filtro: Situação */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-              Situação da Escala
-            </label>
-            <select
-              value={situacaoFilter}
-              onChange={(e) => setSituacaoFilter(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.75rem',
-                borderRadius: '10px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.88rem',
-                background: '#ffffff',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            >
-              <option value="todas">Todas as Situações</option>
-              <option value="futuras">Futuras / Confirmadas</option>
-              <option value="hoje">Serviço de Força Tarefa de Hoje</option>
-              <option value="realizadas">Já Realizadas</option>
-            </select>
-          </div>
+          {/* Lado Direito: Seletor de Ciclo & Legenda Visual */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+            {/* Seletor de Ciclo */}
+            {ciclos.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Ciclo:</label>
+                <select
+                  value={selectedCiclo || ''}
+                  onChange={(e) => setSelectedCiclo(parseInt(e.target.value, 10))}
+                  style={{
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    color: '#1e293b',
+                    background: '#ffffff',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {ciclos.map(c => (
+                    <option key={c.id_ciclo} value={c.id_ciclo}>
+                      Ciclo {c.id_ciclo} ({c.periodo_ciclo || c.period_name}) {c.status === 'Aberto' ? '— Ativo' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {/* Filtro: Período Inicial */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-              Data Inicial
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.75rem',
-                borderRadius: '10px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.88rem',
-                background: '#ffffff',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
+            {/* Legenda Visual */}
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#059669' }} /> Executado
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
+              </span>
+            </div>
           </div>
+        </div>
 
-          {/* Filtro: Período Final */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
-              Data Final
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.75rem',
-                borderRadius: '10px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.88rem',
-                background: '#ffffff',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Botão de Filtrar */}
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                background: '#1e3a5f',
-                color: '#ffffff',
-                border: 'none',
-                padding: '0.68rem 1rem',
-                borderRadius: '10px',
-                fontWeight: 700,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.45rem',
-                transition: 'background 0.2s'
-              }}
-            >
-              <Search size={16} /> Aplicar Filtros
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* ============================================================ */}
-      {/* 3.3 LISTAGEM DE ESCALAS & 3.6 ESTADOS DA INTERFACE */}
-      {/* ============================================================ */}
-      <div style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-        overflow: 'hidden'
-      }}>
-        {/* Barra de Status da Tabela */}
+        {/* Resumo Rápido da Disponibilidade no Ciclo */}
         <div style={{
-          padding: '1rem 1.5rem',
+          padding: '0.75rem 1.75rem',
+          background: '#f8fafc',
           borderBottom: '1px solid #f1f5f9',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: '1.5rem',
           flexWrap: 'wrap',
-          gap: '0.75rem'
+          fontSize: '0.82rem',
+          color: '#475569'
         }}>
-          <div>
-            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e293b' }}>
-              Escalas Pessoais Registradas
-            </span>
-            <span style={{ fontSize: '0.82rem', color: '#64748b', marginLeft: '0.5rem' }}>
-              ({filteredSchedules.length} {filteredSchedules.length === 1 ? 'registro encontrado' : 'registros encontrados'})
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <label style={{ fontSize: '0.8rem', color: '#64748b' }}>Exibir:</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => { setItemsPerPage(parseInt(e.target.value, 10)); setCurrentPage(1); }}
-              style={{
-                padding: '0.35rem 0.65rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.82rem',
-                background: '#ffffff',
-                outline: 'none'
-              }}
-            >
-              <option value={5}>5 por página</option>
-              <option value={10}>10 por página</option>
-              <option value={20}>20 por página</option>
-              <option value={50}>50 por página</option>
-            </select>
-          </div>
+          <span>Dias com Disponibilidade: <strong style={{ color: '#0f172a' }}>{gridKPIs.diasDisponiveis} dias</strong></span>
+          <span>•</span>
+          <span>Turnos com Requerimento Ativo: <strong style={{ color: '#2563eb' }}>{gridKPIs.turnosDisponiveis} turnos</strong></span>
+          <span>•</span>
+          <span>Turnos Executados no Ciclo: <strong style={{ color: '#059669' }}>{gridKPIs.turnosExecutados} turnos</strong></span>
         </div>
 
-        {/* ESTADO: CARREGANDO */}
-        {loading ? (
-          <div style={{ padding: '3.5rem 1rem', textAlign: 'center', color: '#64748b' }}>
-            <div style={{
-              width: '42px', height: '42px', margin: '0 auto 1rem auto',
-              border: '3px solid #e2e8f0', borderTopColor: '#1e3a5f',
-              borderRadius: '50%', animation: 'spin 0.8s linear infinite'
-            }} />
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem' }}>Carregando suas escalas...</p>
-            <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-          </div>
-
-        /* ESTADO: SEM ESCALAS CADASTRADAS (Usuário não possui escalas) */
-        ) : data.schedules.length === 0 ? (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#64748b' }}>
-            <div style={{
-              width: '64px', height: '64px', margin: '0 auto 1.25rem auto',
-              borderRadius: '50%', background: '#f8fafc',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <CalendarCheck size={32} color="#94a3b8" />
+        {/* Conteúdo da Tabela da Grade */}
+        <div style={{ padding: '1.25rem 1.5rem' }}>
+          {gridLoading ? (
+            <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#64748b' }}>
+              <div style={{
+                width: '36px', height: '36px', margin: '0 auto 0.75rem auto',
+                border: '3px solid #e2e8f0', borderTopColor: '#2563eb',
+                borderRadius: '50%', animation: 'spin 0.8s linear infinite'
+              }} />
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>Carregando grade de disponibilidade...</p>
             </div>
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.15rem', color: '#1e293b', fontWeight: 700 }}>
-              Você ainda não possui escalas cadastradas
-            </h3>
-            <p style={{ margin: '0 auto', maxWidth: '460px', fontSize: '0.9rem', lineHeight: '1.5', color: '#64748b' }}>
-              Quando a seção de planejamento publicar uma escala de serviço com sua escalação, ela aparecerá automaticamente nesta página.
-            </p>
-          </div>
-
-        /* ESTADO: FILTRO SEM RESULTADOS */
-        ) : filteredSchedules.length === 0 ? (
-          <div style={{ padding: '3.5rem 2rem', textAlign: 'center', color: '#64748b' }}>
-            <div style={{
-              width: '56px', height: '56px', margin: '0 auto 1rem auto',
-              borderRadius: '50%', background: '#fffbeb',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}>
-              <AlertTriangle size={28} color="#d97706" />
-            </div>
-            <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.05rem', color: '#1e293b', fontWeight: 700 }}>
-              Nenhuma escala encontrada com os filtros selecionados
-            </h3>
-            <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.88rem', color: '#64748b' }}>
-              Tente alterar os termos de busca ou o período selecionado.
-            </p>
-            <button
-              onClick={handleResetFilters}
-              style={{
-                background: '#1e3a5f', color: '#ffffff', border: 'none',
-                padding: '0.5rem 1.1rem', borderRadius: '8px', fontWeight: 700,
-                fontSize: '0.85rem', cursor: 'pointer'
-              }}
-            >
-              Limpar Filtros de Busca
-            </button>
-          </div>
-
-        /* TABELA DE RESULTADOS */
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <th style={{ padding: '0.9rem 1.25rem' }}>Data & Dia</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Horário do Turno</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Local / Recurso</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Função</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Tipo de Serviço</th>
-                  <th style={{ padding: '0.9rem 1rem' }}>Situação</th>
-                  <th style={{ padding: '0.9rem 1.25rem', textAlign: 'right' }}>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedSchedules.map((escala, idx) => (
-                  <tr
-                    key={escala.id_escala || idx}
-                    style={{
-                      borderBottom: '1px solid #f1f5f9',
-                      transition: 'background 0.15s',
-                      background: escala.situacao === 'Hoje' ? '#fffbeb' : '#ffffff',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => handleOpenDetail(escala.id_escala)}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = escala.situacao === 'Hoje' ? '#fef3c7' : '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = escala.situacao === 'Hoje' ? '#fffbeb' : '#ffffff'}
-                  >
-                    {/* Data e Dia da Semana */}
-                    <td style={{ padding: '1rem 1.25rem', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.92rem' }}>
-                        {escala.data_formatada}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
-                        {escala.dia_semana_extenso}
-                      </div>
-                    </td>
-
-                    {/* Horário */}
-                    <td style={{ padding: '1rem', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#1e293b', fontWeight: 600 }}>
-                        <Clock size={14} color="#64748b" />
-                        <span>{escala.horario_servico}</span>
-                      </div>
-                      {escala.horario_embarque && (
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
-                          Embarque: {escala.horario_embarque}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Local / Recurso */}
-                    <td style={{ padding: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, color: '#1e3a5f' }}>
-                        <MapPin size={14} color="#2563eb" style={{ flexShrink: 0 }} />
-                        <span>{escala.nome_recurso || 'Não especificado'}</span>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        OPM: {escala.opm_sigla || '9º BPM'}
-                      </div>
-                    </td>
-
-                    {/* Função */}
-                    <td style={{ padding: '1rem', whiteSpace: 'nowrap' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        background: '#f1f5f9',
-                        color: '#1e293b',
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '6px',
-                        fontSize: '0.82rem',
-                        fontWeight: 700
-                      }}>
-                        {escala.funcao || 'Patrulheiro'}
-                      </span>
-                    </td>
-
-                    {/* Tipo de Serviço */}
-                    <td style={{ padding: '1rem', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: 600, color: '#334155' }}>
-                        {escala.tipo_servico || `${escala.carga_horaria || 6}h`}
-                      </div>
-                      {escala.valor_remuneracao && (
-                        <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700 }}>
-                          R$ {parseFloat(escala.valor_remuneracao).toFixed(2).replace('.', ',')}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* Situação */}
-                    <td style={{ padding: '1rem', whiteSpace: 'nowrap' }}>
-                      {renderSituacaoBadge(escala.situacao)}
-                    </td>
-
-                    {/* Ação: Botão Detalhes */}
-                    <td style={{ padding: '1rem 1.25rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(escala.id_escala);
-                        }}
-                        style={{
-                          background: '#f1f5f9',
-                          color: '#1e3a5f',
-                          border: 'none',
-                          padding: '0.45rem 0.85rem',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = '#1e3a5f'; e.currentTarget.style.color = '#ffffff'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#1e3a5f'; }}
-                      >
-                        <Eye size={14} /> Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Controles de Paginação */}
-        {filteredSchedules.length > itemsPerPage && (
-          <div style={{
-            padding: '1rem 1.5rem',
-            borderTop: '1px solid #f1f5f9',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem'
-          }}>
-            <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
-              Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, filteredSchedules.length)} a {Math.min(currentPage * itemsPerPage, filteredSchedules.length)} de {filteredSchedules.length} escalas
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{
-                  background: currentPage === 1 ? '#f8fafc' : '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  color: currentPage === 1 ? '#94a3b8' : '#1e293b',
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '8px',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 600
-                }}
-              >
-                <ChevronLeft size={14} /> Anterior
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', margin: '0 0.35rem' }}>
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  let pNum = i + 1;
-                  if (totalPages > 5 && currentPage > 3) {
-                    pNum = currentPage - 2 + i;
-                    if (pNum > totalPages) pNum = totalPages - (4 - i);
-                  }
-                  return (
-                    <button
-                      key={pNum}
-                      onClick={() => setCurrentPage(pNum)}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '8px',
-                        border: pNum === currentPage ? 'none' : '1px solid #e2e8f0',
-                        background: pNum === currentPage ? '#1e3a5f' : '#ffffff',
-                        color: pNum === currentPage ? '#ffffff' : '#1e293b',
-                        fontWeight: 700,
-                        fontSize: '0.82rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {pNum}
-                    </button>
-                  );
-                })}
+          ) : gridDisp.length === 0 ? (
+            <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+              <Calendar size={40} color="#cbd5e1" style={{ margin: '0 auto 0.75rem auto', display: 'block' }} />
+              <div style={{ fontWeight: 700, color: '#475569', fontSize: '1rem', marginBottom: '0.25rem' }}>
+                Nenhum requerimento de disponibilidade registrado para este ciclo
               </div>
-
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                style={{
-                  background: currentPage === totalPages ? '#f8fafc' : '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  color: currentPage === totalPages ? '#94a3b8' : '#1e293b',
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '8px',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 600
-                }}
-              >
-                Próxima <ChevronRight size={14} />
-              </button>
+              <div style={{ fontSize: '0.84rem' }}>
+                Você não cadastrou requerimentos de voluntariado ou não há registros de disponibilidade cadastrados no ciclo selecionado.
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
+              <table style={{ borderCollapse: 'separate', borderSpacing: '2px', width: '100%', tableLayout: 'fixed', minWidth: '780px' }}>
+                <thead>
+                  <tr>
+                    <th style={{
+                      width: '110px',
+                      padding: '0.35rem 0.5rem 0.35rem 0',
+                      fontSize: '0.72rem',
+                      color: '#64748b',
+                      fontWeight: 800,
+                      textAlign: 'left',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      position: 'sticky',
+                      left: 0,
+                      background: '#ffffff',
+                      zIndex: 2
+                    }}>
+                      Turno
+                    </th>
+                    {cycleDays.map((dayObj, idx) => {
+                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                      return (
+                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.2rem 0', fontSize: '0.7rem', color: '#475569', fontWeight: 800, textAlign: 'center', lineHeight: 1.15 }}>
+                          {showMonth && (
+                            <div style={{ fontSize: '0.58rem', color: '#2563eb', fontWeight: 800, letterSpacing: '0.03em' }}>{dayObj.monthShort}</div>
+                          )}
+                          <div style={{ fontSize: '0.75rem', color: '#0f172a' }}>{dayObj.day}</div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {SHIFTS.map(turno => (
+                    <tr key={turno}>
+                      <td style={{
+                        padding: '0.35rem 0.5rem 0.35rem 0',
+                        fontSize: '0.75rem',
+                        color: '#1e293b',
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        position: 'sticky',
+                        left: 0,
+                        background: '#ffffff',
+                        zIndex: 2
+                      }}>
+                        {turno}
+                      </td>
+                      {cycleDays.map(dayObj => {
+                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                        const dayStr = String(dayObj.day);
+                        const cell = byDayGrid[dateKey]?.[turno] || byDayGrid[dayStr]?.[turno];
+                        const cfg = getCellCfg(cell);
+                        const dateFormatted = `${String(dayObj.day).padStart(2, '0')}/${String(dayObj.month).padStart(2, '0')}/${dayObj.year}`;
+                        return (
+                          <td key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: 0, textAlign: 'center' }}>
+                            {cfg ? (
+                              <div
+                                title={`${dateFormatted} — ${turno} — ${cfg.title}`}
+                                style={{
+                                  width: '100%',
+                                  aspectRatio: '1/1',
+                                  maxWidth: '24px',
+                                  borderRadius: '5px',
+                                  background: cfg.bg,
+                                  border: `1px solid ${cfg.border}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  margin: 'auto',
+                                  transition: 'transform 0.15s ease',
+                                  cursor: 'help',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+                                }}
+                              >
+                                <span style={{ color: cfg.xColor, fontWeight: 900, fontSize: '0.65rem' }}>✕</span>
+                              </div>
+                            ) : (
+                              <div
+                                title={`${dateFormatted} — ${turno} — Não informado`}
+                                style={{
+                                  width: '100%',
+                                  aspectRatio: '1/1',
+                                  maxWidth: '24px',
+                                  borderRadius: '5px',
+                                  background: '#f8fafc',
+                                  margin: 'auto',
+                                  border: '1px dashed #e2e8f0'
+                                }}
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ============================================================ */}
@@ -1329,7 +1294,7 @@ export function MinhasEscalas({ user }) {
           zIndex: 9999,
           padding: '1rem'
         }}
-        onClick={handleCloseDetail}
+          onClick={handleCloseDetail}
         >
           <div style={{
             background: '#ffffff',
@@ -1342,7 +1307,7 @@ export function MinhasEscalas({ user }) {
             border: '1px solid #e2e8f0',
             position: 'relative'
           }}
-          onClick={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header do Modal */}
             <div style={{

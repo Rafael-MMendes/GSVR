@@ -1,3 +1,158 @@
+## v1.36.15 — 2026-10-16
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Rolagem Vertical na Grade de Disponibilidade e Responsividade Total de Telas e Modais (`AdminDashboardV2.jsx`)**:
+  - **[Grade de Disponibilidade com Rolagem Vertical Ativa]**: Calibrada a altura máxima da grade (`maxHeight: 145px`) e ativada rolagem vertical (`overflow-y: scroll`), exibindo barra de rolagem vertical dedicada para navegação entre os 4 turnos enquanto o cabeçalho dos dias permanece congelado no topo (`position: sticky`, `top: 0`, `z-index: 5`) e a coluna de turnos congelada à esquerda (`left: 0`, `z-index: 4/6`).
+  - **[Responsividade Completa dos Modais (`detailedMilitar` e `selectionMode`)]**: Aplicadas classes responsivas e media queries para telas de 1024px, 768px e 480px. Em dispositivos móveis e tablets, os modais adaptam padding, fontes dinâmicas (`clamp`), flexão vertical de cabeçalhos/rodapés e grids fluidos (`repeat(auto-fill, minmax(min(100%, 260px), 1fr))`).
+  - **[Responsividade da Janela Principal do Dashboard]**: Sidebar fluida com scroll independente em visualizações mobile/tablet, main content responsivo com quebra automática de cards de guarnições e botões de ação em larguras reduzidas.
+
+---
+
+## v1.36.14 — 2026-10-16
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Barras de Rolagem na Grade de Disponibilidade e Escalas no Ciclo (`AdminDashboardV2.jsx`)**:
+  - **[Grade de Disponibilidade com Rolagem Horizontal]**: Adicionada rolagem horizontal (`overflow-x: auto`) com coluna de Turno congelada à esquerda (`position: sticky`, `left: 0`, sombra de elevação e `z-index: 4`), largura mínima calibrada por dia (`36px`) e tabela em `width: max-content`, impedindo compressão das colunas de dias e permitindo navegação fluida em todo o ciclo.
+  - **[Escalas no Ciclo com Rolagem Vertical]**: Adicionada rolagem vertical (`overflow-y: auto`, `maxHeight: 185px`) no container de cards de escalas, mantendo a altura do modal compacta e evitando sobreposição ou empurrão do rodapé com o botão "Fechar".
+  - **[Estilo Customizado das Barras de Rolagem]**: Implementada a classe `.modal-custom-scrollbar` com dimensões modernas (8px), cantos arredondados, trilho discreto (`#f1f5f9`) e thumb suave (`#cbd5e1`) com efeito hover (`#94a3b8`), garantindo compatibilidade cross-browser (`scrollbar-width` e `scrollbar-color`).
+
+---
+
+## v1.36.13 — 2026-10-15
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Exibição do Nome Completo e Ajuste de Contraste no Modal de Detalhes (`AdminDashboardV2.jsx`)**:
+  - **[Correção de Contraste do Nome do Militar]**: Corrigida a herança de estilo do `index.css` que aplicava azul escuro (`var(--primary)`) nas tags `<h3>`, fazendo com que o nome do militar ficasse ilegível sobre o degradê azul do cabeçalho do modal. Aplicado `color: #ffffff` com sombra e nitidez cristalina.
+  - **[Disponibilização do Nome Completo no Backend]**: Incluída a coluna `e.nome_completo` nos endpoints `/api/volunteers` e `/api/reports/operacional-detalhado` (`server.js`), garantindo acesso ao nome completo do policial.
+  - **[Badge Translúcida de Nome Completo]**: Quando o nome completo difere do nome de guerra, uma tag destacada com fundo translúcido e borda sutil apresenta o nome completo imediatamente ao lado do posto/graduação.
+  - **[Identificação Nominal nos Subtítulos da Grade]**: Os subtítulos da Grade de Disponibilidade e de Escalas no Ciclo agora mencionam explicitamente o nome e posto do militar.
+
+---
+
+## v1.36.12 — 2026-10-15
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Integração da Grade de Disponibilidade nos Detalhes do Militar (`AdminDashboardV2.jsx`)**:
+  - **[Grade de Disponibilidade no Modal de Detalhes]**: Ao clicar no ícone de lupa dos cards de voluntários no Banco de Voluntários ou nas guarnições, o modal de detalhes do militar agora renderiza a Grade de Disponibilidade idêntica à do `HistoricoMilitar.jsx` e `RelatorioIndividual.jsx`.
+  - **[Matriz de Turnos x Dias do Ciclo]**: Exibição em tabela com coluna fixa de turnos e colunas com cabeçalho de dia/mês para todos os dias do ciclo selecionado, apresentando os blocos visuais de status (Verde: Executado, Azul: Disponível, Vermelho: Desistência) com indicador numérico de dia do mês e tooltips informativos.
+  - **[Indicadores e KPIs Consolidados]**: Integração dos cards de estatísticas com total de Dias com Disponibilidade, Turnos Marcados no Ciclo e Turnos Efetivamente Executados, permitindo visão gerencial imediata da disponibilidade do policial.
+  - **[Histórico Operacional Detalhado]**: Listagem contextual dos serviços escalados e executados no ciclo atual (data, guarnição, viatura, horários e situação), mantendo rastreabilidade total das atribuições.
+
+---
+
+## v1.36.11 — 2026-10-15
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Exibição Completa de Nomes nos Cards do Banco de Voluntários (`AdminDashboardV2.jsx`)**:
+  - **[Eliminação de Truncamento de Nomes]**: Removido o truncamento por reticências (`ellipsis`) e `nowrap`, permitindo que o nome completo de todos os militares seja exibido sem cortes.
+  - **[Calibração da Largura Mínima dos Cards]**: Ajustado o grid de voluntários para `minmax(285px, 1fr)`, ampliando o espaço horizontal útil de texto para que a vasta maioria dos nomes e postos caibam em linha única, com quebra dinâmica suave para nomes extensos.
+  - **[Alinhamento da Badge de Disponibilidade]**: Adicionado `whiteSpace: nowrap` e `flexShrink: 0` no indicador de militares disponíveis para evitar sobreposição ou quebra interna do botão "Mostrar Todos".
+
+---
+
+## v1.36.10 — 2026-10-15
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Otimização de Densidade e Capacidade Visual no Banco de Voluntários (`AdminDashboardV2.jsx`)**:
+  - **[Expansão e Redimensionamento do Modal]**: Aumento da largura máxima do modal de 1000px para 1440px (96vw) e altura para 92vh, permitindo de 3 a 5 colunas responsivas em vez de apenas 2 colunas.
+  - **[Redesenho Compacto dos Cards de Militares]**: Redução da altura dos cards em mais de 40% com padding otimizado, avatar ágil de 34px, micro-chips verticais para os indicadores de serviço (PLAN e EXEC) e posicionamento integrado do botão de visualização de escalas, eliminando sobreposição visual.
+  - **[Barra de Filtros e Toolbar Unificada]**: Compactação do cabeçalho e da barra de filtros, agrupando a busca com botão de limpeza rápida (X), seletores de Dia e Turno, badge de status de disponíveis e faixa contextual de configuração de guarnição.
+  - **[Chips Interativos de Seleção no Rodapé]**: Adicionada prévia com chips dos militares selecionados no rodapé do modal com remoção individual em 1 clique, garantindo controle visual instantâneo mesmo ao rolar a lista.
+  - **[Busca Abrangente no Pool]**: Suporte aprimorado na pesquisa para encontrar voluntários por nome, posto/graduação, número de ordem e matrícula.
+
+---
+
+## v1.36.9 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Unificação dos Indicadores de Serviço em Card Único em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - **[Card Único de Indicadores do Ciclo]**: Unificadas as métricas de "Escalas Futuras", "Serviços Executados no Ciclo" e "Total no Ciclo" em um único card executivo de indicadores operacionais, exibidos lado a lado com ícones temáticos e valores de alto contraste.
+  - **[Layout Vertical Equilibrado]**: Reorganizado o painel lateral em duas seções empilhadas de largura total: o novo Card Unificado de Indicadores no topo e o Card de Composição da Guarnição abaixo, eliminando fragmentação visual e garantindo alinhamento perfeito de bordas e alturas.
+  - **[Responsividade Aprimorada]**: Implementado grid responsivo de 3 colunas para as métricas unificadas, adaptando-se automaticamente para visualização em coluna única em telas móveis (`<= 640px`).
+
+---
+
+## v1.36.8 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Alinhamento e Responsividade dos Cards de Indicadores em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - **[Correção de Largura e Proporção]**: Corrigida a distribuição do grid de indicadores (`.me-kpi-grid`) para `repeat(2, minmax(0, 1fr))`, garantindo que as duas colunas possuam rigorosamente 50% de largura cada, sem deformação assimétrica entre os cards.
+  - **[Alinhamento Perfeito com a Página]**: Aplicado `min-width: 0`, `width: 100%` e `box-sizing: border-box` no contêiner do grid e em cada um dos cards individuais, eliminando o overflow horizontal e alinhando perfeitamente a borda direita dos cards com o cabeçalho superior e a Grade de Disponibilidade.
+  - **[Refinamento de Quebra e Tipografia]**: Ajustado o cabeçalho do card "Composição da Guarnição" com posicionamento vertical do badge da viatura e adicionado `word-break` nas descrições de ciclo para impedir que textos longos forcem dilatação do card.
+
+---
+
+## v1.36.7 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Card de Composição da Guarnição do Próximo Serviço em "Minhas Escalas" (`MinhasEscalas.jsx` & `server.js`)**:
+  - **[Novo Card de Composição da Guarnição]**: Substituído o card "Progresso no Ciclo" pelo card informativo "Composição da Guarnição", permitindo ao policial militar visualizar imediatamente a equipe escalada para o seu próximo serviço de força tarefa.
+  - **[Hierarquia de Funções e Destaque Pessoal]**: Exibição dos membros da guarnição (Comandante, Motorista, Patrulheiro) com badges distintas por função, posto/graduação, nome de guerra e indicação em destaque "(Você)" para o usuário autenticado.
+  - **[Otimização Backend (`/api/my-schedules`)]**: Enriquecido o objeto `summary.proxima_escala` no endpoint `/api/my-schedules` com a lista `guarnicao` já ordenada operacionalmente, dispensando requisições secundárias.
+
+---
+
+## v1.36.6 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Integração da Grade de Disponibilidade em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - **[Importação e Exibição da Grade]**: Integrada a Grade de Disponibilidade do módulo de Histórico Militar/Relatório Individual diretamente na tela pessoal do policial militar, logo abaixo dos cards de indicadores operacionais.
+  - **[Mapeamento de Turnos e Dias]**: Exibição da matriz de turnos (07:00 às 13:00, 13:00 às 19:00, 19:00 às 01:00, 01:00 às 07:00) para todos os dias do ciclo, com status visual diferenciado (Executado [verde], Disponível [azul], Desistência [vermelho] e Não informado).
+  - **[Seletor de Ciclo e Métricas de Disponibilidade]**: Adicionado seletor de ciclo dinâmico permitindo alternar ciclos, badge de período do ciclo ativo, e resumo rápido de dias disponíveis, turnos disponíveis e turnos cumpridos.
+
+---
+
+## v1.36.5 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção de Referência de Estado no Modal em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - Restauradas as declarações de estado do modal de detalhes (`detailModalOpen`, `selectedEscalaId`, `detailLoading`, `detailEscala`, `detailError`), solucionando o erro de execução `ReferenceError: detailModalOpen is not defined`.
+
+---
+
+## v1.36.4 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Simplificação Visual e Foco Operacional em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - **[Remoção dos Filtros de Pesquisa]**: Removido o bloco de filtros de busca por texto, datas e situações da interface.
+  - **[Remoção da Tabela de Escalas Registradas]**: Removida a seção de listagem tabular "Escalas Pessoais Registradas" e os controles de paginação, mantendo o painel direto, limpo e focado no card hero expandido do próximo serviço agendado, no painel de indicadores do ciclo e no modal de detalhamento.
+
+---
+
+## v1.36.3 — 2026-10-13
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Correção Visual de Contraste no Título em "Minhas Escalas" (`MinhasEscalas.jsx`)**:
+  - Definida a cor branca explícita (`color: '#ffffff'`) no elemento `<h1>` do título principal "Minhas Escalas", garantindo contraste nítido e legibilidade sobre o cabeçalho escuro.
+
+---
+
 ## v1.36.2 — 2026-10-13
 **Autor:** PMAL-DATEN
 **Email:** unknown

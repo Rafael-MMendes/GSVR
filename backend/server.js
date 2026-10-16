@@ -661,6 +661,7 @@ app.get('/api/my-schedules', authenticate, async (req, res) => {
     const proximaEscala = await db.get(`
       SELECT 
         ep.id_escala,
+        ep.id_guarnicao,
         ep.data_servico,
         TO_CHAR(ep.data_servico, 'YYYY-MM-DD') as data_iso,
         TO_CHAR(ep.data_servico, 'DD/MM/YYYY') as data_formatada,
@@ -685,6 +686,57 @@ app.get('/api/my-schedules', authenticate, async (req, res) => {
       ORDER BY ep.data_servico ASC, ep.horario_servico ASC
       LIMIT 1
     `, [militar.id_militar]);
+
+    // Busca equipe/guarnição da próxima escala para exibir no card resumo
+    let proximaGuarnicao = [];
+    if (proximaEscala) {
+      if (proximaEscala.id_guarnicao) {
+        const eqRows = await db.all(`
+          SELECT 
+            ep2.id_escala,
+            ep2.funcao,
+            e.posto_graduacao,
+            e.nome_guerra,
+            (ep2.id_militar = $1) as is_current_user
+          FROM ESCALA_PLANEJAMENTO ep2
+          JOIN EFETIVO e ON ep2.id_militar = e.id_militar
+          WHERE ep2.id_guarnicao = $2
+            AND (ep2.publicado IS NULL OR ep2.publicado = TRUE)
+          ORDER BY 
+            CASE ep2.funcao 
+              WHEN 'Comandante' THEN 1 
+              WHEN 'Motorista' THEN 2 
+              WHEN 'Patrulheiro' THEN 3 
+              ELSE 4 
+            END
+        `, [militar.id_militar, proximaEscala.id_guarnicao]);
+        proximaGuarnicao = eqRows || [];
+      } else {
+        const eqRows = await db.all(`
+          SELECT 
+            ep2.id_escala,
+            ep2.funcao,
+            e.posto_graduacao,
+            e.nome_guerra,
+            (ep2.id_militar = $1) as is_current_user
+          FROM ESCALA_PLANEJAMENTO ep2
+          JOIN EFETIVO e ON ep2.id_militar = e.id_militar
+          WHERE ep2.id_ciclo = $2
+            AND ep2.data_servico = $3
+            AND ep2.nome_recurso = $4
+            AND ep2.horario_servico = $5
+            AND (ep2.publicado IS NULL OR ep2.publicado = TRUE)
+          ORDER BY 
+            CASE ep2.funcao 
+              WHEN 'Comandante' THEN 1 
+              WHEN 'Motorista' THEN 2 
+              WHEN 'Patrulheiro' THEN 3 
+              ELSE 4 
+            END
+        `, [militar.id_militar, proximaEscala.id_ciclo, proximaEscala.data_servico, proximaEscala.nome_recurso, proximaEscala.horario_servico]);
+        proximaGuarnicao = eqRows || [];
+      }
+    }
 
     // 1.3 Construção da consulta filtrada para listagem
     let queryConditions = [
@@ -800,7 +852,8 @@ app.get('/api/my-schedules', authenticate, async (req, res) => {
 
     const formattedProxima = proximaEscala ? {
       ...proximaEscala,
-      dia_semana_extenso: DIAS_SEMANA[proximaEscala.dia_semana_num] || ''
+      dia_semana_extenso: DIAS_SEMANA[proximaEscala.dia_semana_num] || '',
+      guarnicao: proximaGuarnicao
     } : null;
 
     res.json({
@@ -1086,6 +1139,7 @@ app.get('/api/volunteers', async (req, res) => {
 
   const q = `
      SELECT r.id_requerimento as id, e.id_militar, e.matricula as numero_ordem, e.nome_guerra as name,
+            e.nome_completo,
             e.posto_graduacao as rank, e.telefone as phone, e.motorista, r.observacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,
             c.data_inicio, c.data_fim,
             (SELECT BOOL_OR(motorista) FROM DISPONIBILIDADE_REQUERIMENTO WHERE id_requerimento = r.id_requerimento AND marcado_disponivel = TRUE) OR (e.motorista = 'Sim') as motorista_req,
@@ -3035,6 +3089,7 @@ app.get('/api/reports/operacional-detalhado', async (req, res) => {
         f.*,
         e.matricula,
         e.nome_guerra,
+        e.nome_completo,
         e.posto_graduacao,
         TO_CHAR(f.data_ref, 'DD/MM/YYYY') as data_formatada,
         TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo,

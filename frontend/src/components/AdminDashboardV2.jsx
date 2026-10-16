@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
-import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target, Eye, EyeOff } from 'lucide-react';
+import { Download, Printer, UserCircle, AlertTriangle, Plus, Trash2, Search, MousePointer2, X, Check, Users, GripVertical, Calendar, Clock, ChevronRight, Shield, FileText, Target, Eye, EyeOff, CalendarCheck } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { EscalaPublicacaoOficial } from './EscalaPublicacaoOficial';
@@ -30,6 +30,26 @@ const getTimeOptions = (durationStr) => {
   return options;
 };
 
+const getCycleDays = (dataInicio, dataFim) => {
+  if (!dataInicio || !dataFim) {
+    return Array.from({ length: 31 }, (_, i) => ({ day: i + 1, month: null, monthShort: null, year: null }));
+  }
+  const start = new Date(String(dataInicio).split('T')[0] + 'T12:00:00');
+  const end = new Date(String(dataFim).split('T')[0] + 'T12:00:00');
+  const days = [];
+  const cur = new Date(start);
+  while (cur <= end) {
+    days.push({
+      day: cur.getDate(),
+      month: cur.getMonth() + 1,
+      year: cur.getFullYear(),
+      monthShort: cur.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()
+    });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+};
+
 export function AdminDashboardV2() {
   const [volunteers, setVolunteers] = useState([]);
   const [months, setMonths] = useState([]);
@@ -51,6 +71,8 @@ export function AdminDashboardV2() {
   const [newPatrolShift, setNewPatrolShift] = useState('07:00 às 13:00');
   const [detailedMilitar, setDetailedMilitar] = useState(null);
   const [militarSchedules, setMilitarSchedules] = useState([]);
+  const [militarGridDisp, setMilitarGridDisp] = useState([]);
+  const [loadingMilitarGrid, setLoadingMilitarGrid] = useState(false);
   const [showPublicacao, setShowPublicacao] = useState(false);
   const [metas, setMetas] = useState([]);
   const [showUnavailable, setShowUnavailable] = useState(false);
@@ -217,6 +239,7 @@ export function AdminDashboardV2() {
                 id_militar: member.id_militar,
                 name: member.name,
                 rank: member.rank,
+                nome_completo: member.nome_completo,
                 numero_ordem: member.numero_ordem
               };
             })
@@ -248,9 +271,13 @@ export function AdminDashboardV2() {
       // Regra: Exibir apenas militares com até 7 serviços executados (limite de 8 atingido oculta do pool)
       if (p.executed_count >= 8) return false;
 
-      const isSearchActive = searchTerm.length > 1;
+      const trimmedSearch = (searchTerm || '').trim().toLowerCase();
+      const isSearchActive = trimmedSearch.length > 0;
       const matchesSearch = isSearchActive
-        ? ((p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (p.numero_ordem && String(p.numero_ordem).includes(searchTerm)))
+        ? ((p.name || '').toLowerCase().includes(trimmedSearch) ||
+           (p.rank || '').toLowerCase().includes(trimmedSearch) ||
+           (p.numero_ordem && String(p.numero_ordem).toLowerCase().includes(trimmedSearch)) ||
+           (p.matricula && String(p.matricula).toLowerCase().includes(trimmedSearch)))
         : true;
 
       if (!matchesSearch) return false;
@@ -420,14 +447,38 @@ export function AdminDashboardV2() {
   };
 
   const handleShowDetails = async (militar) => {
-    setDetailedMilitar(militar);
+    const militarId = militar.id_militar || militar.id;
+    const volObj = (volunteersRef.current || []).find(v => String(v.id_militar) === String(militarId) || String(v.id) === String(militarId));
+    const initialMilitar = {
+      ...militar,
+      nome_completo: militar.nome_completo || volObj?.nome_completo || militar.name
+    };
+    setDetailedMilitar(initialMilitar);
     setMilitarSchedules([]);
+    setMilitarGridDisp([]);
+    setLoadingMilitarGrid(true);
+
     try {
-      const res = await axios.get(`${API_URL}/reports/operacional-detalhado?ciclo_id=${selectedCycleId}`);
-      const filtered = res.data.filter(item => String(item.id_militar) === String(militar.id_militar || militar.id));
+      const [schedRes, gridRes] = await Promise.all([
+        axios.get(`${API_URL}/reports/operacional-detalhado?ciclo_id=${selectedCycleId}`),
+        axios.get(`${API_URL}/reports/disponibilidade-grid?id_militar=${militarId}&ciclo_id=${selectedCycleId}`)
+      ]);
+      const filtered = (schedRes.data || []).filter(item => String(item.id_militar) === String(militarId));
       setMilitarSchedules(filtered);
+      setMilitarGridDisp(Array.isArray(gridRes.data) ? gridRes.data : []);
+
+      if (filtered.length > 0 && filtered[0].nome_completo) {
+        setDetailedMilitar(prev => ({
+          ...prev,
+          nome_completo: prev?.nome_completo || filtered[0].nome_completo,
+          rank: prev?.rank || filtered[0].posto_graduacao,
+          name: prev?.name || filtered[0].nome_guerra
+        }));
+      }
     } catch (err) {
-      console.error('Erro ao buscar escalas do militar:', err);
+      console.error('Erro ao buscar detalhes e grade de disponibilidade do militar:', err);
+    } finally {
+      setLoadingMilitarGrid(false);
     }
   };
 
@@ -660,8 +711,9 @@ export function AdminDashboardV2() {
   const shadowMd = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
   const shadowLg = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
 
+  const currentCycle = months.find(c => String(c.id_ciclo) === String(selectedCycleId));
+
   if (showPublicacao) {
-    const currentCycle = months.find(c => String(c.id_ciclo) === String(selectedCycleId));
     return (
       <EscalaPublicacaoOficial
         patrols={state.patrols}
@@ -1407,12 +1459,12 @@ export function AdminDashboardV2() {
           zIndex: 1000,
           animation: 'fadeIn 0.3s ease-out'
         }}>
-          <div style={{
+          <div className="modal-responsive-pool" style={{
             background: colors.white,
-            borderRadius: '24px',
-            width: '95%',
-            maxWidth: '1000px',
-            height: '85vh',
+            borderRadius: '20px',
+            width: '96%',
+            maxWidth: '1440px',
+            height: '92vh',
             display: 'flex',
             flexDirection: 'column',
             boxShadow: shadowLg,
@@ -1420,93 +1472,125 @@ export function AdminDashboardV2() {
             border: `1px solid ${colors.border}`
           }}>
             {/* Modal Header */}
-            <div style={{
-              padding: '1.5rem 2rem',
+            <div className="pool-header-responsive" style={{
+              padding: '0.85rem 1.75rem',
               background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
               color: 'white',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              boxShadow: '0 2px 8px rgba(13, 56, 120, 0.25)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                 <div style={{
                   background: 'rgba(255,255,255,0.2)',
-                  width: '40px',
-                  height: '40px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(4px)'
                 }}>
-                  <Shield size={22} />
+                  <Shield size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Banco de Voluntários</h3>
-                  <p style={{ margin: 0, opacity: 0.8, fontSize: '0.85rem', fontWeight: 500 }}>
-                    Selecione até {MAX_MEMBERS} militares para compor a guarnição
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                    Banco de Voluntários
+                  </h3>
+                  <p style={{ margin: 0, opacity: 0.85, fontSize: '0.78rem', fontWeight: 500 }}>
+                    {selectionMode?.slotIndex !== undefined
+                      ? 'Selecione 1 militar para o posto selecionado'
+                      : `Selecione até ${MAX_MEMBERS} militares para compor a guarnição`}
                   </p>
                 </div>
               </div>
               <button
                 onClick={closeSelectionModal}
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.12)',
                   border: 'none',
                   color: 'white',
                   cursor: 'pointer',
-                  borderRadius: '12px',
-                  width: '40px',
-                  height: '40px',
+                  borderRadius: '10px',
+                  width: '34px',
+                  height: '34px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: transitions
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                title="Fechar"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
 
             {/* Modal Search & Filters */}
-            <div style={{
+            <div className="pool-filters-responsive" style={{
               background: '#f8fafc',
               borderBottom: `1px solid ${colors.border}`,
               display: 'flex',
               flexDirection: 'column',
-              gap: '1rem',
-              padding: '0.5rem 2rem'
+              gap: '0.5rem',
+              padding: '0.65rem 1.5rem'
             }}>
-              {/* Line 1: Search */}
-              <div className="search-container" style={{ width: '100%' }}>
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Buscar por nome, matricula ou Nº ordem..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-                <Search size={18} className="search-icon" />
-              </div>
+              {/* Row 1: Search & Primary Filters */}
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* Search Input with quick clear */}
+                <div className="search-container" style={{ flex: '1 1 240px', minWidth: '220px', position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Buscar por nome, posto, matrícula ou Nº ordem..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{ height: '38px', paddingRight: searchTerm ? '34px' : '1rem' }}
+                  />
+                  <Search size={16} className="search-icon" />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: colors.textMuted,
+                        cursor: 'pointer',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Limpar busca"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
 
-              {/* Line 2: All Filters Grouped */}
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Filtro de Dia</label>
+                {/* Day Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Dia:</span>
                   <select
                     style={{
-                      padding: '0.75rem 1rem',
+                      height: '38px',
+                      padding: '0 0.85rem',
                       borderRadius: '10px',
                       border: `1px solid ${colors.border}`,
                       background: colors.white,
                       color: colors.text,
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      fontSize: '0.82rem',
                       cursor: 'pointer',
                       outline: 'none',
                       boxShadow: shadowSm,
-                      minWidth: '160px'
+                      minWidth: '150px'
                     }}
                     value={selectedDate}
                     onChange={e => setSelectedDate(e.target.value)}
@@ -1541,19 +1625,21 @@ export function AdminDashboardV2() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Turno</label>
+                {/* Shift Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Turno:</span>
                   <select
                     style={{
-                      padding: '0.75rem 1rem',
+                      height: '38px',
+                      padding: '0 0.85rem',
                       borderRadius: '10px',
                       border: `1px solid ${colors.border}`,
                       background: colors.white,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       outline: 'none',
                       cursor: 'pointer',
-                      minWidth: '150px',
-                      fontSize: '0.9rem',
+                      minWidth: '130px',
+                      fontSize: '0.82rem',
                       boxShadow: shadowSm
                     }}
                     value={selectedShift}
@@ -1564,148 +1650,172 @@ export function AdminDashboardV2() {
                   </select>
                 </div>
 
-                {selectionMode && (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Nome da Guarnição</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: GSVR, Força Tarefa..."
-                        style={{
-                          padding: '0.68rem 1rem',
-                          borderRadius: '12px',
-                          border: `1px solid ${colors.border}`,
-                          background: colors.white,
-                          fontWeight: 700,
-                          outline: 'none',
-                          fontSize: '0.9rem',
-                          color: colors.primary,
-                          boxShadow: shadowSm,
-                          minWidth: '170px'
-                        }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolName : (state.patrols?.find(p => p.id === selectionMode.patrolId)?.name || '')}
-                        onChange={e => {
-                          if (selectionMode.patrolId === 'NEW') setNewPatrolName(e.target.value);
-                          else handlePatrolSettingChange(selectionMode.patrolId, 'name', e.target.value);
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Duração</label>
-                      <select
-                        style={{
-                          padding: '0.6rem 2.5rem 0.6rem 1rem',
-                          borderRadius: '12px',
-                          border: `1px solid ${colors.border}`,
-                          background: colors.white,
-                          fontWeight: 700,
-                          outline: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.9rem',
-                          color: colors.primary,
-                          boxShadow: shadowSm
-                        }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration}
-                        onChange={e => {
-                          const dur = e.target.value;
-                          if (selectionMode.patrolId === 'NEW') {
-                            setNewPatrolDuration(dur);
-                            const opts = getTimeOptions(dur);
-                            if (opts.length > 0 && !opts.includes(newPatrolShift)) {
-                              setNewPatrolShift(opts[7] || opts[0]);
-                            }
-                          } else {
-                            handleDurationChange(selectionMode.patrolId, dur);
-                          }
-                        }}
-                      >
-                        {['6h', '8h'].map(d => <option key={d} value={d}>Duração: {d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.7rem', fontWeight: 700, color: colors.textMuted, textTransform: 'uppercase' }}>Horário</label>
-                      <select
-                        style={{
-                          padding: '0.6rem 2.5rem 0.6rem 1rem',
-                          borderRadius: '12px',
-                          border: `1px solid ${colors.border}`,
-                          background: colors.white,
-                          fontWeight: 700,
-                          outline: 'none',
-                          cursor: 'pointer',
-                          fontSize: '0.9rem',
-                          color: colors.primary,
-                          boxShadow: shadowSm
-                        }}
-                        value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols?.find(p => p.id === selectionMode.patrolId)?.timeSpan}
-                        onChange={e => {
-                          if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
-                          else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
-                        }}
-                      >
-                        <option value="">Selecione Horário...</option>
-                        {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration)?.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )}
-
+                {/* Availability Badge & Toggle */}
                 <div style={{
-                  padding: '0.85rem 1.25rem',
-                  borderRadius: '12px',
+                  height: '38px',
+                  padding: '0 0.85rem',
+                  borderRadius: '10px',
                   background: showUnavailable ? '#fee2e2' : '#f0fdf4',
                   color: showUnavailable ? '#b91c1c' : '#166534',
                   border: showUnavailable ? '1px solid #fecaca' : '1px solid #bbf7d0',
                   fontWeight: 700,
-                  fontSize: '0.9rem',
+                  fontSize: '0.82rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  minWidth: '220px'
+                  gap: '0.65rem',
+                  marginLeft: 'auto',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: showUnavailable ? '#ef4444' : '#22c55e' }}></div>
-                    {filteredPool.length} {showUnavailable ? 'Encontrados' : 'Disponíveis'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: showUnavailable ? '#ef4444' : '#22c55e' }}></div>
+                    <span>{filteredPool.length} {showUnavailable ? 'Encontrados' : 'Disponíveis'}</span>
                   </div>
                   <button
                     onClick={() => setShowUnavailable(!showUnavailable)}
                     style={{
                       background: 'white',
                       border: 'none',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.7rem',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '0.68rem',
                       cursor: 'pointer',
                       color: showUnavailable ? '#b91c1c' : '#166534',
                       fontWeight: 800,
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     {showUnavailable ? 'Ver Disponíveis' : 'Mostrar Todos'}
                   </button>
                 </div>
               </div>
+
+              {/* Row 2: Patrol Configuration (Compact Strip) */}
+              {selectionMode && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
+                  padding: '0.35rem 0.75rem',
+                  background: '#f1f5f9',
+                  borderRadius: '10px',
+                  border: `1px solid ${colors.border}`
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: colors.primary, fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    <Shield size={14} />
+                    <span>Guarnição:</span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: colors.textMuted }}>Nome:</span>
+                    <input
+                      type="text"
+                      placeholder="Ex: GSVR, Força Tarefa..."
+                      style={{
+                        height: '30px',
+                        padding: '0 0.65rem',
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`,
+                        background: colors.white,
+                        fontWeight: 700,
+                        outline: 'none',
+                        fontSize: '0.8rem',
+                        color: colors.primary,
+                        boxShadow: shadowSm,
+                        width: '140px'
+                      }}
+                      value={selectionMode.patrolId === 'NEW' ? newPatrolName : (state.patrols?.find(p => p.id === selectionMode.patrolId)?.name || '')}
+                      onChange={e => {
+                        if (selectionMode.patrolId === 'NEW') setNewPatrolName(e.target.value);
+                        else handlePatrolSettingChange(selectionMode.patrolId, 'name', e.target.value);
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: colors.textMuted }}>Duração:</span>
+                    <select
+                      style={{
+                        height: '30px',
+                        padding: '0 0.5rem',
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`,
+                        background: colors.white,
+                        fontWeight: 700,
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        color: colors.primary,
+                        boxShadow: shadowSm
+                      }}
+                      value={selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration}
+                      onChange={e => {
+                        const dur = e.target.value;
+                        if (selectionMode.patrolId === 'NEW') {
+                          setNewPatrolDuration(dur);
+                          const opts = getTimeOptions(dur);
+                          if (opts.length > 0 && !opts.includes(newPatrolShift)) {
+                            setNewPatrolShift(opts[7] || opts[0]);
+                          }
+                        } else {
+                          handleDurationChange(selectionMode.patrolId, dur);
+                        }
+                      }}
+                    >
+                      {['6h', '8h'].map(d => <option key={d} value={d}>{d === '6h' ? '6 Horas' : '8 Horas'}</option>)}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: colors.textMuted }}>Horário:</span>
+                    <select
+                      style={{
+                        height: '30px',
+                        padding: '0 0.5rem',
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`,
+                        background: colors.white,
+                        fontWeight: 700,
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        color: colors.primary,
+                        boxShadow: shadowSm
+                      }}
+                      value={selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols?.find(p => p.id === selectionMode.patrolId)?.timeSpan}
+                      onChange={e => {
+                        if (selectionMode.patrolId === 'NEW') setNewPatrolShift(e.target.value);
+                        else handlePatrolSettingChange(selectionMode.patrolId, 'timeSpan', e.target.value);
+                      }}
+                    >
+                      <option value="">Selecione Horário...</option>
+                      {getTimeOptions(selectionMode.patrolId === 'NEW' ? newPatrolDuration : state.patrols?.find(p => p.id === selectionMode.patrolId)?.duration)?.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Pool Grid */}
             <div style={{
               flex: 1,
               overflowY: 'auto',
-              padding: '2rem',
+              padding: '0.75rem 1.5rem',
               background: '#f1f5f9',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: '1.25rem',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))',
+              gap: '0.55rem',
               alignContent: 'start'
             }}>
               {filteredPool.length === 0 ? (
-                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', color: colors.textMuted }}>
-                  <Users size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-                  <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhum militar disponível hoje</p>
-                  <p style={{ fontSize: '0.9rem', maxWidth: '300px', margin: '0.5rem auto' }}>
+                <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: colors.textMuted }}>
+                  <Users size={40} style={{ margin: '0 auto 0.75rem', opacity: 0.2 }} />
+                  <p style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 0.25rem' }}>Nenhum militar disponível hoje</p>
+                  <p style={{ fontSize: '0.85rem', maxWidth: '320px', margin: '0 auto' }}>
                     Tente clicar em <strong>"Mostrar Todos"</strong> no topo para ver voluntários que não marcaram este dia.
                   </p>
                 </div>
@@ -1714,57 +1824,42 @@ export function AdminDashboardV2() {
                   const isSelected = selectedMembers.some(m => m.id === p.id);
                   const selectionLimit = selectionMode?.slotIndex !== undefined ? 1 : MAX_MEMBERS;
                   const isDisabled = !isSelected && selectedMembers.length >= selectionLimit;
+
+                  // Identifica se é motorista para o turno
+                  const targetShift = selectionMode?.patrolId === 'NEW' ? newPatrolShift : state.patrols?.find(pat => pat.id === selectionMode?.patrolId)?.timeSpan;
+                  const todayShifts = p.availability_completa?.[selectedDate] || [];
+                  const specificShiftData = todayShifts.find(s => s.turno === targetShift);
+                  const isDriverForShift = specificShiftData ? specificShiftData.motorista : false;
+                  const isMotorista = isDriverForShift || p.motorista === 'Sim' || p.motorista_req === true || p.id_funcao === 2;
+
                   return (
                     <div
                       key={p.id}
                       onClick={() => !isDisabled && toggleMemberSelection(p)}
+                      title={isDisabled && !isSelected ? `Limite de ${selectionLimit} militares atingido` : `${p.rank} ${p.name}`}
                       style={{
-                        padding: '1.25rem',
+                        padding: '0.45rem 0.65rem',
+                        minHeight: '54px',
                         border: isSelected ? `2px solid ${colors.primary}` : `1px solid ${colors.border}`,
-                        borderRadius: '20px',
-                        background: isSelected ? '#f0f7ff' : colors.white,
+                        borderRadius: '12px',
+                        background: isSelected ? '#eff6ff' : colors.white,
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '1rem',
-                        opacity: isDisabled && !isSelected ? 0.6 : 1,
+                        gap: '0.6rem',
+                        opacity: isDisabled && !isSelected ? 0.5 : 1,
                         transition: transitions,
-                        boxShadow: isSelected ? '0 10px 15px -3px rgba(13, 56, 120, 0.1)' : shadowSm,
+                        boxShadow: isSelected ? '0 4px 12px rgba(13, 56, 120, 0.12)' : shadowSm,
                         position: 'relative'
                       }}
-                      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                      onMouseEnter={e => { if (!isDisabled) e.currentTarget.style.transform = 'translateY(-1px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
-                      {/* Info Button Overlay */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleShowDetails(p); }}
-                        style={{
-                          position: 'absolute',
-                          right: '10px',
-                          top: '10px',
-                          background: 'rgba(30, 58, 120, 0.05)',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '28px',
-                          height: '28px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: colors.primary,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          zIndex: 10
-                        }}
-                        onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
-                        onMouseOut={e => { e.currentTarget.style.background = 'rgba(30, 58, 120, 0.05)'; e.currentTarget.style.color = colors.primary; }}
-                        title="Ver escalas do militar"
-                      >
-                        <Search size={14} strokeWidth={3} />
-                      </button>
+                      {/* Avatar / Check Indicator */}
                       <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '14px',
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
                         background: isSelected ? colors.primary : '#f1f5f9',
                         color: isSelected ? 'white' : colors.textMuted,
                         display: 'flex',
@@ -1772,104 +1867,124 @@ export function AdminDashboardV2() {
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        {isSelected ? <Check size={24} strokeWidth={3} /> : <UserCircle size={28} />}
+                        {isSelected ? <Check size={16} strokeWidth={3} /> : <UserCircle size={20} />}
                       </div>
 
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: 800, color: colors.text, fontSize: '0.95rem' }}>
-                            {p.rank} {p.name}
+                      {/* Info Militar (Nome, Posto, Matrícula, Badges) */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontWeight: 700,
+                          color: colors.text,
+                          fontSize: '0.82rem',
+                          lineHeight: 1.25,
+                          wordBreak: 'break-word'
+                        }}>
+                          {p.rank} {p.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '2px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.7rem', color: colors.textMuted, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            Nº {p.numero_ordem || p.matricula}
                           </span>
+                          {isMotorista && (
+                            <span style={{
+                              fontSize: '0.58rem',
+                              background: '#10b981',
+                              color: 'white',
+                              padding: '1px 4px',
+                              borderRadius: '4px',
+                              fontWeight: 800,
+                              lineHeight: 1
+                            }}>
+                              MOT
+                            </span>
+                          )}
                           {!p.isAvailableToday && (
                             <span style={{
-                              fontSize: '0.65rem',
+                              fontSize: '0.56rem',
                               background: '#fee2e2',
                               color: '#ef4444',
-                              padding: '2px 6px',
+                              padding: '1px 4px',
                               borderRadius: '4px',
-                              fontWeight: 900,
-                              textTransform: 'uppercase'
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              lineHeight: 1
                             }}>
-                              Fora do Turno
+                              Fora
                             </span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 600 }}>
-                            Nº {p.numero_ordem || p.matricula}
-                          </span>
-                          {(() => {
-                            const targetShift = selectionMode.patrolId === 'NEW' ? newPatrolShift : state.patrols.find(pat => pat.id === selectionMode.patrolId)?.timeSpan;
-                            const todayShifts = p.availability_completa?.[selectedDate] || [];
-                            const specificShiftData = todayShifts.find(s => s.turno === targetShift);
-                            const isDriverForShift = specificShiftData ? specificShiftData.motorista : false;
-
-                            if (isDriverForShift || p.motorista === 'Sim' || p.motorista_req === true || p.id_funcao === 2) {
-                              return (
-                                <span style={{
-                                  fontSize: '0.65rem',
-                                  background: '#10b981',
-                                  color: 'white',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontWeight: 900
-                                }}>
-                                  MOT
-                                </span>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
                       </div>
 
-                      {/* Service Counter Badges */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
-                        {/* PLAN Badge */}
-                        <div style={{
-                          background: p.service_count >= 8 ? '#fef2f2' :
-                            p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
-                          color: p.service_count >= 8 ? '#dc2626' :
-                            p.service_count >= 6 ? '#b45309' : '#15803d',
-                          padding: '4px 10px',
-                          borderRadius: '10px',
-                          fontSize: '0.65rem',
-                          fontWeight: 900,
-                          border: `1px solid ${p.service_count >= 8 ? '#fee2e2' :
-                            p.service_count >= 6 ? '#fef3c7' : '#dcfce7'
-                            }`,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          minWidth: '60px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                        }}>
-                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>PLAN</span>
-                          {p.service_count}/8
+                      {/* Right Counters & Detail Button */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          {/* PLAN Badge */}
+                          <div
+                            title={`Serviços Planejados: ${p.service_count}/8`}
+                            style={{
+                              background: p.service_count >= 8 ? '#fef2f2' : p.service_count >= 6 ? '#fffbeb' : '#f0fdf4',
+                              color: p.service_count >= 8 ? '#dc2626' : p.service_count >= 6 ? '#b45309' : '#15803d',
+                              padding: '1px 4px',
+                              borderRadius: '5px',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              border: `1px solid ${p.service_count >= 8 ? '#fee2e2' : p.service_count >= 6 ? '#fef3c7' : '#dcfce7'}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '38px',
+                              lineHeight: 1.1
+                            }}
+                          >
+                            <span style={{ fontSize: '0.5rem', opacity: 0.7, marginRight: '2px' }}>P</span>
+                            {p.service_count}/8
+                          </div>
+
+                          {/* EXEC Badge */}
+                          <div
+                            title={`Serviços Executados: ${p.executed_count}/8`}
+                            style={{
+                              background: p.executed_count >= 8 ? '#ecfdf5' : p.executed_count >= 6 ? '#f0fdf4' : '#eff6ff',
+                              color: p.executed_count >= 8 ? '#059669' : p.executed_count >= 6 ? '#16a34a' : '#1e40af',
+                              padding: '1px 4px',
+                              borderRadius: '5px',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              border: `1px solid ${p.executed_count >= 8 ? '#a7f3d0' : p.executed_count >= 6 ? '#bbf7d0' : '#dbeafe'}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minWidth: '38px',
+                              lineHeight: 1.1
+                            }}
+                          >
+                            <span style={{ fontSize: '0.5rem', opacity: 0.7, marginRight: '2px' }}>E</span>
+                            {p.executed_count}/8
+                          </div>
                         </div>
 
-                        {/* EXEC Badge */}
-                        <div style={{
-                          background: p.executed_count >= 8 ? '#ecfdf5' :
-                            p.executed_count >= 6 ? '#f0fdf4' : '#eff6ff',
-                          color: p.executed_count >= 8 ? '#059669' :
-                            p.executed_count >= 6 ? '#16a34a' : '#1e40af',
-                          padding: '4px 10px',
-                          borderRadius: '10px',
-                          fontSize: '0.65rem',
-                          fontWeight: 900,
-                          border: `1px solid ${p.executed_count >= 8 ? '#a7f3d0' :
-                            p.executed_count >= 6 ? '#bbf7d0' : '#dbeafe'
-                            }`,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          minWidth: '60px',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                        }}>
-                          <span style={{ fontSize: '0.5rem', opacity: 0.7, marginBottom: '-2px', letterSpacing: '0.05em' }}>EXEC</span>
-                          {p.executed_count}/8
-                        </div>
+                        {/* Search / Info Button */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleShowDetails(p); }}
+                          style={{
+                            background: 'rgba(30, 58, 120, 0.05)',
+                            border: 'none',
+                            borderRadius: '7px',
+                            width: '26px',
+                            height: '26px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: colors.primary,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={e => { e.currentTarget.style.background = colors.primary; e.currentTarget.style.color = 'white'; }}
+                          onMouseOut={e => { e.currentTarget.style.background = 'rgba(30, 58, 120, 0.05)'; e.currentTarget.style.color = colors.primary; }}
+                          title="Ver histórico de escalas do militar"
+                        >
+                          <Search size={13} strokeWidth={2.5} />
+                        </button>
                       </div>
                     </div>
                   );
@@ -1878,40 +1993,83 @@ export function AdminDashboardV2() {
             </div>
 
             {/* Modal Footer */}
-            <div style={{
-              padding: '1.25rem 2.5rem',
+            <div className="pool-footer-responsive" style={{
+              padding: '0.85rem 1.75rem',
               borderTop: `1px solid ${colors.border}`,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: colors.white
+              background: colors.white,
+              gap: '1rem',
+              flexWrap: 'wrap'
             }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '1.1rem', color: colors.text, fontWeight: 700 }}>
-                    {selectedMembers.length} selecionados
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.95rem', color: colors.text, fontWeight: 700 }}>
+                    {selectedMembers.length} selecionado{selectedMembers.length !== 1 ? 's' : ''}
                   </span>
-                  <span style={{ color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>
-                    (limite de {MAX_MEMBERS})
+                  <span style={{ color: colors.textMuted, fontSize: '0.82rem', fontWeight: 500 }}>
+                    (limite de {selectionMode?.slotIndex !== undefined ? 1 : MAX_MEMBERS})
                   </span>
                 </div>
-                {selectedMembers.length === 0 && (
-                  <div style={{ color: '#d97706', fontSize: '0.8rem', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+
+                {/* Selected members chips */}
+                {selectedMembers.length > 0 ? (
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {selectedMembers.map((m, idx) => (
+                      <span
+                        key={m.id || idx}
+                        style={{
+                          background: '#eff6ff',
+                          color: colors.primary,
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '16px',
+                          padding: '2px 8px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        {m.rank} {m.name}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleMemberSelection(m); }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: colors.primary,
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="Remover militar da seleção"
+                        >
+                          <X size={12} strokeWidth={3} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#d97706', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span>ℹ️ Clique nos militares acima para selecioná-los para a guarnição</span>
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <button
                   onClick={closeSelectionModal}
                   style={{
-                    padding: '0.85rem 2rem',
+                    padding: '0.65rem 1.5rem',
                     background: '#f1f5f9',
                     color: colors.textMuted,
                     border: 'none',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     cursor: 'pointer',
                     fontWeight: 700,
+                    fontSize: '0.88rem',
                     transition: transitions
                   }}
                   onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
@@ -1924,21 +2082,22 @@ export function AdminDashboardV2() {
                   disabled={isSaving}
                   title={selectedMembers.length === 0 ? "Selecione ao menos 1 militar nos cartões acima para salvar" : "Salvar escala"}
                   style={{
-                    padding: '0.85rem 3rem',
+                    padding: '0.65rem 2.25rem',
                     background: selectedMembers.length > 0 && !isSaving ? colors.primary : '#94a3b8',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '12px',
-                    cursor: isSaving ? 'wait' : 'pointer',
+                    borderRadius: '10px',
+                    cursor: isSaving ? 'wait' : (selectedMembers.length > 0 ? 'pointer' : 'not-allowed'),
                     fontWeight: 700,
-                    boxShadow: selectedMembers.length > 0 && !isSaving ? '0 10px 20px rgba(13, 56, 120, 0.2)' : 'none',
+                    fontSize: '0.88rem',
+                    boxShadow: selectedMembers.length > 0 && !isSaving ? '0 4px 14px rgba(13, 56, 120, 0.25)' : 'none',
                     transition: transitions,
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}
                 >
-                  <Check size={18} strokeWidth={3} />
+                  <Check size={16} strokeWidth={3} />
                   {isSaving ? 'Salvando...' : 'Salvar Escala'}
                 </button>
               </div>
@@ -1947,102 +2106,561 @@ export function AdminDashboardV2() {
         </div>
       )}
 
-      {/* MODAL DETALHES MILITAR */}
-      {detailedMilitar && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1100, animation: 'fadeIn 0.3s ease-out'
-        }}>
+      {/* MODAL DETALHES MILITAR COM GRADE DE DISPONIBILIDADE */}
+      {detailedMilitar && (() => {
+        const cycleDays = getCycleDays(currentCycle?.data_inicio, currentCycle?.data_fim);
+        const byDay = {};
+        militarGridDisp.forEach(r => {
+          if (!byDay[r.dia_mes]) byDay[r.dia_mes] = {};
+          byDay[r.dia_mes][r.horario_turno] = r;
+        });
+
+        const getCfg = (cell) => {
+          if (!cell || (cell.ativo !== true && cell.ativo !== false && !cell.teve_execucao)) return null;
+          if (cell.teve_execucao) {
+            return { bg: '#059669', border: '#047857', xColor: '#fff', title: 'Serviço Executado' };
+          }
+          if (cell.ativo === true) {
+            return { bg: '#2563eb', border: '#1d4ed8', xColor: '#fff', title: 'Disponível' };
+          }
+          if (cell.ativo === false) {
+            return { bg: '#dc2626', border: '#b91c1c', xColor: '#fff', title: 'Desistência' };
+          }
+          return null;
+        };
+
+        const uniqueDays = new Set(
+          militarGridDisp
+            .filter(r => r.ativo === true || r.teve_execucao)
+            .map(r => r.dia_mes)
+        );
+        const diasDisponiveis = uniqueDays.size;
+        const turnosDisponiveis = militarGridDisp.filter(r => r.ativo === true).length;
+        const turnosExecutados = militarGridDisp.filter(r => r.teve_execucao).length;
+
+        return (
           <div style={{
-            background: colors.white, borderRadius: '24px',
-            width: '90%', maxWidth: '500px', padding: '2rem',
-            boxShadow: shadowLg, position: 'relative'
+            position: 'fixed', inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1100, animation: 'fadeIn 0.3s ease-out'
           }}>
-            <button onClick={() => setDetailedMilitar(null)} style={{ position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'none', border: 'none', cursor: 'pointer', color: colors.textMuted }}>
-              <X size={24} />
-            </button>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-              <div style={{ background: colors.primaryGradient, width: '60px', height: '60px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                <UserCircle size={36} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, color: colors.primary, fontWeight: 800 }}>{detailedMilitar.rank} {detailedMilitar.name}</h3>
-                <p style={{ margin: 0, color: colors.textMuted, fontSize: '0.9rem', fontWeight: 500 }}>Matrícula: {detailedMilitar.numero_ordem || detailedMilitar.matricula}</p>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: colors.text, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={18} color={colors.primary} /> Histórico no Ciclo
-              </h4>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                {militarSchedules.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '2rem', background: '#f8fafc', borderRadius: '16px', color: colors.textMuted }}>
-                    <Calendar size={32} style={{ opacity: 0.2, marginBottom: '0.5rem' }} />
-                    <p style={{ fontSize: '0.85rem' }}>Carregando escalas ou nenhuma encontrada...</p>
+            <div className="modal-responsive-detail" style={{
+              background: colors.white,
+              borderRadius: '24px',
+              width: '95%',
+              maxWidth: '1100px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: shadowLg,
+              overflow: 'hidden',
+              border: `1px solid ${colors.border}`
+            }}>
+              {/* Header */}
+              <div className="modal-detail-header-responsive" style={{
+                padding: '1.25rem 2rem',
+                background: 'linear-gradient(135deg, #0D3878 0%, #1e40af 100%)',
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(4px)'
+                  }}>
+                    <UserCircle size={28} />
                   </div>
-                ) : (
-                  militarSchedules.map((s, idx) => (
-                    <div key={idx} style={{
-                      background: '#ffffff',
-                      padding: '1rem',
-                      borderRadius: '16px',
-                      border: `1px solid ${colors.border}`,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      boxShadow: shadowSm
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: 800, color: colors.text, fontSize: '0.9rem' }}>{s.data_formatada}</div>
-                        <div style={{ fontSize: '0.8rem', color: colors.textMuted, fontWeight: 500 }}>{s.recurso_planejado || s.recurso_executado || 'SVR'}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em', textShadow: '0 1px 3px rgba(0,0,0,0.3)' }}>
+                        {detailedMilitar.rank} {detailedMilitar.name}
+                      </h3>
+                      {(detailedMilitar.nome_completo || detailedMilitar.nome) &&
+                       (detailedMilitar.nome_completo || detailedMilitar.nome).toUpperCase() !== (detailedMilitar.name || '').toUpperCase() && (
                         <span style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 900,
-                          textTransform: 'uppercase',
-                          background: colors.primary + '10',
-                          color: colors.primary,
-                          padding: '4px 10px',
-                          borderRadius: '8px'
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          color: '#ffffff',
+                          padding: '3px 10px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.01em',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          backdropFilter: 'blur(4px)'
                         }}>
-                          {s.funcao_planejada || 'Patrulheiro'}
+                          {detailedMilitar.nome_completo || detailedMilitar.nome}
                         </span>
-                        <div style={{
-                          fontSize: '0.7rem',
-                          color: s.id_execucao ? '#10b981' : '#f59e0b',
-                          fontWeight: 700,
-                          marginTop: '6px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          justifyContent: 'flex-end'
-                        }}>
-                          {s.id_execucao ? <Check size={12} strokeWidth={3} /> : <Clock size={12} strokeWidth={3} />}
-                          {s.id_execucao ? 'EXECUTADO' : 'PLANEJADO'}
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginTop: '4px', fontSize: '0.82rem', color: '#e2e8f0' }}>
+                      <span style={{ fontWeight: 700, color: '#ffffff' }}>Nº {detailedMilitar.numero_ordem || detailedMilitar.matricula}</span>
+                      <span style={{ opacity: 0.6 }}>•</span>
+                      <span>Ciclo: <strong style={{ color: '#ffffff' }}>{currentCycle?.periodo_ciclo || currentCycle?.period_name || `Ciclo ${selectedCycleId}`}</strong></span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDetailedMilitar(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.12)',
+                    border: 'none',
+                    color: 'white',
+                    cursor: 'pointer',
+                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: transitions
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                  onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+                  title="Fechar"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="modal-detail-body-responsive" style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '1.5rem 2rem',
+                background: '#f8fafc',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.5rem'
+              }}>
+                {/* 1. Grade de Disponibilidade */}
+                <div style={{
+                  background: '#ffffff',
+                  borderRadius: '18px',
+                  border: '1px solid #e2e8f0',
+                  overflow: 'hidden',
+                  boxShadow: shadowSm
+                }}>
+                  {/* Top Bar da Grade */}
+                  <div className="grade-topbar-responsive" style={{
+                    padding: '1.25rem 1.75rem',
+                    borderBottom: '1px solid #f1f5f9',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                    background: '#ffffff'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '10px',
+                        background: '#eff6ff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <CalendarCheck size={20} color="#2563eb" />
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem' }}>
+                          Grade de Disponibilidade
+                        </span>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                          Mapeamento dos turnos e dias com requerimentos ativos de <strong style={{ color: colors.primary }}>{detailedMilitar.rank} {detailedMilitar.name}</strong>
+                          {(detailedMilitar.nome_completo || detailedMilitar.nome) && (detailedMilitar.nome_completo || detailedMilitar.nome).toUpperCase() !== (detailedMilitar.name || '').toUpperCase() ? ` (${detailedMilitar.nome_completo || detailedMilitar.nome})` : ''}
                         </div>
                       </div>
                     </div>
-                  ))
-                )}
+
+                    {/* Legenda Visual */}
+                    <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#059669' }} /> Executado
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Resumo Rápido da Disponibilidade no Ciclo */}
+                  <div className="grade-summary-responsive" style={{
+                    padding: '0.75rem 1.75rem',
+                    background: '#f8fafc',
+                    borderBottom: '1px solid #f1f5f9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1.5rem',
+                    flexWrap: 'wrap',
+                    fontSize: '0.82rem',
+                    color: '#475569'
+                  }}>
+                    <span>Dias com Disponibilidade: <strong style={{ color: '#0f172a' }}>{diasDisponiveis} dias</strong></span>
+                    <span>•</span>
+                    <span>Turnos com Requerimento Ativo: <strong style={{ color: '#2563eb' }}>{turnosDisponiveis} turnos</strong></span>
+                    <span>•</span>
+                    <span>Turnos Executados no Ciclo: <strong style={{ color: '#059669' }}>{turnosExecutados} turnos</strong></span>
+                  </div>
+
+                  {/* Tabela da Grade */}
+                  <div style={{ padding: '1.25rem 1.5rem' }}>
+                    {loadingMilitarGrid ? (
+                      <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#64748b' }}>
+                        <div style={{
+                          width: '32px', height: '32px', margin: '0 auto 0.75rem auto',
+                          border: '3px solid #e2e8f0', borderTopColor: '#2563eb',
+                          borderRadius: '50%', animation: 'spin 0.8s linear infinite'
+                        }} />
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>Carregando grade de disponibilidade...</p>
+                      </div>
+                    ) : militarGridDisp.length === 0 ? (
+                      <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                        <Calendar size={40} color="#cbd5e1" style={{ margin: '0 auto 0.75rem auto', display: 'block' }} />
+                        <div style={{ fontWeight: 700, color: '#475569', fontSize: '1rem', marginBottom: '0.25rem' }}>
+                          Nenhum requerimento de disponibilidade registrado para este ciclo
+                        </div>
+                        <div style={{ fontSize: '0.84rem' }}>
+                          O militar não cadastrou requerimentos ou não há registros de disponibilidade cadastrados no ciclo ativo.
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="modal-custom-scrollbar grade-table-scroll"
+                        style={{
+                          overflowX: 'auto',
+                          overflowY: 'scroll',
+                          maxHeight: '145px',
+                          paddingBottom: '0.6rem',
+                          scrollbarWidth: 'thin',
+                          scrollbarColor: '#cbd5e1 #f1f5f9'
+                        }}
+                      >
+                        <table style={{
+                          borderCollapse: 'separate',
+                          borderSpacing: '2px',
+                          width: 'max-content',
+                          minWidth: '100%',
+                          tableLayout: 'fixed'
+                        }}>
+                          <thead>
+                            <tr>
+                              <th style={{
+                                width: '120px',
+                                minWidth: '120px',
+                                padding: '0.35rem 0.6rem 0.35rem 0',
+                                fontSize: '0.72rem',
+                                color: '#64748b',
+                                fontWeight: 800,
+                                textAlign: 'left',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                position: 'sticky',
+                                left: 0,
+                                top: 0,
+                                background: '#ffffff',
+                                zIndex: 6,
+                                borderRight: '1px solid #f1f5f9',
+                                boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)'
+                              }}>
+                                Turno
+                              </th>
+                              {cycleDays.map((dayObj, idx) => {
+                                const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
+                                return (
+                                  <th
+                                    key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                                    style={{
+                                      width: '36px',
+                                      minWidth: '36px',
+                                      padding: '0.2rem 0',
+                                      fontSize: '0.7rem',
+                                      color: '#475569',
+                                      fontWeight: 800,
+                                      textAlign: 'center',
+                                      lineHeight: 1.15,
+                                      position: 'sticky',
+                                      top: 0,
+                                      background: '#ffffff',
+                                      zIndex: 5
+                                    }}
+                                  >
+                                    {showMonth && (
+                                      <div style={{ fontSize: '0.58rem', color: '#2563eb', fontWeight: 800, letterSpacing: '0.03em' }}>{dayObj.monthShort}</div>
+                                    )}
+                                    <div style={{ fontSize: '0.75rem', color: '#0f172a' }}>{dayObj.day}</div>
+                                  </th>
+                                );
+                              })}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {SHIFTS.map(turno => (
+                              <tr key={turno}>
+                                <td style={{
+                                  width: '120px',
+                                  minWidth: '120px',
+                                  padding: '0.35rem 0.6rem 0.35rem 0',
+                                  fontSize: '0.75rem',
+                                  color: '#1e293b',
+                                  fontWeight: 800,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  position: 'sticky',
+                                  left: 0,
+                                  background: '#ffffff',
+                                  zIndex: 4,
+                                  borderRight: '1px solid #f1f5f9',
+                                  boxShadow: '2px 0 4px -2px rgba(0,0,0,0.08)'
+                                }}>
+                                  {turno}
+                                </td>
+                                {cycleDays.map(dayObj => {
+                                  const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
+                                  const dayStr = String(dayObj.day);
+                                  const cell = byDay[dateKey]?.[turno] || byDay[dayStr]?.[turno];
+                                  const cfg = getCfg(cell);
+                                  const dateFormatted = `${String(dayObj.day).padStart(2, '0')}/${String(dayObj.month).padStart(2, '0')}/${dayObj.year}`;
+                                  return (
+                                    <td
+                                      key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
+                                      style={{
+                                        width: '36px',
+                                        minWidth: '36px',
+                                        padding: 0,
+                                        textAlign: 'center'
+                                      }}
+                                    >
+                                      {cfg ? (
+                                        <div
+                                          title={`${dateFormatted} — ${turno} — ${cfg.title}`}
+                                          style={{
+                                            width: '100%',
+                                            aspectRatio: '1/1',
+                                            maxWidth: '24px',
+                                            borderRadius: '5px',
+                                            background: cfg.bg,
+                                            border: `1px solid ${cfg.border}`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            margin: 'auto',
+                                            transition: 'transform 0.15s ease',
+                                            cursor: 'help',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+                                          }}
+                                        >
+                                          <span style={{ color: cfg.xColor, fontWeight: 900, fontSize: '0.65rem' }}>✕</span>
+                                        </div>
+                                      ) : (
+                                        <div
+                                          title={`${dateFormatted} — ${turno} — Não informado`}
+                                          style={{
+                                            width: '100%',
+                                            aspectRatio: '1/1',
+                                            maxWidth: '24px',
+                                            borderRadius: '5px',
+                                            background: '#f8fafc',
+                                            margin: 'auto',
+                                            border: '1px dashed #e2e8f0'
+                                          }}
+                                        />
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Histórico de Escalas no Ciclo */}
+                <div style={{
+                  background: '#ffffff',
+                  borderRadius: '18px',
+                  border: '1px solid #e2e8f0',
+                  overflow: 'hidden',
+                  boxShadow: shadowSm
+                }}>
+                  <div className="escalas-topbar-responsive" style={{
+                    padding: '1.25rem 1.75rem',
+                    borderBottom: '1px solid #f1f5f9',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '10px',
+                        background: '#f0fdf4',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Calendar size={20} color="#16a34a" />
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.1rem' }}>
+                          Escalas no Ciclo
+                        </span>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                          Histórico de escalas planejadas e serviços executados
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{
+                      background: '#f8fafc',
+                      color: '#475569',
+                      borderRadius: '8px',
+                      padding: '4px 10px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      {militarSchedules.length} registro{militarSchedules.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  <div
+                    className="modal-custom-scrollbar escalas-grid-responsive"
+                    style={{
+                      padding: '1.25rem 1.5rem',
+                      maxHeight: '185px',
+                      overflowY: 'auto',
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: '#cbd5e1 #f1f5f9'
+                    }}
+                  >
+                    {militarSchedules.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '2.5rem', background: '#f8fafc', borderRadius: '12px', color: colors.textMuted }}>
+                        <Calendar size={32} style={{ opacity: 0.25, margin: '0 auto 0.5rem auto' }} />
+                        <p style={{ fontSize: '0.88rem', fontWeight: 600, margin: 0 }}>Nenhuma escala encontrada neste ciclo para este militar</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                        {militarSchedules.map((s, idx) => (
+                          <div key={idx} style={{
+                            background: '#ffffff',
+                            padding: '0.85rem 1rem',
+                            borderRadius: '12px',
+                            border: `1px solid ${colors.border}`,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            boxShadow: shadowSm
+                          }}>
+                            <div>
+                              <div style={{ fontWeight: 800, color: colors.text, fontSize: '0.88rem' }}>{s.data_formatada}</div>
+                              <div style={{ fontSize: '0.78rem', color: colors.textMuted, fontWeight: 600, marginTop: '2px' }}>
+                                {s.recurso_planejado || s.recurso_executado || 'SVR'}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                background: colors.primary + '12',
+                                color: colors.primary,
+                                padding: '3px 8px',
+                                borderRadius: '6px'
+                              }}>
+                                {s.funcao_planejada || 'Patrulheiro'}
+                              </span>
+                              <div style={{
+                                fontSize: '0.7rem',
+                                color: s.id_execucao ? '#059669' : '#2563eb',
+                                fontWeight: 800,
+                                marginTop: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                justifyContent: 'flex-end'
+                              }}>
+                                {s.id_execucao ? <Check size={11} strokeWidth={3} /> : <Clock size={11} strokeWidth={3} />}
+                                {s.id_execucao ? 'EXECUTADO' : 'PLANEJADO'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="modal-detail-footer-responsive" style={{
+                padding: '1rem 2rem',
+                background: colors.white,
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  onClick={() => setDetailedMilitar(null)}
+                  style={{
+                    padding: '0.65rem 2rem',
+                    background: colors.primary,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    transition: transitions,
+                    boxShadow: '0 4px 12px rgba(13, 56, 120, 0.2)'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  Fechar
+                </button>
               </div>
             </div>
-
-            <button onClick={() => setDetailedMilitar(null)} style={{ width: '100%', padding: '1rem', background: colors.primary, color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
-              Fechar
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Global CSS for Animations */}
       <style>{`
+        .modal-custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        .modal-custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 6px;
+        }
+        .modal-custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 6px;
+          border: 2px solid #f1f5f9;
+        }
+        .modal-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
@@ -2062,6 +2680,8 @@ export function AdminDashboardV2() {
           .v2-dashboard-container {
             flex-direction: column !important;
             overflow-y: auto !important;
+            height: auto !important;
+            min-height: 100vh !important;
           }
           .v2-sidebar {
             width: 100% !important;
@@ -2074,19 +2694,89 @@ export function AdminDashboardV2() {
           .v2-main-content {
             height: auto !important;
             overflow-y: visible !important;
+            padding: 1.25rem !important;
+          }
+          .modal-responsive-pool {
+            width: 98% !important;
+            height: 95vh !important;
+            border-radius: 16px !important;
+          }
+          .modal-responsive-detail {
+            width: 98% !important;
+            max-height: 94vh !important;
+            border-radius: 18px !important;
           }
           .hide-mobile {
             display: none !important;
           }
         }
-        @media (max-width: 640px) {
-          .modal-content {
+        @media (max-width: 768px) {
+          .v2-main-content {
+            padding: 1rem 0.75rem !important;
+          }
+          .modal-responsive-pool {
             width: 100% !important;
             height: 100% !important;
+            max-height: 100vh !important;
             border-radius: 0 !important;
           }
-          .modal-filters {
+          .modal-responsive-detail {
+            width: 100% !important;
+            height: 100% !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+          }
+          .modal-detail-header-responsive {
+            padding: 0.85rem 1rem !important;
+          }
+          .modal-detail-body-responsive {
+            padding: 0.85rem 0.75rem !important;
+            gap: 1rem !important;
+          }
+          .grade-topbar-responsive {
+            padding: 0.85rem 1rem !important;
             flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.75rem !important;
+          }
+          .grade-summary-responsive {
+            padding: 0.65rem 1rem !important;
+            gap: 0.75rem !important;
+            font-size: 0.76rem !important;
+          }
+          .modal-detail-footer-responsive {
+            padding: 0.75rem 1rem !important;
+          }
+          .modal-detail-footer-responsive button {
+            width: 100% !important;
+          }
+          .pool-header-responsive {
+            padding: 0.75rem 1rem !important;
+          }
+          .pool-filters-responsive {
+            padding: 0.65rem 0.85rem !important;
+          }
+          .pool-tray-responsive {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .pool-footer-responsive {
+            flex-direction: column !important;
+            padding: 0.75rem 1rem !important;
+          }
+          .pool-footer-responsive button {
+            width: 100% !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .v2-sidebar {
+            padding: 1rem 0.75rem !important;
+          }
+          .modal-detail-header-responsive h3 {
+            font-size: 1.05rem !important;
+          }
+          .modal-detail-body-responsive {
+            padding: 0.65rem 0.5rem !important;
           }
         }
       `}</style>
