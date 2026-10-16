@@ -10,9 +10,18 @@ def deploy():
     remote_base = '/home/vps_9bpm/projetos/GSVR - prod'
 
     files_to_sync = [
-        ('frontend/src/components/AdminDashboardV2.jsx', f'{remote_base}/frontend/src/components/AdminDashboardV2.jsx'),
-        ('frontend/src/components/MinhasEscalas.jsx', f'{remote_base}/frontend/src/components/MinhasEscalas.jsx'),
+        ('backend/utils/cpf.js', f'{remote_base}/backend/utils/cpf.js'),
+        ('backend/utils/totp.js', f'{remote_base}/backend/utils/totp.js'),
+        ('backend/utils/audit.js', f'{remote_base}/backend/utils/audit.js'),
+        ('backend/scripts/provision_superuser.js', f'{remote_base}/backend/scripts/provision_superuser.js'),
+        ('backend/migrations/001_auth_cpf_superuser.sql', f'{remote_base}/backend/migrations/001_auth_cpf_superuser.sql'),
+        ('backend/db.js', f'{remote_base}/backend/db.js'),
         ('backend/server.js', f'{remote_base}/backend/server.js'),
+        ('frontend/src/utils/cpf.js', f'{remote_base}/frontend/src/utils/cpf.js'),
+        ('frontend/src/components/LoginScreen.jsx', f'{remote_base}/frontend/src/components/LoginScreen.jsx'),
+        ('frontend/src/components/SuperUserDashboard.jsx', f'{remote_base}/frontend/src/components/SuperUserDashboard.jsx'),
+        ('frontend/src/components/UserManager.jsx', f'{remote_base}/frontend/src/components/UserManager.jsx'),
+        ('frontend/src/App.jsx', f'{remote_base}/frontend/src/App.jsx'),
         ('VERSION.md', f'{remote_base}/VERSION.md')
     ]
 
@@ -29,9 +38,25 @@ def deploy():
         # 1. Enviar arquivos modificados via SFTP
         print("\n--- 1. SINCRONIZAÇÃO DE ARQUIVOS (SFTP) ---")
         sftp = ssh.open_sftp()
+
+        def ensure_remote_dir(remote_dir):
+            parts = remote_dir.strip('/').split('/')
+            current = ''
+            for part in parts:
+                current += '/' + part
+                try:
+                    sftp.stat(current)
+                except IOError:
+                    try:
+                        sftp.mkdir(current)
+                    except Exception:
+                        pass
+
         for local_rel, remote_path in files_to_sync:
             local_abs = os.path.abspath(local_rel)
             if os.path.exists(local_abs):
+                remote_dir = os.path.dirname(remote_path)
+                ensure_remote_dir(remote_dir)
                 size = os.path.getsize(local_abs)
                 print(f" Enviando {local_rel} ({size} bytes) -> {remote_path}...")
                 sftp.put(local_abs, remote_path)

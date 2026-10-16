@@ -1,3 +1,19 @@
+## v1.37.0 — 2026-10-16
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Reestruturação e Fortalecimento Integral da Autenticação do GSVR (Login por CPF, 1º Acesso Seguro e Perfil SUPERUSER)**:
+  - **[Autenticação por CPF Primário]**: Modificado o formulário de login para identificação exclusiva por CPF com máscara dinâmica `000.000.000-00`, normalização para 11 dígitos numéricos e validação do algoritmo dos dígitos verificadores (RFC Receita Federal) tanto no frontend quanto no backend.
+  - **[Fluxo de Primeiro Acesso com Defesa Anti-Sequestro de Contas]**: Criado fluxo específico para definição inicial de senha. Para evitar a apropriação indevida de contas apenas com conhecimento do CPF, o sistema exige validação cruzada do CPF com a Matrícula/Nº de Ordem cadastrado no `EFETIVO`, emitindo um token criptográfico temporário de uso único (15 minutos).
+  - **[Política Reforçada de Senhas e Hash Seguro]**: Implementada validação de requisitos de complexidade de senha (mínimo de 8 caracteres, maiúsculas, minúsculas, números e caracteres especiais) com checagem em tempo real na interface e armazenamento com hash seguro bcrypt (12 rounds de salt).
+  - **[Perfil Técnico SUPERUSER para Desenvolvedores]**: Criação de perfil administrativo especial `SUPERUSER` com permissões irrestritas de gerenciamento (`sistema:admin`, `sistema:audit`, `sistema:diagnostics`, `usuarios:superuser`, `usuarios:bloquear`, `usuarios:reset`) sem credenciais fixas no código, suportando provisionamento nominal via CLI (`provision_superuser.js`), autenticação em dois fatores nativa TOTP (RFC 6238 / Google Authenticator) e bypass seguro em middlewares de RBAC.
+  - **[Auditoria Persistente e Diagnóstico de Sistema]**: Implementada tabela `audit_logs` no PostgreSQL com registro imutável de eventos críticos (logins, falhas, bloqueios, alterações de permissão e ações de superusuário com IP, User-Agent e metadata), acompanhado de Painel Técnico com métricas de sistema (CPU, memória, uptime, pool PostgreSQL) e visualizador de trilha de auditoria com filtros avançados.
+  - **[Bloqueio Contra Ataques de Força Bruta e Gestão de Usuários]**: Proteção contra tentativas automatizadas com bloqueio de contas após 5 tentativas consecutivas de senha incorreta e ferramentas no `UserManager` para bloqueio/desbloqueio e reset seguro de primeiro acesso.
+  - **[Migração Segura de Banco de Dados sem Perda de Dados]**: Executada migração `001_auth_cpf_superuser.sql` com criação das tabelas `first_access_tokens` e `audit_logs`, saneamento de contas órfãs, adição de restrição única `uq_users_cpf` e compatibilidade total com os 205 militares cadastrados.
+
+---
+
 ## v1.36.17 — 2026-10-16
 **Autor:** PMAL-DATEN
 **Email:** unknown

@@ -610,6 +610,30 @@ async function setupDB() {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='password_hash') THEN
               ALTER TABLE users ADD COLUMN password_hash TEXT;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='cpf') THEN
+              ALTER TABLE users ADD COLUMN cpf VARCHAR(14);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='senha_definida') THEN
+              ALTER TABLE users ADD COLUMN senha_definida BOOLEAN NOT NULL DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='primeiro_acesso_concluido') THEN
+              ALTER TABLE users ADD COLUMN primeiro_acesso_concluido BOOLEAN NOT NULL DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='mfa_enabled') THEN
+              ALTER TABLE users ADD COLUMN mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='mfa_secret') THEN
+              ALTER TABLE users ADD COLUMN mfa_secret TEXT;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='bloqueado') THEN
+              ALTER TABLE users ADD COLUMN bloqueado BOOLEAN NOT NULL DEFAULT FALSE;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='tentativas_falhas') THEN
+              ALTER TABLE users ADD COLUMN tentativas_falhas INTEGER NOT NULL DEFAULT 0;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='bloqueado_ate') THEN
+              ALTER TABLE users ADD COLUMN bloqueado_ate TIMESTAMP;
+            END IF;
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='status') THEN
               ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'ativo';
             END IF;
@@ -621,7 +645,38 @@ async function setupDB() {
             END IF;
           END $$;
 
+          -- Índice Único para CPF
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_users_cpf ON users(cpf);
 
+          -- Tokens para Primeiro Acesso (15 min)
+          CREATE TABLE IF NOT EXISTS first_access_tokens (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER NOT NULL REFERENCES users ON DELETE CASCADE,
+            token_hash      TEXT NOT NULL UNIQUE,
+            expires_at      TIMESTAMP NOT NULL,
+            used_at         TIMESTAMP,
+            ip_solicitante  VARCHAR(45),
+            created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+
+          -- Logs de Auditoria do Sistema
+          CREATE TABLE IF NOT EXISTS audit_logs (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER REFERENCES users ON DELETE SET NULL,
+            cpf             VARCHAR(14),
+            numero_ordem    VARCHAR(50),
+            action          VARCHAR(100) NOT NULL,
+            entity          VARCHAR(100),
+            entity_id       VARCHAR(100),
+            details         JSONB,
+            ip              VARCHAR(45),
+            user_agent      TEXT,
+            status          VARCHAR(20) DEFAULT 'SUCCESS',
+            created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+          CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+          CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
           -- Perfil estendido do usuário (1:1)
           CREATE TABLE IF NOT EXISTS user_profiles (
@@ -869,9 +924,10 @@ async function setupDB() {
         // ============================================================
         await client.query(`
           INSERT INTO roles (nome, descricao, is_sistema) VALUES
-            ('ADMIN',   'Administrador — acesso total ao sistema',                   TRUE),
-            ('GERENTE', 'Gerente Operacional — ciclos, escalas e efetivo',           TRUE),
-            ('MILITAR', 'Militar — acesso básico ao próprio perfil e requerimentos', TRUE)
+            ('SUPERUSER', 'Superusuário / Desenvolvedor — administração técnica integral da plataforma', TRUE),
+            ('ADMIN',     'Administrador — acesso total ao sistema',                   TRUE),
+            ('GERENTE',   'Gerente Operacional — ciclos, escalas e efetivo',           TRUE),
+            ('MILITAR',   'Militar — acesso básico ao próprio perfil e requerimentos', TRUE)
           ON CONFLICT (nome) DO NOTHING
         `);
 
@@ -880,32 +936,47 @@ async function setupDB() {
         // ============================================================
         await client.query(`
           INSERT INTO permissions (code, descricao, modulo) VALUES
-            ('efetivo:read',    'Visualizar efetivo',              'efetivo'),
-            ('efetivo:create',  'Cadastrar militar',               'efetivo'),
-            ('efetivo:update',  'Editar dados de militar',         'efetivo'),
-            ('efetivo:delete',  'Excluir militar do sistema',      'efetivo'),
-            ('efetivo:import',  'Importar efetivo via planilha',   'efetivo'),
-            ('ciclos:read',     'Visualizar ciclos',               'ciclos'),
-            ('ciclos:create',   'Criar ciclo de escala',           'ciclos'),
-            ('ciclos:update',   'Editar ciclo',                    'ciclos'),
-            ('ciclos:delete',   'Encerrar/excluir ciclo',          'ciclos'),
-            ('escalas:read',    'Visualizar escalas',              'escalas'),
-            ('escalas:create',  'Criar escala',                    'escalas'),
-            ('escalas:update',  'Editar escala',                   'escalas'),
-            ('usuarios:read',   'Visualizar usuários',             'usuarios'),
-            ('usuarios:admin',  'Gerenciar contas e permissões',   'usuarios'),
-            ('financeiro:read', 'Visualizar financeiro',           'financeiro'),
-            ('opm:read',        'Visualizar OPMs',                 'opm'),
-            ('opm:admin',       'Gerenciar OPMs',                  'opm'),
-            ('perfil:read',     'Ver próprio perfil',              'perfil'),
-            ('perfil:update',   'Editar próprio perfil',           'perfil')
+            ('efetivo:read',       'Visualizar efetivo',              'efetivo'),
+            ('efetivo:create',     'Cadastrar militar',               'efetivo'),
+            ('efetivo:update',     'Editar dados de militar',         'efetivo'),
+            ('efetivo:delete',     'Excluir militar do sistema',      'efetivo'),
+            ('efetivo:import',     'Importar efetivo via planilha',   'efetivo'),
+            ('ciclos:read',        'Visualizar ciclos',               'ciclos'),
+            ('ciclos:create',      'Criar ciclo de escala',           'ciclos'),
+            ('ciclos:update',      'Editar ciclo',                    'ciclos'),
+            ('ciclos:delete',      'Encerrar/excluir ciclo',          'ciclos'),
+            ('escalas:read',       'Visualizar escalas',              'escalas'),
+            ('escalas:create',     'Criar escala',                    'escalas'),
+            ('escalas:update',     'Editar escala',                   'escalas'),
+            ('usuarios:read',      'Visualizar usuários',             'usuarios'),
+            ('usuarios:admin',     'Gerenciar contas e permissões',   'usuarios'),
+            ('usuarios:bloquear',  'Bloquear ou desbloquear contas',  'usuarios'),
+            ('usuarios:reset',     'Resetar para primeiro acesso',    'usuarios'),
+            ('usuarios:superuser', 'Gerenciar superusuários',         'usuarios'),
+            ('financeiro:read',    'Visualizar financeiro',           'financeiro'),
+            ('opm:read',           'Visualizar OPMs',                 'opm'),
+            ('opm:admin',          'Gerenciar OPMs',                  'opm'),
+            ('perfil:read',        'Ver próprio perfil',              'perfil'),
+            ('perfil:update',      'Editar próprio perfil',           'perfil'),
+            ('sistema:admin',      'Configurações técnicas gerais',   'sistema'),
+            ('sistema:audit',      'Consultar logs de auditoria',     'sistema'),
+            ('sistema:diagnostics','Diagnóstico e métricas técnicas', 'sistema')
           ON CONFLICT (code) DO NOTHING
         `);
 
-        // Atribuir TODAS as permissões para ADMIN
+        // Atribuir TODAS as permissões para SUPERUSER
         await client.query(`
           INSERT INTO role_permissions (role_id, permission_id)
-            SELECT r.id, p.id FROM roles r, permissions p WHERE r.nome = 'ADMIN'
+            SELECT r.id, p.id FROM roles r, permissions p WHERE r.nome = 'SUPERUSER'
+          ON CONFLICT DO NOTHING
+        `);
+
+        // Atribuir permissões para ADMIN
+        await client.query(`
+          INSERT INTO role_permissions (role_id, permission_id)
+            SELECT r.id, p.id FROM roles r, permissions p 
+            WHERE r.nome = 'ADMIN'
+              AND p.code NOT IN ('usuarios:superuser', 'sistema:admin')
           ON CONFLICT DO NOTHING
         `);
 

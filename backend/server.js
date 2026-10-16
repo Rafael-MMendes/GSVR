@@ -78,6 +78,9 @@ try { pdfParser = require('pdf-parse'); } catch (e) { console.warn('pdf-parse na
 
 const { setupDB } = require('./db');
 const { recalculateMetas } = require('./services/ScaleOptimizationService');
+const { cleanCPF, isValidCPF, formatCPF } = require('./utils/cpf');
+const { generateSecret, generateTOTP, verifyTOTP, getOtpAuthUrl } = require('./utils/totp');
+const { logAudit } = require('./utils/audit');
 // Multer configurado para memória (Excel) e disco (avatares)
 const uploadMemory = multer({ storage: multer.memoryStorage() });
 const upload = uploadMemory; // alias legado
@@ -217,30 +220,64 @@ const authLimiter = rateLimit ? rateLimit({
   message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas. Aguarde 1 minuto.' } }
 }) : (req, res, next) => next();
 
-// Rate limit estrito para /login: 5 tentativas/min
+// Rate limit estrito para /login: 30 tentativas/min por IP (compatível com NAT em OPMs)
 const loginLimiter = rateLimit ? rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas de login. Aguarde 1 minuto.' } }
+  message: { success: false, error: { code: 'TOO_MANY_REQUESTS', message: 'Muitas tentativas de login a partir desta rede. Aguarde 1 minuto.' } }
 }) : (req, res, next) => next();
 
-// Audit log simples (pode ser trocado por Pino/Winston)
-function auditLog(userId, action, metadata = {}) {
-  const entry = {
-    ts: new Date().toISOString(),
+// Audit log persistente em banco de dados e console
+function auditLog(userId, action, metadata = {}, status = 'SUCCESS') {
+  logAudit(db, {
     userId,
+    cpf: metadata.cpf || null,
+    numero_ordem: metadata.numero_ordem || null,
     action,
-    ...metadata
-  };
-  console.log(`[AUDIT] ${JSON.stringify(entry)}`);
+    entity: metadata.entity || null,
+    entityId: metadata.entityId || null,
+    details: metadata,
+    ip: metadata.ip || null,
+    userAgent: metadata.userAgent || null,
+    status
+  });
+}
+
+// ============================================================
+// VALIDAÇÃO DE SEGURANÇA DE SENHA
+// ============================================================
+function validatePasswordRules(password) {
+  if (!password || password.length < 8) {
+    return 'A senha deve conter no mínimo 8 caracteres.';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'A senha deve conter pelo menos uma letra maiúscula.';
+  }
+  if (!/[a-z]/.test(password)) {
+    return 'A senha deve conter pelo menos uma letra minúscula.';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'A senha deve conter pelo menos um dígito numérico.';
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return 'A senha deve conter pelo menos um caractere especial (!@#$%...).';
+  }
+  return null;
 }
 
 // ============================================================
 // UTILITÁRIOS RBAC
 // ============================================================
 async function getUserPermissions(userId) {
+  // Se o usuário possui role SUPERUSER, concede todas as permissões do sistema
+  const roles = await getUserRoles(userId);
+  if (roles.includes('SUPERUSER')) {
+    const allPerms = await db.query('SELECT code FROM permissions');
+    return allPerms.rows.map(p => p.code);
+  }
+
   // 1. Buscar permissões via Roles
   const rolesPermissions = await db.query(`
     SELECT DISTINCT p.code
@@ -286,7 +323,6 @@ async function authenticate(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) {
-    console.warn(`[Auth] Token não fornecido em: ${req.method} ${req.url}`);
     return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Token não fornecido.' } });
   }
   try {
@@ -294,7 +330,6 @@ async function authenticate(req, res, next) {
     req.user = decoded;
     next();
   } catch (e) {
-    console.warn(`[Auth] Token inválido ou expirado em: ${req.method} ${req.url}`);
     return res.status(401).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Token inválido ou expirado.' } });
   }
 }
@@ -303,14 +338,84 @@ function authorize(...requiredPermissions) {
   return async (req, res, next) => {
     if (!req.user) return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED' } });
     try {
+      const roles = req.user.roles || await getUserRoles(req.user.id);
+      // SUPERUSER possui acesso irrestrito a todos os módulos autorizados
+      if (roles.includes('SUPERUSER')) {
+        return next();
+      }
       const userPermissions = await getUserPermissions(req.user.id);
       const hasAll = requiredPermissions.every(p => userPermissions.includes(p));
-      if (!hasAll) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Acesso negado.' } });
+      if (!hasAll) return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Acesso negado. Permissões insuficientes.' } });
       next();
     } catch (e) {
       res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: e.message } });
     }
   };
+}
+
+// Emissão unificada e segura de tokens de sessão (JWT + Refresh)
+async function issueSessionTokens(user, req, res) {
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'] || null;
+
+  const military = await db.get(
+    'SELECT posto_graduacao, nome_guerra, nome_completo, telefone, motorista, opm FROM EFETIVO WHERE matricula = $1 OR cpf = $2',
+    [user.numero_ordem, user.cpf]
+  );
+  const permissions = await getUserPermissions(user.id);
+  const roles = await getUserRoles(user.id);
+  const isSuperuser = roles.includes('SUPERUSER');
+  const isAdmin = user.is_admin === 1 || isSuperuser || roles.includes('ADMIN');
+
+  // Emite Access Token (15 min)
+  const accessToken = jwt.sign(
+    {
+      id: user.id,
+      cpf: user.cpf,
+      numero_ordem: user.numero_ordem,
+      is_admin: isAdmin,
+      is_superuser: isSuperuser,
+      roles,
+      permissions
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+
+  // Emite Refresh Token rotativo (7 dias) e salva hash
+  const rawRefresh = generateToken();
+  const refreshHash = hashToken(rawRefresh);
+  const refreshExpires = new Date(Date.now() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+  await db.run(
+    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_criacao, user_agent) VALUES ($1,$2,$3,$4,$5)',
+    [user.id, refreshHash, refreshExpires, ip, userAgent]
+  );
+
+  await db.run('UPDATE users SET last_login_at=NOW(), tentativas_falhas=0, bloqueado_ate=NULL WHERE id=$1', [user.id]);
+  auditLog(user.id, 'LOGIN_SUCCESS', { cpf: user.cpf, numero_ordem: user.numero_ordem, ip, userAgent, roles });
+
+  return res.json({
+    success: true,
+    access_token: accessToken,
+    refresh_token: rawRefresh,
+    user: {
+      id: user.id,
+      cpf: user.cpf,
+      cpf_formatado: formatCPF(user.cpf),
+      numero_ordem: user.numero_ordem,
+      is_admin: isAdmin,
+      is_superuser: isSuperuser,
+      mfa_enabled: Boolean(user.mfa_enabled),
+      roles,
+      permissions,
+      rank: normalizeRank(military?.posto_graduacao),
+      nome_guerra: military?.nome_guerra || (isSuperuser ? 'Desenvolvedor' : ''),
+      nome_completo: military?.nome_completo || (isSuperuser ? 'Superusuário GSVR' : ''),
+      opm_sigla: military?.opm || '9º BPM',
+      phone: military?.telefone || '',
+      motorista: (military?.motorista === true || military?.motorista === 1 || military?.motorista === 'Sim') ? 'Sim' : 'Não'
+    }
+  });
 }
 
 let db;
@@ -321,78 +426,371 @@ let db;
 })();
 
 // ============================================================
-// AUTH — Login (retrocompatível: texto plano → bcrypt progressivo)
+// AUTH — Login Principal por CPF
 // ============================================================
 app.post('/api/login', loginLimiter, async (req, res) => {
-  const { numero_ordem, cpf, password } = req.body;
-  const plainCred = password || cpf; // suporta campo antigo 'cpf' e novo 'password'
-  try {
-    const user = await db.get('SELECT * FROM users WHERE numero_ordem = $1', [numero_ordem]);
-    if (!user) return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+  const { cpf, numero_ordem, username, password } = req.body;
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'] || null;
 
+  const rawIdent = cpf || numero_ordem || username;
+  if (!rawIdent || !password) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_CREDENTIALS', message: 'CPF e senha são obrigatórios.' }
+    });
+  }
+
+  const cleanedCpf = cleanCPF(rawIdent);
+  const isCpfFormat = cleanedCpf.length === 11;
+
+  if (isCpfFormat && !isValidCPF(cleanedCpf)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_CPF', message: 'CPF inválido pelos critérios da Receita Federal.' }
+    });
+  }
+
+  try {
+    let user;
+    if (isCpfFormat) {
+      user = await db.get('SELECT * FROM users WHERE cpf = $1 OR numero_ordem = $1', [cleanedCpf]);
+    } else {
+      user = await db.get('SELECT * FROM users WHERE numero_ordem = $1', [String(rawIdent).trim()]);
+    }
+
+    if (!user) {
+      auditLog(null, 'LOGIN_FAILED', { cpf: cleanedCpf, numero_ordem: rawIdent, ip, userAgent, reason: 'USER_NOT_FOUND' }, 'FAILED');
+      return res.status(401).json({
+        success: false,
+        error: { code: 'AUTH_FAILED', message: 'CPF ou senha incorretos.' }
+      });
+    }
+
+    // Verifica bloqueio de conta
+    if (user.bloqueado || user.status === 'bloqueado') {
+      auditLog(user.id, 'LOGIN_BLOCKED', { cpf: user.cpf, numero_ordem: user.numero_ordem, ip, userAgent }, 'FAILED');
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCOUNT_BLOCKED', message: 'Conta bloqueada por motivo de segurança. Contate o administrador.' }
+      });
+    }
+
+    // Verifica bloqueio temporário por tentativas
+    if (user.bloqueado_ate && new Date(user.bloqueado_ate) > new Date()) {
+      const remainingMin = Math.ceil((new Date(user.bloqueado_ate) - new Date()) / 60000);
+      return res.status(429).json({
+        success: false,
+        error: {
+          code: 'TEMPORARILY_LOCKED',
+          message: `Muitas tentativas incorretas. Conta temporariamente suspensa. Tente novamente em ${remainingMin} minuto(s).`
+        }
+      });
+    }
+
+    // Verifica se a conta está pendente de primeiro acesso
+    if (!user.senha_definida && !user.password_hash) {
+      auditLog(user.id, 'FIRST_ACCESS_PROMPT', { cpf: user.cpf, numero_ordem: user.numero_ordem, ip });
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'FIRST_ACCESS_REQUIRED',
+          message: 'Seu primeiro acesso ainda não foi realizado. Por favor, clique na opção "Primeiro Acesso" para definir sua senha de acesso.'
+        }
+      });
+    }
+
+    // Validação de senha por bcrypt (com migração de transição para hash seguro se necessário)
     let credOk = false;
     if (user.password_hash) {
-      // Senha já migrada para bcrypt
-      credOk = await bcrypt.compare(plainCred, user.password_hash);
-    } else {
-      // Legado: comparação direta com CPF texto plano
-      credOk = (user.password === plainCred);
-      if (credOk) {
-        // Migração progressiva: salva o hash bcrypt silenciosamente
-        const hash = await bcrypt.hash(plainCred, BCRYPT_ROUNDS);
-        await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, user.id]);
-      }
+      credOk = await bcrypt.compare(password, user.password_hash);
+    } else if (user.password && user.password === password) {
+      credOk = true;
+      const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      await db.run('UPDATE users SET password_hash=$1, senha_definida=TRUE, primeiro_acesso_concluido=TRUE, updated_at=NOW() WHERE id=$2', [hash, user.id]);
     }
 
     if (!credOk) {
-      auditLog(null, 'LOGIN_FAILED', { numero_ordem, ip: req.ip });
-      return res.status(401).json({ success: false, error: { code: 'AUTH_FAILED', message: 'Credenciais inválidas.' } });
+      const newTentativas = (user.tentativas_falhas || 0) + 1;
+      let updateSql = 'UPDATE users SET tentativas_falhas = $1 WHERE id = $2';
+      let updateParams = [newTentativas, user.id];
+
+      if (newTentativas >= 5) {
+        updateSql = 'UPDATE users SET tentativas_falhas = $1, bloqueado_ate = NOW() + INTERVAL \'15 minutes\' WHERE id = $2';
+        auditLog(user.id, 'ACCOUNT_TEMPORARILY_LOCKED', { cpf: user.cpf, numero_ordem: user.numero_ordem, ip, userAgent }, 'FAILED');
+      } else {
+        auditLog(user.id, 'LOGIN_FAILED', { cpf: user.cpf, numero_ordem: user.numero_ordem, ip, userAgent, tentativas: newTentativas }, 'FAILED');
+      }
+      await db.run(updateSql, updateParams);
+
+      return res.status(401).json({
+        success: false,
+        error: { code: 'AUTH_FAILED', message: 'CPF ou senha incorretos.' }
+      });
     }
 
-    // Busca dados militares e permissões
-    const military = await db.get('SELECT posto_graduacao, nome_guerra, nome_completo, telefone, motorista FROM EFETIVO WHERE matricula = $1', [numero_ordem]);
-    const permissions = await getUserPermissions(user.id);
-    const roles = await getUserRoles(user.id);
+    // Verifica se MFA está habilitado para esta conta (MFA / 2FA para SUPERUSER / Admin)
+    if (user.mfa_enabled && user.mfa_secret) {
+      const mfaTempToken = jwt.sign(
+        { userId: user.id, purpose: 'MFA_VERIFY' },
+        JWT_SECRET,
+        { expiresIn: '5m' }
+      );
+      auditLog(user.id, 'MFA_CHALLENGE_ISSUED', { cpf: user.cpf, ip });
+      return res.json({
+        success: true,
+        mfa_required: true,
+        mfa_token: mfaTempToken,
+        message: 'Autenticação em duas etapas requerida.'
+      });
+    }
 
-    // Emite Access Token (15 min)
-    const accessToken = jwt.sign(
-      { id: user.id, numero_ordem, is_admin: user.is_admin === 1, roles, permissions },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    // Emite tokens e retorna dados
+    return await issueSessionTokens(user, req, res);
 
-    // Emite Refresh Token (7 dias) e salva hash no banco
-    const rawRefresh = generateToken();
-    const refreshHash = hashToken(rawRefresh);
-    const refreshExpires = new Date(Date.now() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
-    await db.run(
-      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, ip_criacao, user_agent) VALUES ($1,$2,$3,$4,$5)',
-      [user.id, refreshHash, refreshExpires, req.ip, req.headers['user-agent'] || null]
-    );
+  } catch (e) {
+    console.error('[LOGIN ERROR]', e);
+    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Erro interno ao processar autenticação.' } });
+  }
+});
 
-    // Atualiza last_login e registra audit
-    await db.run('UPDATE users SET last_login_at=NOW() WHERE id=$1', [user.id]);
-    auditLog(user.id, 'LOGIN_SUCCESS', { numero_ordem, ip: req.ip, roles });
+// Verificação de Segundo Fator (MFA / TOTP)
+app.post('/api/auth/mfa/verify', authLimiter, async (req, res) => {
+  const { mfa_token, code } = req.body;
+  if (!mfa_token || !code) {
+    return res.status(400).json({ success: false, error: { code: 'MISSING_DATA', message: 'Token de desafio e código de 6 dígitos são obrigatórios.' } });
+  }
+
+  try {
+    const decoded = jwt.verify(mfa_token, JWT_SECRET);
+    if (decoded.purpose !== 'MFA_VERIFY') {
+      return res.status(401).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Token inválido.' } });
+    }
+
+    const user = await db.get('SELECT * FROM users WHERE id=$1', [decoded.userId]);
+    if (!user || !user.mfa_secret) {
+      return res.status(401).json({ success: false, error: { code: 'USER_INVALID', message: 'MFA não configurado para este usuário.' } });
+    }
+
+    const isValid = verifyTOTP(code, user.mfa_secret);
+    if (!isValid) {
+      auditLog(user.id, 'MFA_VERIFICATION_FAILED', { ip: req.ip }, 'FAILED');
+      return res.status(401).json({ success: false, error: { code: 'INVALID_CODE', message: 'Código de autenticação incorreto ou expirado.' } });
+    }
+
+    auditLog(user.id, 'MFA_VERIFICATION_SUCCESS', { ip: req.ip });
+    return await issueSessionTokens(user, req, res);
+
+  } catch (err) {
+    return res.status(401).json({ success: false, error: { code: 'TOKEN_EXPIRED', message: 'Tempo limite expirado. Por favor, tente novamente.' } });
+  }
+});
+
+// Configuração de MFA para o usuário logado
+app.post('/api/auth/mfa/setup', authenticate, async (req, res) => {
+  try {
+    const user = await db.get('SELECT id, cpf, numero_ordem, mfa_enabled FROM users WHERE id=$1', [req.user.id]);
+    const secret = generateSecret();
+    const otpAuthUrl = getOtpAuthUrl(formatCPF(user.cpf) || user.numero_ordem, 'GSVR 9BPM', secret);
+
+    // Salva segredo temporariamente (só confirma no endpoint /confirm)
+    await db.run('UPDATE users SET mfa_secret = $1 WHERE id = $2', [secret, user.id]);
 
     res.json({
       success: true,
-      access_token: accessToken,
-      refresh_token: rawRefresh,
-      user: {
-        id: user.id,
-        numero_ordem,
-        is_admin: user.is_admin === 1,
-        roles,
-        permissions,
-        rank: normalizeRank(military?.posto_graduacao),
-        nome_guerra: military?.nome_guerra || '',
-        nome_completo: military?.nome_completo || '',
-        phone: military?.telefone || '',
-        // Normalizar motorista: true/1/'Sim' → 'Sim', caso contrário → 'Não'
-        motorista: (military?.motorista === true || military?.motorista === 1 || military?.motorista === 'true' || military?.motorista === '1' || military?.motorista === 'Sim') ? 'Sim' : 'Não'
-      }
+      secret,
+      otpauth_url: otpAuthUrl,
+      mfa_enabled: Boolean(user.mfa_enabled)
     });
-  } catch (e) { res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: e.message } }); }
+  } catch (e) {
+    res.status(500).json({ success: false, error: { message: e.message } });
+  }
+});
+
+// Confirmação de ativação do MFA
+app.post('/api/auth/mfa/confirm', authenticate, async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, error: { message: 'Código de 6 dígitos é obrigatório.' } });
+
+  try {
+    const user = await db.get('SELECT id, mfa_secret FROM users WHERE id=$1', [req.user.id]);
+    if (!user?.mfa_secret) return res.status(400).json({ success: false, error: { message: 'Inicie a configuração do MFA antes de confirmar.' } });
+
+    const isValid = verifyTOTP(code, user.mfa_secret);
+    if (!isValid) {
+      return res.status(400).json({ success: false, error: { message: 'Código incorreto. Verifique o horário do dispositivo e tente novamente.' } });
+    }
+
+    await db.run('UPDATE users SET mfa_enabled = TRUE WHERE id = $1', [user.id]);
+    auditLog(user.id, 'MFA_ACTIVATED', { ip: req.ip });
+    res.json({ success: true, message: 'Autenticação em duas etapas (MFA) ativada com sucesso!' });
+  } catch (e) {
+    res.status(500).json({ success: false, error: { message: e.message } });
+  }
+});
+
+// ============================================================
+// FLUXO DE PRIMEIRO ACESSO
+// ============================================================
+
+// Etapa 1: Validar identidade (CPF + Matrícula funcional)
+app.post('/api/auth/first-access/validate', authLimiter, async (req, res) => {
+  const { cpf, matricula } = req.body;
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (!cpf || !matricula) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_FIELDS', message: 'CPF e Matrícula Funcional (Nº de Ordem) são obrigatórios.' }
+    });
+  }
+
+  const cleanedCpf = cleanCPF(cpf);
+  if (!isValidCPF(cleanedCpf)) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_CPF', message: 'CPF inválido.' }
+    });
+  }
+
+  const cleanMatricula = String(matricula).trim();
+
+  try {
+    // 1. Verifica se usuário existe no sistema
+    const user = await db.get('SELECT * FROM users WHERE cpf = $1 OR numero_ordem = $2', [cleanedCpf, cleanMatricula]);
+    if (!user) {
+      auditLog(null, 'FIRST_ACCESS_VALIDATE_FAILED', { cpf: cleanedCpf, matricula: cleanMatricula, ip, reason: 'USER_NOT_FOUND' }, 'FAILED');
+      return res.status(404).json({
+        success: false,
+        error: { code: 'USER_NOT_FOUND', message: 'Conta de usuário não encontrada. Contate a administração do 9º BPM.' }
+      });
+    }
+
+    // 2. Se a conta já tiver senha_definida e primeiro_acesso_concluido, bloqueia repetição indevida
+    if (user.senha_definida && user.primeiro_acesso_concluido) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'ALREADY_COMPLETED',
+          message: 'O primeiro acesso para esta conta já foi concluído anteriormente. Utilize o login regular ou a Recuperação de Senha.'
+        }
+      });
+    }
+
+    // 3. Validação rigorosa dos dados com o cadastro EFETIVO (ou matrícula de desenvolvedor)
+    const military = await db.get(
+      'SELECT id_militar, matricula, cpf, nome_completo, nome_guerra, posto_graduacao, status_ativo FROM EFETIVO WHERE cpf = $1 AND matricula = $2',
+      [cleanedCpf, cleanMatricula]
+    );
+
+    const isMatch = military || (user.numero_ordem === cleanMatricula && user.cpf === cleanedCpf);
+
+    if (!isMatch) {
+      auditLog(user.id, 'FIRST_ACCESS_VALIDATE_FAILED', { cpf: cleanedCpf, matricula: cleanMatricula, ip, reason: 'MISMATCH_MATRICULA' }, 'FAILED');
+      return res.status(401).json({
+        success: false,
+        error: { code: 'IDENTITY_MISMATCH', message: 'A Matrícula informada não confere com o cadastro deste CPF.' }
+      });
+    }
+
+    // 4. Gera token criptográfico temporário de uso único (15 minutos)
+    const rawToken = generateToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+    await db.run('UPDATE first_access_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL', [user.id]);
+    await db.run(
+      'INSERT INTO first_access_tokens (user_id, token_hash, expires_at, ip_solicitante) VALUES ($1, $2, $3, $4)',
+      [user.id, tokenHash, expiresAt, ip]
+    );
+
+    auditLog(user.id, 'FIRST_ACCESS_VALIDATE_SUCCESS', { cpf: cleanedCpf, matricula: cleanMatricula, ip });
+
+    return res.json({
+      success: true,
+      first_access_token: rawToken,
+      nome: military?.nome_guerra || military?.nome_completo || 'Militar',
+      posto_graduacao: military?.posto_graduacao || '',
+      cpf: formatCPF(cleanedCpf)
+    });
+
+  } catch (err) {
+    console.error('[FIRST ACCESS VALIDATE ERROR]', err);
+    res.status(500).json({ success: false, error: { message: 'Erro ao validar primeiro acesso.' } });
+  }
+});
+
+// Etapa 2: Definir nova senha no Primeiro Acesso
+app.post('/api/auth/first-access/set-password', authLimiter, async (req, res) => {
+  const token = req.body.token || req.body.first_access_token || req.body.activation_token;
+  const new_password = req.body.new_password || req.body.password;
+  const confirm_password = req.body.confirm_password;
+  const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+  if (!token || !new_password || !confirm_password) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'MISSING_FIELDS', message: 'Token de ativação e senhas são obrigatórios.' }
+    });
+  }
+
+  if (new_password !== confirm_password) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'PASSWORD_MISMATCH', message: 'A confirmação de senha não coincide com a nova senha digitada.' }
+    });
+  }
+
+  const pwdRuleError = validatePasswordRules(new_password);
+  if (pwdRuleError) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'WEAK_PASSWORD', message: pwdRuleError }
+    });
+  }
+
+  try {
+    const tokenHash = hashToken(token);
+    const stored = await db.get(
+      'SELECT * FROM first_access_tokens WHERE token_hash=$1 AND used_at IS NULL AND expires_at > NOW()',
+      [tokenHash]
+    );
+
+    if (!stored) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'TOKEN_INVALID', message: 'Token de ativação inválido, expirado ou já utilizado. Inicie novamente o primeiro acesso.' }
+      });
+    }
+
+    const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
+
+    await db.run(`
+      UPDATE users
+      SET password_hash = $1,
+          senha_definida = TRUE,
+          primeiro_acesso_concluido = TRUE,
+          tentativas_falhas = 0,
+          bloqueado = FALSE,
+          bloqueado_ate = NULL,
+          updated_at = NOW()
+      WHERE id = $2
+    `, [newHash, stored.user_id]);
+
+    await db.run('UPDATE first_access_tokens SET used_at = NOW() WHERE id = $1', [stored.id]);
+    await db.run('UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [stored.user_id]);
+
+    auditLog(stored.user_id, 'FIRST_ACCESS_COMPLETED', { ip });
+
+    return res.json({
+      success: true,
+      message: 'Senha cadastrada com sucesso! Você já pode realizar o login com seu CPF e nova senha.'
+    });
+
+  } catch (err) {
+    console.error('[SET PASSWORD ERROR]', err);
+    res.status(500).json({ success: false, error: { message: 'Erro ao cadastrar senha.' } });
+  }
 });
 
 // Renovar Access Token via Refresh Token
@@ -408,11 +806,17 @@ app.post('/api/auth/refresh', async (req, res) => {
     if (!stored) return res.status(401).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Refresh token inválido ou expirado.' } });
 
     const user = await db.get('SELECT * FROM users WHERE id=$1', [stored.user_id]);
+    if (!user || user.bloqueado) {
+      return res.status(401).json({ success: false, error: { code: 'USER_INACTIVE', message: 'Usuário inativo ou bloqueado.' } });
+    }
+
     const permissions = await getUserPermissions(user.id);
     const roles = await getUserRoles(user.id);
+    const isSuperuser = roles.includes('SUPERUSER');
+    const isAdmin = user.is_admin === 1 || isSuperuser || roles.includes('ADMIN');
 
     const accessToken = jwt.sign(
-      { id: user.id, numero_ordem: user.numero_ordem, is_admin: user.is_admin === 1, roles, permissions },
+      { id: user.id, cpf: user.cpf, numero_ordem: user.numero_ordem, is_admin: isAdmin, is_superuser: isSuperuser, roles, permissions },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -428,58 +832,108 @@ app.post('/api/auth/logout', authenticate, async (req, res) => {
       const hash = hashToken(refresh_token);
       await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE token_hash=$1', [hash]);
     }
+    auditLog(req.user.id, 'LOGOUT', { ip: req.ip });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
 // Alterar própria senha (autenticado)
 app.post('/api/auth/password/change', authenticate, async (req, res) => {
-  const { current_password, new_password } = req.body;
-  if (!current_password || !new_password) return res.status(400).json({ success: false, error: { message: 'Senha atual e nova senha são obrigatórias.' } });
-  if (new_password.length < 6) return res.status(400).json({ success: false, error: { message: 'A nova senha deve ter no mínimo 6 caracteres.' } });
+  const { current_password, new_password, confirm_password } = req.body;
+  if (!current_password || !new_password) {
+    return res.status(400).json({ success: false, error: { message: 'Senha atual e nova senha são obrigatórias.' } });
+  }
+  if (confirm_password && new_password !== confirm_password) {
+    return res.status(400).json({ success: false, error: { message: 'A confirmação de senha não confere.' } });
+  }
+
+  const pwdRuleError = validatePasswordRules(new_password);
+  if (pwdRuleError) {
+    return res.status(400).json({ success: false, error: { message: pwdRuleError } });
+  }
+
   try {
     const user = await db.get('SELECT * FROM users WHERE id=$1', [req.user.id]);
     let currentOk = false;
     if (user.password_hash) currentOk = await bcrypt.compare(current_password, user.password_hash);
     else currentOk = (user.password === current_password);
-    if (!currentOk) return res.status(401).json({ success: false, error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Senha atual incorreta.' } });
+
+    if (!currentOk) {
+      return res.status(401).json({ success: false, error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Senha atual incorreta.' } });
+    }
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
-    await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [newHash, user.id]);
-    // Revogar todos os refresh tokens (força relogin)
+    await db.run('UPDATE users SET password_hash=$1, senha_definida=TRUE, primeiro_acesso_concluido=TRUE, updated_at=NOW() WHERE id=$2', [newHash, user.id]);
     await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [user.id]);
+
+    auditLog(user.id, 'PASSWORD_CHANGED', { ip: req.ip });
     res.json({ success: true, message: 'Senha alterada com sucesso.' });
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
-// Solicitar reset de senha — rate limited: 15/min
+// Solicitar reset de senha — rate limited: 15/min (CPF + Matrícula)
 app.post('/api/auth/password/forgot', authLimiter, async (req, res) => {
-  const { numero_ordem } = req.body;
-  if (!numero_ordem) return res.status(400).json({ success: false, error: { message: 'Matrícula obrigatória.' } });
+  const { cpf, numero_ordem, matricula } = req.body;
+  const rawIdent = cpf || numero_ordem;
+  const rawMatricula = matricula || numero_ordem;
+
+  if (!rawIdent) return res.status(400).json({ success: false, error: { message: 'CPF ou Matrícula é obrigatório.' } });
+
+  const cleanedCpf = cleanCPF(rawIdent);
+  const isCpf = cleanedCpf.length === 11;
+
   try {
-    const user = await db.get('SELECT id FROM users WHERE numero_ordem=$1', [numero_ordem]);
-    // Resposta genérica (não revela se o usuário existe)
-    if (!user) return res.json({ success: true, message: 'Se a matrícula existir, um token de reset foi gerado.' });
+    let user;
+    if (isCpf) {
+      user = await db.get('SELECT id, cpf, numero_ordem FROM users WHERE cpf=$1', [cleanedCpf]);
+    } else {
+      user = await db.get('SELECT id, cpf, numero_ordem FROM users WHERE numero_ordem=$1', [String(rawIdent).trim()]);
+    }
+
+    if (!user) {
+      // Resposta genérica (não revela se o usuário existe)
+      return res.json({ success: true, message: 'Se os dados existirem no cadastro, o procedimento de recuperação foi registrado.' });
+    }
+
+    // Se fornecida matrícula para conferência, valida
+    if (rawMatricula && user.numero_ordem !== String(rawMatricula).trim()) {
+      return res.json({ success: true, message: 'Se os dados existirem no cadastro, o procedimento de recuperação foi registrado.' });
+    }
 
     const rawToken = generateToken();
     const tokenHash = hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12h
-    // Invalidar tokens anteriores
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2h
+
     await db.run('UPDATE password_reset_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL', [user.id]);
     await db.run(
       'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, ip_solicitante) VALUES ($1,$2,$3,$4)',
       [user.id, tokenHash, expiresAt, req.ip]
     );
-    // Em produção: enviar e-mail. Por ora, retorna token para o admin
-    res.json({ success: true, message: 'Token de reset gerado.', reset_token: rawToken, expires_at: expiresAt });
+
+    auditLog(user.id, 'PASSWORD_RESET_REQUESTED', { cpf: user.cpf, ip: req.ip });
+
+    res.json({
+      success: true,
+      message: 'Token de redefinição gerado.',
+      reset_token: rawToken,
+      expires_at: expiresAt
+    });
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 });
 
-// Redefinir senha com token — rate limited: 15/min
+// Redefinir senha com token
 app.post('/api/auth/password/reset', authLimiter, async (req, res) => {
-  const { token, new_password } = req.body;
+  const { token, new_password, confirm_password } = req.body;
   if (!token || !new_password) return res.status(400).json({ success: false, error: { message: 'Token e nova senha são obrigatórios.' } });
-  if (new_password.length < 6) return res.status(400).json({ success: false, error: { message: 'Mínimo 6 caracteres.' } });
+  if (confirm_password && new_password !== confirm_password) {
+    return res.status(400).json({ success: false, error: { message: 'A confirmação de senha não confere.' } });
+  }
+
+  const pwdRuleError = validatePasswordRules(new_password);
+  if (pwdRuleError) {
+    return res.status(400).json({ success: false, error: { message: pwdRuleError } });
+  }
+
   try {
     const tokenHash = hashToken(token);
     const stored = await db.get(
@@ -489,11 +943,175 @@ app.post('/api/auth/password/reset', authLimiter, async (req, res) => {
     if (!stored) return res.status(400).json({ success: false, error: { code: 'TOKEN_INVALID', message: 'Token inválido, expirado ou já utilizado.' } });
 
     const newHash = await bcrypt.hash(new_password, BCRYPT_ROUNDS);
-    await db.run('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [newHash, stored.user_id]);
+    await db.run('UPDATE users SET password_hash=$1, senha_definida=TRUE, primeiro_acesso_concluido=TRUE, tentativas_falhas=0, bloqueado=FALSE, bloqueado_ate=NULL, updated_at=NOW() WHERE id=$2', [newHash, stored.user_id]);
     await db.run('UPDATE password_reset_tokens SET used_at=NOW() WHERE id=$1', [stored.id]);
     await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [stored.user_id]);
-    res.json({ success: true, message: 'Senha redefinida com sucesso.' });
+
+    auditLog(stored.user_id, 'PASSWORD_RESET_SUCCESS', { ip: req.ip });
+    res.json({ success: true, message: 'Senha redefinida com sucesso! Você já pode realizar o login.' });
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
+});
+
+// ============================================================
+// ADMINISTRAÇÃO TÉCNICA & SUPERUSER
+// ============================================================
+
+// Logs de Auditoria do Sistema
+app.get('/api/admin/audit-logs', authenticate, authorize('sistema:audit'), async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page || '1'));
+    const limit = Math.min(100, Math.max(5, parseInt(req.query.limit || '20')));
+    const offset = (page - 1) * limit;
+
+    const action = req.query.action ? String(req.query.action).trim() : null;
+    const search = req.query.search ? String(req.query.search).trim() : null;
+    const status = req.query.status ? String(req.query.status).trim() : null;
+
+    let whereConditions = [];
+    let params = [];
+    let pIdx = 1;
+
+    if (action) {
+      whereConditions.push(`a.action ILIKE $${pIdx++}`);
+      params.push(`%${action}%`);
+    }
+    if (status) {
+      whereConditions.push(`a.status = $${pIdx++}`);
+      params.push(status);
+    }
+    if (search) {
+      whereConditions.push(`(a.cpf ILIKE $${pIdx} OR a.numero_ordem ILIKE $${pIdx} OR a.ip ILIKE $${pIdx} OR a.action ILIKE $${pIdx} OR e.nome_completo ILIKE $${pIdx})`);
+      params.push(`%${search}%`);
+      pIdx++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const countRes = await db.query(`
+      SELECT count(*)
+      FROM audit_logs a
+      LEFT JOIN EFETIVO e ON a.numero_ordem = e.matricula
+      ${whereClause}
+    `, params);
+    const total = parseInt(countRes.rows[0].count);
+
+    const queryParams = [...params, limit, offset];
+    const { rows } = await db.query(`
+      SELECT a.id, a.user_id, a.cpf, a.numero_ordem, a.action, a.entity, a.entity_id,
+             a.details, a.ip, a.user_agent, a.status, a.created_at,
+             COALESCE(e.nome_completo, e.nome_guerra, 'Sistema / Externo') as usuario_nome
+      FROM audit_logs a
+      LEFT JOIN EFETIVO e ON a.numero_ordem = e.matricula
+      ${whereClause}
+      ORDER BY a.created_at DESC
+      LIMIT $${pIdx++} OFFSET $${pIdx++}
+    `, queryParams);
+
+    res.json({
+      success: true,
+      data: rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+});
+
+// Diagnóstico Técnico do Sistema
+app.get('/api/admin/diagnostics', authenticate, authorize('sistema:diagnostics'), async (req, res) => {
+  try {
+    const tStart = Date.now();
+    await db.query('SELECT 1');
+    const dbLatency = Date.now() - tStart;
+
+    const connRes = await db.query("SELECT count(*) FROM pg_stat_activity WHERE state = 'active'");
+    const usersCountRes = await db.query("SELECT count(*) as total, count(*) FILTER (WHERE status = 'ativo') as ativos, count(*) FILTER (WHERE bloqueado = TRUE) as bloqueados, count(*) FILTER (WHERE senha_definida = TRUE) as senhas_definidas, count(*) FILTER (WHERE mfa_enabled = TRUE) as mfa_ativos FROM users");
+    const superusersRes = await db.query("SELECT count(*) FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE r.nome = 'SUPERUSER'");
+
+    const mem = process.memoryUsage();
+
+    res.json({
+      success: true,
+      diagnostics: {
+        timestamp: new Date().toISOString(),
+        node_version: process.version,
+        uptime_seconds: Math.floor(process.uptime()),
+        database: {
+          status: 'CONNECTED',
+          latency_ms: dbLatency,
+          active_connections: parseInt(connRes.rows[0].count)
+        },
+        users_summary: usersCountRes.rows[0],
+        total_superusers: parseInt(superusersRes.rows[0].count),
+        memory: {
+          rss_mb: Math.round(mem.rss / 1024 / 1024),
+          heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+          heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024)
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: { message: err.message } });
+  }
+});
+
+// Bloqueio / Desbloqueio Imediato de Conta
+app.put('/api/usuarios/:id/status', authenticate, authorize('usuarios:bloquear'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { bloqueado } = req.body;
+    const targetUser = await db.get('SELECT * FROM users WHERE id = $1', [userId]);
+    if (!targetUser) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    // Proteção: não permitir que usuário comum bloqueie um SUPERUSER
+    const targetRoles = await getUserRoles(userId);
+    const callerRoles = req.user.roles || await getUserRoles(req.user.id);
+    if (targetRoles.includes('SUPERUSER') && !callerRoles.includes('SUPERUSER')) {
+      return res.status(403).json({ error: 'Apenas desenvolvedores SUPERUSER podem alterar contas de desenvolvedores.' });
+    }
+
+    const newStatus = bloqueado ? 'bloqueado' : 'ativo';
+    await db.run('UPDATE users SET bloqueado = $1, status = $2, tentativas_falhas = 0, bloqueado_ate = NULL, updated_at = NOW() WHERE id = $3', [Boolean(bloqueado), newStatus, userId]);
+
+    if (bloqueado) {
+      await db.run('UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [userId]);
+    }
+
+    auditLog(req.user.id, bloqueado ? 'USER_BLOCKED' : 'USER_UNBLOCKED', { target_user_id: userId, ip: req.ip });
+    res.json({ success: true, message: `Usuário ${bloqueado ? 'bloqueado' : 'desbloqueado'} com sucesso.` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Reset de Conta para Primeiro Acesso pelo Administrador
+app.put('/api/usuarios/:id/reset-first-access', authenticate, authorize('usuarios:reset'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const targetUser = await db.get('SELECT * FROM users WHERE id = $1', [userId]);
+    if (!targetUser) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    await db.run(`
+      UPDATE users
+      SET senha_definida = FALSE,
+          primeiro_acesso_concluido = FALSE,
+          password_hash = NULL,
+          tentativas_falhas = 0,
+          bloqueado = FALSE,
+          bloqueado_ate = NULL,
+          updated_at = NOW()
+      WHERE id = $1
+    `, [userId]);
+
+    await db.run('UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [userId]);
+    await db.run('UPDATE first_access_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [userId]);
+
+    auditLog(req.user.id, 'USER_FIRST_ACCESS_RESET', { target_user_id: userId, ip: req.ip });
+    res.json({ success: true, message: 'Conta redefinida para Primeiro Acesso com sucesso.' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -2776,76 +3394,150 @@ app.post('/api/servicos/import', upload.single('file'), async (req, res) => {
 // ============================================================
 // USUARIOS (Gestão de Acesso)
 // ============================================================
-app.get('/api/usuarios', async (req, res) => {
+app.get('/api/usuarios', authenticate, authorize('usuarios:read'), async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT u.id, u.numero_ordem, u.is_admin, u.created_at,
-             e.nome_guerra, e.posto_graduacao, e.nome_completo, e.cpf, e.opm
+      SELECT u.id, u.cpf, u.numero_ordem, u.is_admin, u.status, u.bloqueado,
+             u.senha_definida, u.primeiro_acesso_concluido, u.mfa_enabled,
+             u.last_login_at, u.created_at,
+             COALESCE(e.nome_guerra, 'Militar') as nome_guerra,
+             COALESCE(e.posto_graduacao, 'PM') as posto_graduacao,
+             COALESCE(e.nome_completo, 'Militar GSVR') as nome_completo,
+             COALESCE(e.opm, '9º BPM') as opm,
+             COALESCE(
+               (SELECT string_agg(r.nome, ', ') FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = u.id),
+               'MILITAR'
+             ) as roles_list
       FROM users u
-      LEFT JOIN EFETIVO e ON u.numero_ordem = e.matricula
+      LEFT JOIN EFETIVO e ON (u.cpf = e.cpf OR u.numero_ordem = e.matricula)
       ORDER BY u.is_admin DESC, e.nome_completo ASC
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/militares/not-users', async (req, res) => {
+app.get('/api/militares/not-users', authenticate, authorize('usuarios:read'), async (req, res) => {
   try {
     const { rows } = await db.query(`
-      SELECT e.id_militar, e.matricula, e.nome_guerra, e.posto_graduacao, e.nome_completo
+      SELECT e.id_militar, e.matricula, e.cpf, e.nome_guerra, e.posto_graduacao, e.nome_completo
       FROM EFETIVO e
-      WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.numero_ordem = e.matricula)
+      WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.cpf = e.cpf OR u.numero_ordem = e.matricula)
       ORDER BY e.posto_graduacao, e.nome_completo
     `);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/usuarios', async (req, res) => {
+app.post('/api/usuarios', authenticate, authorize('usuarios:admin'), async (req, res) => {
   try {
     const { matricula, is_admin } = req.body;
     if (!matricula) return res.status(400).json({ error: "Matrícula é obrigatória." });
 
-    // Verifica se o militar existe no efetivo para pegar o CPF (senha padrão)
-    const militar = await db.get('SELECT cpf FROM EFETIVO WHERE matricula = $1', [matricula]);
+    const militar = await db.get('SELECT cpf, matricula FROM EFETIVO WHERE matricula = $1', [matricula]);
     if (!militar) return res.status(404).json({ error: "Militar não encontrado no sistema de efetivo." });
 
-    const r = await db.run(
-      'INSERT INTO users (numero_ordem, password, is_admin) VALUES ($1, $2, $3) ON CONFLICT (numero_ordem) DO UPDATE SET is_admin = $3',
-      [matricula, militar.cpf, is_admin ? 1 : 0]
-    );
-    res.status(201).json({ success: true, id: r.lastID });
+    const cleanedCpf = cleanCPF(militar.cpf);
+    const r = await db.run(`
+      INSERT INTO users (
+        cpf, numero_ordem, password, is_admin, status,
+        senha_definida, primeiro_acesso_concluido
+      ) VALUES ($1, $2, $3, $4, 'ativo', FALSE, FALSE)
+      ON CONFLICT (cpf) DO UPDATE SET is_admin = $4, numero_ordem = $2
+    `, [cleanedCpf, militar.matricula, cleanedCpf, is_admin ? 1 : 0]);
+
+    const newUserId = r.lastID;
+    if (newUserId) {
+      const roleNome = is_admin ? 'ADMIN' : 'MILITAR';
+      await db.run(`
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT $1, id FROM roles WHERE nome = $2
+        ON CONFLICT DO NOTHING
+      `, [newUserId, roleNome]);
+    }
+
+    auditLog(req.user.id, 'USER_CREATED', { target_matricula: matricula, is_admin, ip: req.ip });
+    res.status(201).json({ success: true, id: newUserId });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/usuarios/:id', async (req, res) => {
+app.delete('/api/usuarios/:id', authenticate, authorize('usuarios:admin'), async (req, res) => {
   try {
-    // Evitar deletar a si mesmo ou o admin master (exemplo simplificado)
-    const user = await db.get('SELECT numero_ordem FROM users WHERE id = $1', [req.params.id]);
-    if (user?.numero_ordem === '999999') return res.status(403).json({ error: "Não é possível excluir o administrador mestre." });
-
-    await db.run('DELETE FROM users WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/usuarios/:id/admin', async (req, res) => {
-  try {
-    const { is_admin } = req.body;
-    await db.run('UPDATE users SET is_admin=$1 WHERE id=$2', [is_admin ? 1 : 0, req.params.id]);
-    res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/usuarios/:id/senha', async (req, res) => {
-  try {
-    // Reset para o CPF do militar (padrão do sistema)
-    const user = await db.get('SELECT numero_ordem FROM users WHERE id = $1', [req.params.id]);
+    const targetId = parseInt(req.params.id);
+    const user = await db.get('SELECT id, numero_ordem, cpf FROM users WHERE id = $1', [targetId]);
     if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
-    const efetivo = await db.get('SELECT cpf FROM EFETIVO WHERE matricula = $1', [user.numero_ordem]);
-    if (!efetivo) return res.status(404).json({ error: "Militar não encontrado." });
-    await db.run('UPDATE users SET password=$1 WHERE id=$2', [efetivo.cpf, req.params.id]);
-    res.json({ success: true, message: "Senha resetada para o CPF do militar." });
+
+    if (user.id === req.user.id) {
+      return res.status(400).json({ error: "Não é permitido excluir sua própria conta de acesso." });
+    }
+
+    const targetRoles = await getUserRoles(targetId);
+    const callerRoles = req.user.roles || await getUserRoles(req.user.id);
+    if (targetRoles.includes('SUPERUSER') && !callerRoles.includes('SUPERUSER')) {
+      return res.status(403).json({ error: "Apenas desenvolvedores SUPERUSER podem excluir contas de desenvolvedores." });
+    }
+
+    await db.run('DELETE FROM users WHERE id = $1', [targetId]);
+    auditLog(req.user.id, 'USER_DELETED', { target_user_id: targetId, cpf: user.cpf, ip: req.ip });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/usuarios/:id/admin', authenticate, authorize('usuarios:admin'), async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    const { is_admin } = req.body;
+
+    const targetRoles = await getUserRoles(targetId);
+    const callerRoles = req.user.roles || await getUserRoles(req.user.id);
+    if (targetRoles.includes('SUPERUSER') && !callerRoles.includes('SUPERUSER')) {
+      return res.status(403).json({ error: "Não é permitido alterar o status de um desenvolvedor SUPERUSER." });
+    }
+
+    await db.run('UPDATE users SET is_admin=$1, updated_at=NOW() WHERE id=$2', [is_admin ? 1 : 0, targetId]);
+
+    // Atualiza role no user_roles
+    if (is_admin) {
+      await db.run(`
+        INSERT INTO user_roles (user_id, role_id)
+        SELECT $1, id FROM roles WHERE nome = 'ADMIN'
+        ON CONFLICT DO NOTHING
+      `, [targetId]);
+    } else {
+      await db.run(`
+        DELETE FROM user_roles
+        WHERE user_id = $1 AND role_id IN (SELECT id FROM roles WHERE nome = 'ADMIN')
+      `, [targetId]);
+    }
+
+    auditLog(req.user.id, 'USER_ROLE_ADMIN_TOGGLED', { target_user_id: targetId, is_admin, ip: req.ip });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/usuarios/:id/senha', authenticate, authorize('usuarios:reset'), async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    const user = await db.get('SELECT id, cpf, numero_ordem FROM users WHERE id = $1', [targetId]);
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+
+    // Redefine para primeiro acesso seguro
+    await db.run(`
+      UPDATE users
+      SET senha_definida = FALSE,
+          primeiro_acesso_concluido = FALSE,
+          password_hash = NULL,
+          tentativas_falhas = 0,
+          bloqueado = FALSE,
+          bloqueado_ate = NULL,
+          updated_at = NOW()
+      WHERE id = $1
+    `, [targetId]);
+
+    await db.run('UPDATE refresh_tokens SET revoked_at=NOW() WHERE user_id=$1 AND revoked_at IS NULL', [targetId]);
+    await db.run('UPDATE first_access_tokens SET used_at=NOW() WHERE user_id=$1 AND used_at IS NULL', [targetId]);
+
+    auditLog(req.user.id, 'USER_PASSWORD_RESET_TO_FIRST_ACCESS', { target_user_id: targetId, cpf: user.cpf, ip: req.ip });
+    res.json({ success: true, message: "Conta redefinida para Primeiro Acesso. O militar definirá sua senha no primeiro acesso." });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

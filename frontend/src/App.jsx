@@ -23,11 +23,12 @@ import { ConferenciaOperacional } from './components/ConferenciaOperacional';
 import { Footer } from './components/Footer';
 import { QuantitativoGastosFT } from './components/QuantitativoGastosFT';
 import { MinhasEscalas } from './components/MinhasEscalas';
+import { SuperUserDashboard } from './components/SuperUserDashboard';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet, Target, GitCompareArrows, CalendarCheck
+  FileSpreadsheet, Target, GitCompareArrows, CalendarCheck, Terminal
 } from 'lucide-react';
 
 // ============================================================
@@ -143,7 +144,8 @@ function App() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  const isAdmin = user.is_admin || hasPermission('usuarios:admin');
+  const isSuperuser = Boolean(user.is_superuser || user.role_name === 'SUPERUSER' || user.permissions?.includes('sistema:admin'));
+  const isAdmin = isSuperuser || user.is_admin || hasPermission('usuarios:admin');
   const isGerente = isAdmin || hasPermission('escalas:create');
 
   const chevron = (name) => (
@@ -281,6 +283,11 @@ function App() {
                         <Layers size={16} /> Controle de Acesso (RBAC)
                       </a>
                     )}
+                    {isSuperuser && (
+                      <a href="#" className={`dropdown-item ${currentView === 'superuser' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('superuser'); }} style={{ color: '#7c3aed', fontWeight: 700 }}>
+                        <Terminal size={16} /> Painel Técnico (Superuser)
+                      </a>
+                    )}
                   </div>
                 </div>
               )}
@@ -339,6 +346,11 @@ function App() {
               <a href="#" className={`dropdown-item ${currentView === 'profile' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('profile'); }}>
                 <User size={16} /> Meu Perfil
               </a>
+              {isSuperuser && (
+                <a href="#" className={`dropdown-item ${currentView === 'superuser' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('superuser'); }} style={{ color: '#7c3aed', fontWeight: 700 }}>
+                  <Terminal size={16} /> Painel Superuser
+                </a>
+              )}
               <a href="#" className="dropdown-item" onClick={(e) => { e.preventDefault(); handleLogout(); }} style={{ color: '#dc2626' }}>
                 <LogOut size={16} /> Sair
               </a>
@@ -376,6 +388,7 @@ function App() {
         {currentView === 'conferencia' && (isAdmin || isGerente) && <ConferenciaOperacional />}
         {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
         {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}
+        {currentView === 'superuser' && isSuperuser && <SuperUserDashboard user={user} />}
       </main>
       <Footer />
     </>

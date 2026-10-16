@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2, Key, Save } from 'lucide-react';
+import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2, X, CheckCircle2, Key, Save, Lock, Unlock, Smartphone } from 'lucide-react';
 import { compareByRank } from '../utils/formatters';
+import { formatCPF } from '../utils/cpf';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
 
@@ -59,15 +60,31 @@ export function UserManager() {
     }
   };
 
+  const toggleBlockUser = async (user) => {
+    const action = user.bloqueado ? 'DESBLOQUEAR' : 'BLOQUEAR';
+    if (!confirm(`Deseja ${action} o acesso de "${user.nome_guerra || user.numero_ordem}"?`)) return;
+
+    setActionLoading(user.id);
+    try {
+      await axios.put(`${API_URL}/usuarios/${user.id}/status`, { bloqueado: !user.bloqueado });
+      fetchUsuarios();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao alterar bloqueio de usuário');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const resetSenha = async (user) => {
-    if (!confirm(`Deseja resetar a senha de ${user.nome_guerra || user.numero_ordem} para o CPF?`)) return;
+    if (!confirm(`Deseja redefinir a conta de "${user.nome_guerra || user.numero_ordem}" para PRIMEIRO ACESSO?\n\nO militar deverá acessar a tela de Primeiro Acesso para criar uma nova senha pessoal com segurança.`)) return;
     
     setActionLoading(user.id);
     try {
-      await axios.put(`${API_URL}/usuarios/${user.id}/senha`);
-      alert('Senha resetada com sucesso para o CPF do militar.');
+      await axios.put(`${API_URL}/usuarios/${user.id}/reset-first-access`);
+      alert('Conta redefinida com sucesso para Primeiro Acesso.');
+      fetchUsuarios();
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao resetar senha');
+      alert(err.response?.data?.error || 'Erro ao resetar conta');
     } finally {
       setActionLoading(null);
     }
@@ -202,23 +219,24 @@ export function UserManager() {
 
       <div style={{ padding: '0.75rem 1rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', marginBottom: '1.5rem', display: 'flex', gap: '10px', alignItems: 'center' }}>
         <CheckCircle2 size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
-        <div style={{ color: '#1e40af', fontSize: '0.8rem' }}>
-          <strong>Dica:</strong> A senha padrão é sempre o <strong>CPF</strong> (somente números). O acesso é feito pela <strong>Matrícula</strong>.
+        <div style={{ color: '#1e40af', fontSize: '0.85rem' }}>
+          <strong>Segurança e Autenticação por CPF:</strong> O identificador principal de login é o <strong>CPF</strong>. Novos militares realizam o <strong>Primeiro Acesso</strong> para cadastrar sua senha pessoal segura.
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
         <StatCard label="Total de Contas" value={usuarios.length} color="#1e3a5f" />
-        <StatCard label="Administradores" value={usuarios.filter(u => u.is_admin).length} color="#ef4444" />
-        <StatCard label="Militares (Acesso)" value={usuarios.filter(u => !u.is_admin).length} color="#10b981" />
+        <StatCard label="Administradores" value={usuarios.filter(u => u.is_admin || u.roles_list?.includes('ADMIN') || u.roles_list?.includes('SUPERUSER')).length} color="#ef4444" />
+        <StatCard label="1º Acesso Pendente" value={usuarios.filter(u => !u.senha_definida).length} color="#3b82f6" />
+        <StatCard label="Contas Bloqueadas" value={usuarios.filter(u => u.bloqueado).length} color="#dc2626" />
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <div className="search-container" style={{ width: '300px' }}>
+        <div className="search-container" style={{ width: '320px' }}>
           <input
             type="text"
             className="search-input"
-            placeholder="Buscar usuário..."
+            placeholder="Buscar por Nome, CPF ou Matrícula..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -234,7 +252,7 @@ export function UserManager() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div>
-            <SectionTitle icon={<Shield size={16} />} title={`Administradores (${admins.length})`} color="#ef4444" />
+            <SectionTitle icon={<Shield size={16} />} title={`Administradores & Gestores (${admins.length})`} color="#ef4444" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div className="table-premium-wrapper">
                 <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -243,13 +261,14 @@ export function UserManager() {
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
+                      <th>CPF Identificador</th>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ textAlign: 'center' }}>Nível</th>
+                      <th style={{ textAlign: 'center' }}>Situação</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
@@ -258,14 +277,15 @@ export function UserManager() {
                       <UserRow 
                         key={u.id} 
                         user={u} 
-                        onToggle={toggleAdmin} 
+                        onToggle={toggleAdmin}
+                        onToggleBlock={toggleBlockUser}
                         onReset={resetSenha} 
                         onDelete={deleteUser} 
                         onPerms={handleOpenPerms}
                         loading={actionLoading === u.id} 
                       />
                     ))}
-                    {admins.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum administrador encontrado</td></tr>}
+                    {admins.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum administrador encontrado</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -273,7 +293,7 @@ export function UserManager() {
           </div>
 
           <div>
-            <SectionTitle icon={<User size={16} />} title={`Acesso Padrão (${regulares.length})`} color="#64748b" />
+            <SectionTitle icon={<User size={16} />} title={`Militares Operacionais (${regulares.length})`} color="#64748b" />
             <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div className="table-premium-wrapper">
                 <table className="admin-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
@@ -282,13 +302,14 @@ export function UserManager() {
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('nome_guerra')}>
                         Militar {sortConfig.key === 'nome_guerra' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
+                      <th>CPF Identificador</th>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('numero_ordem')}>
                         Matrícula {sortConfig.key === 'numero_ordem' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
                       <th style={{ cursor: 'pointer' }} onClick={() => requestSort('posto_graduacao')}>
                         Posto/OPM {sortConfig.key === 'posto_graduacao' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                       </th>
-                      <th style={{ textAlign: 'center' }}>Nível</th>
+                      <th style={{ textAlign: 'center' }}>Situação</th>
                       <th style={{ textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
@@ -297,14 +318,15 @@ export function UserManager() {
                       <UserRow 
                         key={u.id} 
                         user={u} 
-                        onToggle={toggleAdmin} 
+                        onToggle={toggleAdmin}
+                        onToggleBlock={toggleBlockUser}
                         onReset={resetSenha} 
                         onDelete={deleteUser} 
                         onPerms={handleOpenPerms}
                         loading={actionLoading === u.id} 
                       />
                     ))}
-                    {regulares.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum usuário padrão encontrado</td></tr>}
+                    {regulares.length === 0 && <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>Nenhum militar encontrado</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -467,12 +489,21 @@ function SectionTitle({ icon, title, color }) {
   );
 }
 
-function UserRow({ user, onToggle, onReset, onDelete, onPerms, loading }) {
+function UserRow({ user, onToggle, onToggleBlock, onReset, onDelete, onPerms, loading }) {
+  const isSuperuser = user.is_superuser || user.role_name === 'SUPERUSER';
+  const isBlocked = user.bloqueado;
+  const isFirstAccessPending = !user.senha_definida || !user.primeiro_acesso_concluido;
+
   return (
-    <tr style={{ opacity: loading ? 0.6 : 1 }}>
+    <tr style={{ opacity: loading ? 0.6 : 1, background: isBlocked ? '#fff1f2' : 'transparent' }}>
       <td>
         <div style={{ fontWeight: 600, color: '#1e293b' }}>{user.nome_guerra || user.nome_completo || '—'}</div>
         <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{user.nome_completo || '—'}</div>
+      </td>
+      <td>
+        <code style={{ background: '#f8fafc', padding: '3px 8px', borderRadius: '4px', fontSize: '0.8rem', border: '1px solid #e2e8f0', color: '#334155', fontWeight: 600 }}>
+          {formatCPF(user.cpf || user.username || '') || '—'}
+        </code>
       </td>
       <td><code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem' }}>{user.numero_ordem}</code></td>
       <td>
@@ -480,26 +511,75 @@ function UserRow({ user, onToggle, onReset, onDelete, onPerms, loading }) {
         <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{user.opm || 'OPM não informada'}</div>
       </td>
       <td style={{ textAlign: 'center' }}>
-        <span style={{
-          padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
-          background: user.is_admin ? '#fee2e2' : '#f0fdf4',
-          color: user.is_admin ? '#ef4444' : '#10b981'
-        }}>
-          {user.is_admin ? 'Admin' : 'Militar'}
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+          {isSuperuser ? (
+            <span style={{
+              padding: '3px 8px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase',
+              background: '#ede9fe', color: '#6d28d9', border: '1px solid #c4b5fd'
+            }}>
+              SUPERUSER
+            </span>
+          ) : (
+            <span style={{
+              padding: '3px 8px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
+              background: user.is_admin ? '#fee2e2' : '#f0fdf4',
+              color: user.is_admin ? '#ef4444' : '#10b981'
+            }}>
+              {user.is_admin ? 'Admin' : 'Militar'}
+            </span>
+          )}
+
+          {isBlocked && (
+            <span style={{
+              padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700,
+              background: '#ef4444', color: '#fff'
+            }}>
+              BLOQUEADO
+            </span>
+          )}
+
+          {isFirstAccessPending && !isBlocked && (
+            <span style={{
+              padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700,
+              background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a'
+            }}>
+              1º ACESSO PENDENTE
+            </span>
+          )}
+
+          {user.mfa_enabled && (
+            <span style={{
+              padding: '2px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700,
+              background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0'
+            }}>
+              MFA ATIVO
+            </span>
+          )}
+        </div>
       </td>
       <td style={{ textAlign: 'right' }}>
         <div className="action-btn-group">
           <button className="action-btn action-btn-info" disabled={loading} onClick={() => onPerms(user)} title="Gerenciar Permissões Individuais">
             <Key size={16} />
           </button>
-          <button className="action-btn action-btn-warning" disabled={loading} onClick={() => onToggle(user)} title="Alternar Permissão Admin">
-            {user.is_admin ? <ShieldOff size={16} /> : <Shield size={16} />}
+          {!isSuperuser && (
+            <button className="action-btn action-btn-warning" disabled={loading} onClick={() => onToggle(user)} title="Alternar Permissão Admin">
+              {user.is_admin ? <ShieldOff size={16} /> : <Shield size={16} />}
+            </button>
+          )}
+          <button 
+            className="action-btn" 
+            style={{ color: isBlocked ? '#10b981' : '#dc2626' }}
+            disabled={loading || isSuperuser} 
+            onClick={() => onToggleBlock(user)} 
+            title={isBlocked ? 'Desbloquear Acesso' : 'Bloquear Acesso'}
+          >
+            {isBlocked ? <Unlock size={16} /> : <Lock size={16} />}
           </button>
-          <button className="action-btn action-btn-success" disabled={loading} onClick={() => onReset(user)} title="Resetar Senha para CPF">
+          <button className="action-btn action-btn-success" disabled={loading} onClick={() => onReset(user)} title="Resetar para 1º Acesso (Definir Senha)">
             <RefreshCw size={16} />
           </button>
-          <button className="action-btn action-btn-danger" disabled={loading || user.numero_ordem === '999999'} onClick={() => onDelete(user)} title="Remover Conta de Acesso">
+          <button className="action-btn action-btn-danger" disabled={loading || user.numero_ordem === '999999' || isSuperuser} onClick={() => onDelete(user)} title="Remover Conta de Acesso">
             <Trash2 size={16} />
           </button>
         </div>
