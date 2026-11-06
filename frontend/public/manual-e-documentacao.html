@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSVR — Documentação Oficial e Manual do Usuário | 9º BPM PMAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #080f1e;
+      --bg-card: #0f1c32;
+      --bg-surface: #152642;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(56, 189, 248, 0.3);
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent-cyan: #38bdf8;
+      --accent-gold: #f59e0b;
+      --accent-green: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-red: #ef4444;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Top Header Bar */
+    header.topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(8, 15, 30, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.85rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-group img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+    }
+
+    .brand-titles h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-titles p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .search-wrapper {
+      position: relative;
+      width: 320px;
+    }
+
+    .search-wrapper input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      padding: 0.55rem 1rem 0.55rem 2.4rem;
+      color: #fff;
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-wrapper input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    .mode-tabs {
+      display: flex;
+      background: var(--bg-card);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .mode-tab {
+      padding: 0.45rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .mode-tab.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+    }
+
+    .btn-print {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.45rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-print:hover {
+      background: var(--bg-surface);
+      border-color: var(--accent-cyan);
+    }
+
+    /* Main Container Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Sidebar Navigation */
+    aside.sidebar {
+      width: 320px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border-color);
+      background: rgba(11, 22, 40, 0.6);
+      padding: 1.5rem 1rem;
+      position: sticky;
+      top: 70px;
+      height: calc(100vh - 70px);
+      overflow-y: auto;
+    }
+
+    .nav-section-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      font-weight: 700;
+      margin: 1.25rem 0 0.5rem 0.5rem;
+    }
+
+    .nav-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-links a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.55rem 0.75rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.15s ease-in-out;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateX(3px);
+    }
+
+    .nav-links a.active {
+      color: #fff;
+      background: rgba(56, 189, 248, 0.12);
+      border-left: 3px solid var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .nav-badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: auto;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Content Area */
+    main.content-area {
+      flex: 1;
+      padding: 2.5rem 3.5rem;
+      max-width: 1080px;
+      overflow-y: auto;
+    }
+
+    .hero-banner {
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(15, 28, 50, 0.7) 100%);
+      border: 1px solid var(--border-accent);
+      border-radius: 14px;
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-banner h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.6rem;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-banner p {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1.25rem;
+    }
+
+    .badge-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-color);
+      color: #fff;
+    }
+
+    .badge-item.gold { border-color: rgba(245, 158, 11, 0.4); color: var(--accent-gold); }
+    .badge-item.cyan { border-color: rgba(56, 189, 248, 0.4); color: var(--accent-cyan); }
+    .badge-item.green { border-color: rgba(16, 185, 129, 0.4); color: var(--accent-green); }
+
+    /* Cards & Doc Sections */
+    .doc-section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: 90px;
+    }
+
+    .doc-section h2.section-header {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .doc-section h3 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin: 1.5rem 0 0.75rem 0;
+    }
+
+    .doc-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .doc-card:hover {
+      border-color: rgba(56, 189, 248, 0.25);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.85rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-body h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+
+    .step-body p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .alert-box {
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      display: flex;
+      gap: 0.85rem;
+      font-size: 0.88rem;
+    }
+
+    .alert-box.info {
+      background: rgba(2, 132, 199, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #bae6fd;
+    }
+
+    .alert-box.warning {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fde68a;
+    }
+
+    .alert-box.success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #a7f3d0;
+    }
+
+    /* Code Blocks & Tables */
+    pre code {
+      display: block;
+      background: #060b14;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    table.styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      font-size: 0.85rem;
+    }
+
+    table.styled-table th, table.styled-table td {
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color);
+      text-align: left;
+    }
+
+    table.styled-table th {
+      background: var(--bg-surface);
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    table.styled-table tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Print Specifics */
+    @media print {
+      header.topbar, aside.sidebar, .mode-tabs, .btn-print, .search-wrapper {
+        display: none !important;
+      }
+      body {
+        background: #fff !important;
+        color: #000 !important;
+      }
+      main.content-area {
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+      .doc-card, .step-item {
+        background: #fff !important;
+        border: 1px solid #ccc !important;
+        color: #000 !important;
+        box-shadow: none !important;
+      }
+      pre code {
+        background: #f8fafc !important;
+        color: #000 !important;
+        border: 1px solid #ccc !important;
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      aside.sidebar {
+        display: none;
+      }
+      main.content-area {
+        padding: 1.5rem;
+      }
+      .search-wrapper {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="topbar">
+    <div class="brand-group">
+      <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" onerror="this.style.display='none'">
+      <div class="brand-titles">
+        <h1>GSVR <span>— Central de Ajuda & Documentação</span></h1>
+        <p>9º Batalhão de Polícia Militar de Alagoas • Delmiro Gouveia/AL</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Buscar no manual ou documentação..." onkeyup="filterDocs()">
+      </div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabManual" onclick="switchMode('manual')">
+          📘 Manual do Usuário
+        </button>
+        <button class="mode-tab" id="tabTecnica" onclick="switchMode('tecnica')">
+          ⚙️ Documentação Técnica
+        </button>
+      </div>
+
+      <button class="btn-print" onclick="window.print()">
+        🖨️ Imprimir / Salvar PDF
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      
+      <!-- Seção do Manual do Usuário -->
+      <div id="navGroupManual">
+        <div class="nav-section-title">Manual do Usuário</div>
+        <ul class="nav-links">
+          <li><a href="#m-militar" class="active">👨‍✈️ 1. Policial Voluntário <span class="nav-badge">Geral</span></a></li>
+          <li><a href="#m-p3">📋 2. Operador P/3 (Escalas) <span class="nav-badge">P/3</span></a></li>
+          <li><a href="#m-gestor">💼 3. Gestor & Financeiro <span class="nav-badge">Comando</span></a></li>
+          <li><a href="#m-admin">🛡️ 4. Administrador & Suporte <span class="nav-badge">TI/Admin</span></a></li>
+        </ul>
+      </div>
+
+      <!-- Seção da Documentação Técnica -->
+      <div id="navGroupTecnica">
+        <div class="nav-section-title">Documentação Técnica</div>
+        <ul class="nav-links">
+          <li><a href="#t-visao">01. Visão Geral e Negócio</a></li>
+          <li><a href="#t-arquitetura">02. Arquitetura e Stack</a></li>
+          <li><a href="#t-dados">03. Modelagem de Dados (3NF)</a></li>
+          <li><a href="#t-seguranca">04. Segurança & Autenticação</a></li>
+          <li><a href="#t-modulos">05. Módulos do Sistema</a></li>
+          <li><a href="#t-apis">06. Catálogo de APIs REST</a></li>
+          <li><a href="#t-implantacao">07. Implantação e Operação</a></li>
+        </ul>
+      </div>
+
+      <div class="nav-section-title">Recursos Rápidos</div>
+      <ul class="nav-links">
+        <li><a href="/" target="_blank">🚀 Abrir Sistema GSVR</a></li>
+        <li><a href="/VERSION.md" target="_blank">📜 Histórico de Versões (v1.37.0)</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+
+      <!-- Hero Header -->
+      <div class="hero-banner">
+        <h2>Manual Integrado & Documentação Técnica do GSVR</h2>
+        <p>
+          Guia completo de operação, regras operacionais da Força-Tarefa, arquitetura do software,
+          esquema de dados e especificações de segurança do <strong>9º BPM/PMAL</strong>.
+        </p>
+        <div class="badge-bar">
+          <span class="badge-item gold">Versão v1.37.0</span>
+          <span class="badge-item cyan">Autenticação Segura por CPF</span>
+          <span class="badge-item green">PostgreSQL 16 & Docker</span>
+          <span class="badge-item">9º BPM / PMAL</span>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SEÇÃO DO MANUAL DO USUÁRIO                                      -->
+      <!-- ============================================================== -->
+      <div id="sectionManualContent">
+
+        <!-- 1. Policial Voluntário -->
+        <section id="m-militar" class="doc-section">
+          <h2 class="section-header">👨‍✈️ 1. Manual do Policial Militar Voluntário</h2>
+          <div class="doc-card">
+            <p>
+              Instruções para o policial militar que concorre às escalas de Serviço Voluntário Remunerado (SVR)
+              no âmbito do 9º Batalhão.
+            </p>
+
+            <h3>1.1. Primeiro Acesso e Cadastro de Senha</h3>
+            <div class="alert-box info">
+              <strong>Defesa Anti-Sequestro de Contas:</strong> Para sua segurança, o cadastro da senha exige
+              validação cruzada entre seu CPF e a sua Matrícula Funcional ou Nº de Ordem cadastrado no Efetivo.
+            </div>
+
+            <div class="step-list">
+              <div class="step-item">
+                <div class="step-number">1</div>
+                <div class="step-body">
+                  <h4>Acesse o Sistema</h4>
+                  <p>Abra o navegador e acerte o endereço do sistema. Na tela de login, clique em <strong>"Primeiro Acesso? Cadastre sua senha"</strong>.</p>
+                </div>
+              </div>
+
+              <div class="step-item">
+                <div class="step-number">2</div>
+                <div class="step-body">
+                  <h4>Identificação Cruzada</h4>
+                  <p>Insira seu CPF (11 dígitos) e confirme sua Matrícula/Nº de Ordem. O sistema emitirá um token temporário de 15 minutos.</p>
+                </div>
+              </div>
+
+              <div class="step-item">
+                <div class="step-number">3</div>
+                <div class="step-body">
+                  <h4>Defina sua Senha Forte</h4>
+                  <p>Cadastre uma senha de no mínimo 8 dígitos, contendo maiúsculas, minúsculas, números e caracteres especiais (!@#$...).</p>
+                </div>
+              </div>
+            </div>
+
+            <h3>1.2. Consultando suas Escalas e Cotas</h3>
+            <p>
+              Ao fazer o login, o painel <strong>Minhas Escalas</strong> exibirá:
+            </p>
+            <ul style="margin: 0.85rem 0 0.85rem 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+              <li><strong>Próximos Serviços:</strong> Data, turno de 6 horas, viatura designada e ponto de embarque.</li>
+              <li><strong>Contador de Cotas:</strong> Acompanhamento em tempo real de quantos serviços você realizou dentro do limite legal máximo de <strong>8 serviços por ciclo</strong>.</li>
+              <li><strong>Companheiros de Equipe:</strong> Quem compõe a guarnição (Comandante e Motorista).</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- 2. Operador P/3 -->
+        <section id="m-p3" class="doc-section">
+          <h2 class="section-header">📋 2. Manual do Operador e Planejador da P/3</h2>
+          <div class="doc-card">
+            <p>
+              Instruções para os operadores responsáveis pela montagem, ajuste e homologação das escalas operacionais
+              no painel <strong>AdminDashboardV2</strong>.
+            </p>
+
+            <h3>2.1. Montagem Drag-and-Drop (Arrastar e Soltar)</h3>
+            <div class="step-list">
+              <div class="step-item">
+                <div class="step-number">1</div>
+                <div class="step-body">
+                  <h4>Seleção de Parâmetros</h4>
+                  <p>Selecione o Ciclo Operacional vigente (16 a 15), a Data de Serviço e o Turno (T1 a T4).</p>
+                </div>
+              </div>
+              <div class="step-item">
+                <div class="step-number">2</div>
+                <div class="step-body">
+                  <h4>Banco de Voluntários</h4>
+                  <p>A coluna lateral exibe apenas os voluntários aptos que assinalaram disponibilidade para o dia e turno selecionados. Militares que já atingiram 8 serviços recebem badge cinza e são bloqueados para evitar excesso de cotas.</p>
+                </div>
+              </div>
+              <div class="step-item">
+                <div class="step-number">3</div>
+                <div class="step-body">
+                  <h4>Distribuição de Funções</h4>
+                  <p>Arraste o militar para o slot correto: <strong>Comandante</strong> (Oficiais/Graduados), <strong>Motorista</strong> (somente militares credenciados) ou <strong>Patrulheiro</strong>.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="alert-box warning">
+              <strong>Regra de Persistência Manual:</strong> O sistema não grava dados incompletos enquanto você organiza as equipes. Ao concluir a montagem da patrulha, você <strong>DEVE clicar no botão "Salvar Escala"</strong> na barra superior!
+            </div>
+
+            <h3>2.2. Emissão do Memorando Oficial SVR (A4 / PDF)</h3>
+            <p>
+              Após salvar a escala, clique em <strong>"Publicar Memorando SVR"</strong>. O sistema gera a folha A4 oficial
+              padronizada com o brasão do 9º BPM, despacho de autorização e lista de viaturas e militares pronta para assinatura e publicação.
+            </p>
+          </div>
+        </section>
+
+        <!-- 3. Gestor & Financeiro -->
+        <section id="m-gestor" class="doc-section">
+          <h2 class="section-header">💼 3. Manual do Gestor Operacional e Financeiro</h2>
+          <div class="doc-card">
+            <p>
+              Instruções para o Comando de Batalhão, Chefe da P/3 e Fiscais de Contrato:
+            </p>
+
+            <h3>3.1. Gestão de Ciclos e Orçamento (Regra 16 a 15)</h3>
+            <p>
+              Os ciclos do SVR transcorrem do <strong>dia 16 de um mês ao dia 15 do mês seguinte</strong>.
+              Em <em>Configurações → Gerenciamento de Ciclos</em>, informe:
+            </p>
+            <ul style="margin: 0.85rem 0 0.85rem 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+              <li><strong>Valor Total Previsto:</strong> Orçamento aprovado pelo Comando Geral;</li>
+              <li><strong>Valor de Contingência:</strong> Reserva técnica de segurança (ex: 5% a 10%);</li>
+              <li><strong>Limite Diário de Equipes:</strong> Teto máximo de viaturas por dia (ex: 6 equipes).</li>
+            </ul>
+
+            <h3>3.2. Otimização e Cenários A e B</h3>
+            <table class="styled-table">
+              <thead>
+                <tr>
+                  <th>Cenário</th>
+                  <th>Dias Abrangidos</th>
+                  <th>Custo / Militar</th>
+                  <th>Custo / Equipe (3 Militares)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Cenário A (Ordinário)</strong></td>
+                  <td>Segunda a Quinta-feira (dias úteis)</td>
+                  <td>R$ 192,03</td>
+                  <td>R$ 576,09</td>
+                </tr>
+                <tr>
+                  <td><strong>Cenário B (Crítico)</strong></td>
+                  <td>Sexta, Sábado, Domingo e Feriados</td>
+                  <td>R$ 250,00</td>
+                  <td>R$ 750,00</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              Caso ocorram imprevistos climáticos ou cancelamentos de serviços, utilize o botão <strong>"Recalcular Metas"</strong>
+              para redistribuir o saldo remanescente entre os dias restantes do ciclo.
+            </p>
+          </div>
+        </section>
+
+        <!-- 4. Administrador & Suporte -->
+        <section id="m-admin" class="doc-section">
+          <h2 class="section-header">🛡️ 4. Manual do Administrador e Suporte Técnico</h2>
+          <div class="doc-card">
+            <h3>4.1. Desbloqueio de Usuários Travados</h3>
+            <p>
+              Contas com 5 erros consecutivos de senha são temporariamente travadas.
+              Para desbloquear imediatamente sem aguardar os 15 minutos:
+            </p>
+            <p style="margin: 0.5rem 0; color: var(--accent-cyan); font-weight: 600;">
+              Acesse Configurações → Gestão de Usuários → Localize o militar → Clique em "Desbloquear".
+            </p>
+
+            <h3>4.2. Reset de Primeiro Acesso</h3>
+            <p>
+              Se um policial esqueceu sua senha e não consegue recuperá-la, utilize o botão <strong>"Resetar 1º Acesso"</strong>.
+              O sistema anulará a credencial antiga e exigirá que ele refaça a identificação cruzada por CPF + Matrícula.
+            </p>
+
+            <h3>4.3. Monitoramento Técnico Superuser</h3>
+            <p>
+              Usuários com o papel <strong>SUPERUSER</strong> possuem acesso ao <em>Painel Técnico</em>,
+              com visualização da trilha imutável de auditoria (tabela <code>audit_logs</code>), status de conexões do PostgreSQL
+              e métricas de consumo de memória da aplicação.
+            </p>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- SEÇÃO DA DOCUMENTAÇÃO TÉCNICA                                  -->
+      <!-- ============================================================== -->
+      <div id="sectionTecnicaContent" style="display: none;">
+
+        <section id="t-visao" class="doc-section">
+          <h2 class="section-header">01. Visão Geral da Arquitetura e do Negócio</h2>
+          <div class="doc-card">
+            <p>
+              O <strong>GSVR</strong> foi desenvolvido especificamente para os desafios do 9º BPM/PMAL.
+              Sua lógica central apoia-se no motor <code>CycleEngine.js</code>, que gerencia a transição de ciclos operacionais (dia 16 ao dia 15 do mês seguinte)
+              e fragmenta requerimentos mensais em dois ciclos distintos sem perda de integridade.
+            </p>
+          </div>
+        </section>
+
+        <section id="t-arquitetura" class="doc-section">
+          <h2 class="section-header">02. Arquitetura 3-Tier e Stack Tecnológica</h2>
+          <div class="doc-card">
+            <table class="styled-table">
+              <thead>
+                <tr>
+                  <th>Camada</th>
+                  <th>Tecnologia</th>
+                  <th>Porta Padrão</th>
+                  <th>Papel no Sistema</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Frontend (SPA)</strong></td>
+                  <td>React 18 + Vite 6 + dnd-kit</td>
+                  <td><code>5173</code></td>
+                  <td>Interface Drag-and-Drop, validações em tempo real e exportação PDF A4.</td>
+                </tr>
+                <tr>
+                  <td><strong>Backend (API)</strong></td>
+                  <td>Express 5 + Node.js 21+</td>
+                  <td><code>3001</code></td>
+                  <td>Roteamento RESTful, motor de otimização, autenticação JWT e RBAC.</td>
+                </tr>
+                <tr>
+                  <td><strong>Banco de Dados</strong></td>
+                  <td>PostgreSQL 16 Engine</td>
+                  <td><code>5432</code></td>
+                  <td>Tabelas 3NF, integridade referencial, triggers e logs de auditoria.</td>
+                </tr>
+                <tr>
+                  <td><strong>Infraestrutura</strong></td>
+                  <td>Docker Compose / Portainer</td>
+                  <td><code>9000</code> / <code>5050</code></td>
+                  <td>Isolamento de containers, volumes para node_modules e pgdata persistente.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="t-seguranca" class="doc-section">
+          <h2 class="section-header">04. Arquitetura de Segurança e Autenticação</h2>
+          <div class="doc-card">
+            <p>
+              A camada de segurança adota o princípio de defesa em profundidade:
+            </p>
+            <ul style="margin: 0.85rem 0 0.85rem 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+              <li><strong>CPF Primário:</strong> Validação dos dígitos verificadores (RFC Receita Federal) no frontend e backend;</li>
+              <li><strong>Criptografia Forte:</strong> Passwords cifradas com <code>bcrypt</code> e salt cost de 12 rounds;</li>
+              <li><strong>Rate Limiting:</strong> 30 req/min no login para compatibilidade com gateways NAT em quartéis;</li>
+              <li><strong>SUPERUSER e 2FA TOTP:</strong> Acesso administrativo nominal com chave de dois fatores compatível com Google Authenticator.</li>
+            </ul>
+            <pre><code>// Exemplo de criação de superusuário via CLI do backend:
+node backend/scripts/provision_superuser.js create \
+  --nome "Desenvolvedor DATEN" \
+  --cpf "00000000000" \
+  --matricula "DEV_01" \
+  --password "Senha@Segura2026" \
+  --mfa</code></pre>
+          </div>
+        </section>
+
+        <section id="t-apis" class="doc-section">
+          <h2 class="section-header">06. Catálogo Resumido de Endpoints da API</h2>
+          <div class="doc-card">
+            <table class="styled-table">
+              <thead>
+                <tr>
+                  <th>Método</th>
+                  <th>Rota</th>
+                  <th>Autenticação</th>
+                  <th>Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>POST</code></td>
+                  <td><code>/api/login</code></td>
+                  <td>Pública</td>
+                  <td>Login via CPF com rate limit estrito.</td>
+                </tr>
+                <tr>
+                  <td><code>POST</code></td>
+                  <td><code>/api/auth/first-access/verify</code></td>
+                  <td>Pública</td>
+                  <td>Validação cruzada de CPF + Matrícula.</td>
+                </tr>
+                <tr>
+                  <td><code>POST</code></td>
+                  <td><code>/api/escalas/batch</code></td>
+                  <td>Bearer JWT</td>
+                  <td>Persistência em lote de escalas montadas.</td>
+                </tr>
+                <tr>
+                  <td><code>GET</code></td>
+                  <td><code>/api/minhas-escalas</code></td>
+                  <td>Bearer JWT</td>
+                  <td>Retorna escalas do militar autenticado.</td>
+                </tr>
+                <tr>
+                  <td><code>GET</code></td>
+                  <td><code>/api/superuser/audit-logs</code></td>
+                  <td>SUPERUSER</td>
+                  <td>Consulta registros da tabela audit_logs.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    function switchMode(mode) {
+      const btnManual = document.getElementById('tabManual');
+      const btnTecnica = document.getElementById('tabTecnica');
+      const secManual = document.getElementById('sectionManualContent');
+      const secTecnica = document.getElementById('sectionTecnicaContent');
+      const navManual = document.getElementById('navGroupManual');
+      const navTecnica = document.getElementById('navGroupTecnica');
+
+      if (mode === 'manual') {
+        btnManual.classList.add('active');
+        btnTecnica.classList.remove('active');
+        secManual.style.display = 'block';
+        secTecnica.style.display = 'none';
+        navManual.style.display = 'block';
+        navTecnica.style.display = 'none';
+      } else {
+        btnManual.classList.remove('active');
+        btnTecnica.classList.add('active');
+        secManual.style.display = 'none';
+        secTecnica.style.display = 'block';
+        navManual.style.display = 'none';
+        navTecnica.style.display = 'block';
+      }
+    }
+
+    function filterDocs() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const sections = document.querySelectorAll('.doc-section');
+      
+      sections.forEach(sec => {
+        const text = sec.innerText.toLowerCase();
+        if (text.includes(query)) {
+          sec.style.display = 'block';
+        } else {
+          sec.style.display = 'none';
+        }
+      });
+    }
+
+    // Inicializa na aba do Manual
+    switchMode('manual');
+  </script>
+</body>
+</html>

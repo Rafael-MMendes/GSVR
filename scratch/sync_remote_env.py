@@ -2,7 +2,7 @@ import paramiko
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('192.168.1.102', username='vps_9bpm', password='asdf1234')
+ssh.connect('192.168.1.104', username='vps_9bpm', password='asdf1234')
 
 # 1. Checar .env raiz e frontend/.env no servidor
 files = [
@@ -15,9 +15,9 @@ for f in files:
     print(f"=== {f} ===")
     print(stdout.read().decode('utf-8'))
 
-# 2. Atualizar 192.168.1.106 para 192.168.1.102 em todos os .env no servidor
+# 2. Atualizar IP nos .env no servidor
 update_cmd = (
-    'sed -i "s/192.168.1.[0-9]*/192.168.1.102/g" '
+    'sed -i "s/192.168.1.[0-9]*/192.168.1.104/g" '
     '"/home/vps_9bpm/projetos/GSVR - prod/.env" '
     '"/home/vps_9bpm/projetos/GSVR - prod/frontend/.env"'
 )
@@ -28,9 +28,9 @@ err = stderr.read().decode('utf-8')
 if err:
     print("ERR:", err)
 
-# 3. Reiniciar ft-frontend e ft-backend
-print("Reiniciando containers ft-frontend e ft-backend...")
-stdin, stdout, stderr = ssh.exec_command('docker restart ft-frontend ft-backend')
+# 3. Recriar containers ft-frontend e ft-backend com o novo ambiente
+print("Recriando containers ft-frontend com novo ambiente...")
+stdin, stdout, stderr = ssh.exec_command('cd "/home/vps_9bpm/projetos/GSVR - prod" && docker compose up -d --force-recreate frontend')
 print(stdout.read().decode('utf-8'))
 
 ssh.close()

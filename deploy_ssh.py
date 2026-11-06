@@ -4,7 +4,7 @@ import time
 import paramiko
 
 def deploy():
-    hostname = '192.168.1.102'
+    hostname = '192.168.1.104'
     username = 'vps_9bpm'
     password = 'asdf1234'
     remote_base = '/home/vps_9bpm/projetos/GSVR - prod'
@@ -21,7 +21,21 @@ def deploy():
         ('frontend/src/components/LoginScreen.jsx', f'{remote_base}/frontend/src/components/LoginScreen.jsx'),
         ('frontend/src/components/SuperUserDashboard.jsx', f'{remote_base}/frontend/src/components/SuperUserDashboard.jsx'),
         ('frontend/src/components/UserManager.jsx', f'{remote_base}/frontend/src/components/UserManager.jsx'),
+        ('frontend/src/components/DocsPortal.jsx', f'{remote_base}/frontend/src/components/DocsPortal.jsx'),
+        ('frontend/src/components/Footer.jsx', f'{remote_base}/frontend/src/components/Footer.jsx'),
         ('frontend/src/App.jsx', f'{remote_base}/frontend/src/App.jsx'),
+        ('frontend/public/manual-e-documentacao.html', f'{remote_base}/frontend/public/manual-e-documentacao.html'),
+        ('docs/README.md', f'{remote_base}/docs/README.md'),
+        ('docs/index.html', f'{remote_base}/docs/index.html'),
+        ('docs/01-visao-geral.md', f'{remote_base}/docs/01-visao-geral.md'),
+        ('docs/02-arquitetura-e-stack.md', f'{remote_base}/docs/02-arquitetura-e-stack.md'),
+        ('docs/03-modelo-de-dados.md', f'{remote_base}/docs/03-modelo-de-dados.md'),
+        ('docs/04-seguranca-e-autenticacao.md', f'{remote_base}/docs/04-seguranca-e-autenticacao.md'),
+        ('docs/05-modulos-do-sistema.md', f'{remote_base}/docs/05-modulos-do-sistema.md'),
+        ('docs/06-catalogo-de-apis.md', f'{remote_base}/docs/06-catalogo-de-apis.md'),
+        ('docs/07-guia-de-implantacao-e-operacao.md', f'{remote_base}/docs/07-guia-de-implantacao-e-operacao.md'),
+        ('docs/08-manual-do-usuario.md', f'{remote_base}/docs/08-manual-do-usuario.md'),
+        ('README.md', f'{remote_base}/README.md'),
         ('VERSION.md', f'{remote_base}/VERSION.md')
     ]
 

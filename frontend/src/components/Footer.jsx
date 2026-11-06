@@ -45,7 +45,9 @@ export function Footer({ isPdf = false }) {
     color: '#64748b',
     fontSize: isPdf ? '10pt' : '0.9rem',
     width: '100%',
-    fontFamily: "'Inter', sans-serif"
+    fontFamily: "'Inter', sans-serif",
+    pageBreakInside: 'avoid',
+    breakInside: 'avoid'
   };
 
   const devContainerStyle = {
@@ -85,7 +87,20 @@ export function Footer({ isPdf = false }) {
         </div>
 
         {!isPdf && (
-          <div style={{ marginTop: '1rem', fontSize: '0.75rem', opacity: 0.7, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
+          <div style={{ marginTop: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem', fontSize: '0.8rem' }}>
+            <a
+              href="/manual-e-documentacao.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              📖 Manual do Usuário & Documentação Técnica
+            </a>
+          </div>
+        )}
+
+        {!isPdf && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', opacity: 0.7, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px' }}>
             Feito com dedicação pela equipe da P3 do 9º BPM
           </div>
         )}

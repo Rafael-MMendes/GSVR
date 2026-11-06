@@ -1,3 +1,31 @@
+## v1.38.1 — 2026-11-06
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Otimização Drástica de Desempenho e Redução do Tamanho do PDF da Escala Oficial (`EscalaPublicacaoOficial.jsx`)**:
+  - **[Redução de 98,7% no Tamanho do Arquivo]**: Redução do PDF gerado de 32,6 MB (34.233.317 bytes) para apenas ~430 KB (444.452 bytes), eliminando travamentos de download e tráfego desnecessário de rede.
+  - **[Compressão Nativa com Stream DCT / JPEG 88%]**: Substituição da captura sem compressão em formato PNG bruto pelo padrão JPEG de alta fidelidade (qualidade 0.88), ativando o filtro nativo `/Filter /DCTDecode` do `jsPDF` com resolução nítida de impressão.
+  - **[Compressão Interna FlateDecode]**: Ativada a flag `compress: true` na inicialização do documento `jsPDF` e compressão `'FAST'` no método `addImage`.
+  - **[Prevenção de Quebra de Página em Rodapés e Tabelas]**: Inclusão de regras CSS de impressão (`pageBreakInside: 'avoid'`, `breakInside: 'avoid'`) nos blocos de guarnição da escala e no rodapé oficial (`Footer.jsx`), impedindo que assinaturas e divisões de escala sejam cortadas no meio entre páginas.
+- **Aprimoramento do Extrator e Importador de Requerimentos via PDF (`PdfExtractor.js`)**:
+  - **[Suporte Robusto a Ciclos com Transição Mensal]**: Aperfeiçoamento do algoritmo de extração de disponibilidades e desistências para lidar com ciclos cruzados (ex: Outubro/Novembro, Novembro/Dezembro), garantindo o correto vínculo de requerimentos mensais de voluntários.
+
+---
+
+## v1.38.0 — 2026-10-25
+**Autor:** PMAL-DATEN
+**Email:** unknown
+
+### Mudanças:
+- **Suíte Oficial de Documentação Técnica, Manual do Usuário e Portal Web Interativo**:
+  - **[Manual Oficial do Usuário]**: Criação do `docs/08-manual-do-usuario.md` cobrindo detalhadamente os 4 perfis operacionais do sistema: Policial Militar Voluntário (1º acesso, Minhas Escalas, cota de 8 serviços), Operador P/3 (Planejamento Drag-and-Drop no `AdminDashboardV2`, prevenção de duplicidades e emissão do Memorando Oficial SVR em A4/PDF), Gestor Operacional/Financeiro (Ciclos 16 a 15, Cenários A/B, otimização orçamentária `ScaleOptimizer`, importações Excel/PDF e conferência de presença) e Administrador/TI (Desbloqueio de força bruta, reset de 1º acesso, governança RBAC e painel Superuser).
+  - **[Portal Web Interativo Standalone]**: Desenvolvimento do portal `frontend/public/manual-e-documentacao.html` e `docs/index.html` com alternador dinâmico de abas, busca em tempo real, navegação lateral sticky e layout responsivo com suporte a impressão e exportação em PDF.
+  - **[Componente Integrado na SPA React (`DocsPortal.jsx`)]**: Criação do componente `DocsPortal.jsx` e inclusão de rota direta no `App.jsx`, adicionando o botão "Documentação & Manual" na barra de navegação superior, no menu de perfil do usuário, no rodapé (`Footer.jsx`) e link de autoatendimento na tela de login (`LoginScreen.jsx`).
+  - **[Suíte Completa de Documentação de Engenharia]**: Estruturação de 8 volumes modulares no diretório `docs/` abrangendo Visão Geral (`01-visao-geral.md`), Arquitetura e Stack (`02-arquitetura-e-stack.md`), Modelagem de Dados e DDL 3NF (`03-modelo-de-dados.md`), Segurança e Autenticação (`04-seguranca-e-autenticacao.md`), Módulos do Sistema (`05-modulos-do-sistema.md`), Catálogo de APIs REST (`06-catalogo-de-apis.md`), Guia de Implantação e Operação (`07-guia-de-implantacao-e-operacao.md`) e atualização do `README.md` raiz.
+
+---
+
 ## v1.37.0 — 2026-10-16
 **Autor:** PMAL-DATEN
 **Email:** unknown

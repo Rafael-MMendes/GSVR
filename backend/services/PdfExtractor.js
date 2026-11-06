@@ -63,19 +63,25 @@ function cleanName(raw) {
 /**
  * Tenta extrair o mês de referência civil do texto do PDF.
  * Retorna "YYYY-MM" ou null se não for possível.
- *
- * Estratégias (ordem de prioridade):
- *   1. Nome completo do mês + ano: "JULHO/2026" ou "JULHO DE 2026"
- *   2. Prefixo institucional: "MÊS: 07/2026", "REFERÊNCIA: 07/2026"
- *   3. Número isolado no cabeçalho: "07/2026" (primeiras 600 chars)
- *   4. Ano do número do requerimento + contexto adjacente
- *   5. null → MONTH_NOT_FOUND
- *
- * @param {string} text
- * @returns {string|null} "YYYY-MM" ou null
  */
 function extractMonthKey(text) {
-  // Estratégia 1 — Nome do mês por extenso
+  // Estratégia 1 — Contexto de SVR "no mês de [MÊS] de [ANO]" ou "[MÊS]/[ANO]"
+  const sSvr = text.match(
+    /(?:no\s+m[êe]s\s+(?:de\s+)?|m[êe]s\s+)(JANEIRO|FEVEREIRO|MAR[ÇC]O|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s*(?:DE\s*)?[\/\-]?\s*(20\d{2})/i
+  );
+  if (sSvr) {
+    const nomeMes = normalize(sSvr[1]).toLowerCase();
+    const num = MONTH_PT[nomeMes];
+    if (num) return `${sSvr[2]}-${String(num).padStart(2, '0')}`;
+  }
+
+  // Estratégia 2 — Prefixo institucional com número
+  const s2 = text.match(
+    /(?:M[ÊE]S|REFERENCIA|REFERÊNCIA|PER[ÍI]ODO|PERIODO)[^\n]{0,60}?(0[1-9]|1[0-2])\/(20\d{2})/i
+  );
+  if (s2) return `${s2[2]}-${s2[1]}`;
+
+  // Estratégia 3 — Nome do mês por extenso
   const s1 = text.match(
     /\b(JANEIRO|FEVEREIRO|MAR[ÇC]O|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s*(?:DE\s*)?[\/\-]?\s*(20\d{2})\b/i
   );
@@ -85,18 +91,12 @@ function extractMonthKey(text) {
     if (num) return `${s1[2]}-${String(num).padStart(2, '0')}`;
   }
 
-  // Estratégia 2 — Prefixo institucional com número
-  const s2 = text.match(
-    /(?:M[ÊE]S|REFERENCIA|REFERÊNCIA|PER[ÍI]ODO|PERIODO)[^\n]{0,60}?(0[1-9]|1[0-2])\/(20\d{2})/i
-  );
-  if (s2) return `${s2[2]}-${s2[1]}`;
-
-  // Estratégia 3 — Número isolado no cabeçalho (primeiras 600 chars)
+  // Estratégia 4 — Número isolado no cabeçalho (primeiras 600 chars)
   const header = text.slice(0, 600);
   const s3 = header.match(/\b(0[1-9]|1[0-2])\/(20\d{2})\b/);
   if (s3) return `${s3[2]}-${s3[1]}`;
 
-  // Estratégia 4 — Extrai mês de nome por extenso em qualquer posição
+  // Estratégia 5 — Extrai mês de nome por extenso em qualquer posição
   for (const nomeMes of MONTH_PT_NAMES) {
     const regex = new RegExp(`\\b${nomeMes}\\b[^\\d]{0,20}(20\\d{2})`, 'i');
     const m = text.match(regex);
@@ -119,7 +119,7 @@ function extractMonthKey(text) {
  */
 function extractNumeroRequerimento(text) {
   const m = text.match(
-    /(?:Requerido\s+n[º°o]|REQUERIMENTO\s+N[º°O]?)[:\.]?\s*(\d{1,10}\/\d{4}[^\n]*)/i
+    /(?:Req(?:\.|uerido|uerimento)?\s*n[º°o]?\.?|REQUERIMENTO)[:\.\s]*(\d{1,10}\/\d{4}[^\n\r]*)/i
   );
   return m ? m[1].trim().split('\n')[0].trim() : null;
 }
@@ -163,8 +163,16 @@ function extractCpf(text) {
  * @returns {string|null}
  */
 function extractRank(text) {
+  // 1. Tenta extrair diretamente da declaração do requerente "Eu, ... - RANK,"
+  const mRequester = text.match(/Eu,\s+[A-ZÀ-Ú\s]+?-\s*([A-Z0-9°º\s]+?),/i);
+  if (mRequester) {
+    const r = mRequester[1].toUpperCase().replace(/\s+/g, ' ').trim();
+    if (r) return r;
+  }
+
+  // 2. Tenta padrões padrão de patentes PM/QP
   const m = text.match(
-    /(?:CEL|TC|MAJ|CAP|1[°º]\s*TEN|2[°º]\s*TEN|SUB|1[°º]\s*SGT|2[°º]\s*SGT|3[°º]\s*SGT|CB|SD)\s+PM/i
+    /(?:CEL|TC|MAJ|CAP|1[°º]\s*TEN|2[°º]\s*TEN|SUB|1[°º]\s*SGT|2[°º]\s*SGT|3[°º]\s*SGT|CB|SD)\s+(?:PM|QP)/i
   );
   if (m) return m[0].toUpperCase().replace(/\s+/g, ' ').trim();
 
@@ -183,9 +191,29 @@ function extractRank(text) {
  * @returns {string|null}
  */
 function extractName(text) {
-  const m = text.match(
-    /(?:NOME(?:\s*COMPLETO)?|MILITAR)[:\.\-]?\s*([A-ZÀ-Ú\s]{5,60})/i
-  );
+  // 1. Tenta extrair da declaração formal: "Eu, NOME - POSTO, portador do CPF..."
+  const mEu = text.match(/Eu,\s+([A-ZÀ-Ú\s]{3,60}?)\s*-\s*(?:Sd|Cb|Sgt|Ten|Cap|Maj|Cel|[123][°º]|Sub)/i);
+  if (mEu) {
+    const cleaned = cleanName(mEu[1]);
+    if (cleaned.length > 3) return cleaned;
+  }
+
+  // 2. Tenta extrair do campo NOME da tabela
+  const mNome = text.match(/NOME:\s*([A-ZÀ-Ú\s]{3,60}?)(?:CPF|MAT|\n|$)/i);
+  if (mNome) {
+    const cleaned = cleanName(mNome[1]);
+    if (cleaned.length > 3) return cleaned;
+  }
+
+  // 3. Tenta extrair da assinatura eletrônica
+  const mAssinado = text.match(/Documento assinado eletronicamente por\s+([A-ZÀ-Ú\s]{3,60}?)(?:-|\n|$)/i);
+  if (mAssinado) {
+    const cleaned = cleanName(mAssinado[1]);
+    if (cleaned.length > 3) return cleaned;
+  }
+
+  // 4. Fallback: procura por NOME ou NOME COMPLETO (sem palavra MILITAR que colide com POLICIA MILITAR)
+  const m = text.match(/(?:NOME(?:\s*COMPLETO)?)\s*[:\.\-]?\s*([A-ZÀ-Ú\s]{5,60})/i);
   if (m) {
     const cleaned = cleanName(m[1]);
     if (cleaned.length > 3) return cleaned;
@@ -200,8 +228,6 @@ function extractName(text) {
 /**
  * Interpreta uma linha de marcações posicionais do PDF.
  * Posição 0 = flag de motorista, posições 1–31 = dias 01–31.
- *
- * Estratégia primária: leitura posicional após normalização de espaços.
  *
  * @param {string} line      - Linha bruta do PDF
  * @param {string} shiftCode - Ex: "07:00 ÀS 13:00"
@@ -238,7 +264,11 @@ function processMarksLine(line, shiftCode, data) {
 
 /**
  * Extrai o mapa de disponibilidade do texto PDF.
- * Tenta a estratégia posicional (primária) e, se falhar, a busca por turno inline.
+ * Mapeia variações de turnos da PMAL para os turnos canônicos do GSVR:
+ * - 07:00 ÀS 13:00 -> 07:00 ÀS 13:00
+ * - 13:00 ÀS 19:00 -> 13:00 ÀS 19:00
+ * - 19:00 ÀS 01:00 ou 18:00 ÀS 00:00 -> 19:00 ÀS 01:00
+ * - 01:00 ÀS 07:00 ou 00:00 ÀS 07:00 -> 01:00 ÀS 07:00
  *
  * @param {string[]} lines - Array de linhas do texto extraído
  * @returns {{ availability: Object, motorist: string }}
@@ -252,14 +282,15 @@ function extractAvailability(lines) {
     const l  = lines[i].trim().toUpperCase();
     const nl = (i + 1 < lines.length) ? lines[i + 1].trim().toUpperCase() : '';
 
-    if (l === '07:00 ÀS' && nl === '13:00')
-      { processMarksLine(lines[i + 2] || '', '07:00 ÀS 13:00', data); }
-    else if (l === '13:00 ÀS' && nl === '19:00')
-      { processMarksLine(lines[i + 2] || '', '13:00 ÀS 19:00', data); }
-    else if (l === '19:00 ÀS' && nl === '01:00')
-      { processMarksLine(lines[i + 2] || '', '19:00 ÀS 01:00', data); }
-    else if (l === '01:00 ÀS' && nl === '07:00')
-      { processMarksLine(lines[i + 2] || '', '01:00 ÀS 07:00', data); }
+    if (l === '07:00 ÀS' && nl === '13:00') {
+      processMarksLine(lines[i + 2] || '', '07:00 ÀS 13:00', data);
+    } else if (l === '13:00 ÀS' && nl === '19:00') {
+      processMarksLine(lines[i + 2] || '', '13:00 ÀS 19:00', data);
+    } else if ((l === '19:00 ÀS' && nl === '01:00') || (l === '18:00 ÀS' && nl === '00:00')) {
+      processMarksLine(lines[i + 2] || '', '19:00 ÀS 01:00', data);
+    } else if ((l === '01:00 ÀS' && nl === '07:00') || (l === '00:00 ÀS' && nl === '07:00')) {
+      processMarksLine(lines[i + 2] || '', '01:00 ÀS 07:00', data);
+    }
   }
 
   if (Object.keys(data.availability).length > 0) return data;
@@ -270,14 +301,15 @@ function extractAvailability(lines) {
     const l = lines[i].trim().toUpperCase();
     const nextLine = lines[i + 1] || '';
 
-    if (l.includes('07:00') && l.includes('13:00') && l.length < 25 && nextLine.trim().length > 5)
-      { processMarksLine(nextLine, '07:00 ÀS 13:00', data); }
-    else if (l.includes('13:00') && l.includes('19:00') && l.length < 25 && nextLine.trim().length > 5)
-      { processMarksLine(nextLine, '13:00 ÀS 19:00', data); }
-    else if (l.includes('19:00') && l.includes('01:00') && l.length < 25 && nextLine.trim().length > 5)
-      { processMarksLine(nextLine, '19:00 ÀS 01:00', data); }
-    else if (l.includes('01:00') && l.includes('07:00') && l.length < 25 && nextLine.trim().length > 5)
-      { processMarksLine(nextLine, '01:00 ÀS 07:00', data); }
+    if (l.includes('07:00') && l.includes('13:00') && l.length < 25 && nextLine.trim().length > 5) {
+      processMarksLine(nextLine, '07:00 ÀS 13:00', data);
+    } else if (l.includes('13:00') && l.includes('19:00') && l.length < 25 && nextLine.trim().length > 5) {
+      processMarksLine(nextLine, '13:00 ÀS 19:00', data);
+    } else if (((l.includes('19:00') && l.includes('01:00')) || (l.includes('18:00') && l.includes('00:00'))) && l.length < 25 && nextLine.trim().length > 5) {
+      processMarksLine(nextLine, '19:00 ÀS 01:00', data);
+    } else if (((l.includes('01:00') && l.includes('07:00')) || (l.includes('00:00') && l.includes('07:00'))) && l.length < 25 && nextLine.trim().length > 5) {
+      processMarksLine(nextLine, '01:00 ÀS 07:00', data);
+    }
   }
 
   return data;

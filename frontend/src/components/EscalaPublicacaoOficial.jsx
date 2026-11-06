@@ -51,8 +51,9 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
   const handleExportPDF = async () => {
     if (!printRef.current) return;
     const elementoImpressao = printRef.current;
-    let exibicoesOriginais = [];
-    const espacadoresCriadosParaQuebra = [];
+    let exibicoesOriginaisNoPrint = [];
+    let exibicoesOriginaisGuarnicoes = [];
+    let exibicoesOriginaisTurnos = [];
 
     // Guardar estilos originais de largura para restauração
     const larguraOriginal = elementoImpressao.style.width;
@@ -61,92 +62,132 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
     try {
       setIsExportingPdf(true);
 
-      // Forçar largura exata de 900px para garantir cálculos idênticos ao do html2canvas
+      // Forçar largura exata de 900px para garantir proporção A4 padrão
       elementoImpressao.style.width = '900px';
       elementoImpressao.style.maxWidth = '900px';
 
-      // Ocultar temporariamente elementos com classe 'no-print'
+      // Ocultar temporariamente elementos com classe 'no-print' (seletores de cor)
       const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
-      exibicoesOriginais = Array.from(elementosSemImpressao).map(el => el.style.display);
+      exibicoesOriginaisNoPrint = Array.from(elementosSemImpressao).map(el => el.style.display);
       elementosSemImpressao.forEach(el => el.style.display = 'none');
 
-      // Evitar quebras de tabelas no meio da página de forma dinâmica
-      const ALTURA_PAGINA_A4 = 1270;
-      const elementosParaEvitar = elementoImpressao.querySelectorAll('.bloco-guarnicao, .pdf-footer');
+      // Selecionar todos os blocos de guarnição e de turnos
+      const blocosGuarnicao = Array.from(elementoImpressao.querySelectorAll('.bloco-guarnicao'));
+      const blocosTurno = Array.from(elementoImpressao.querySelectorAll('.shift-block'));
+      const pdfFooter = elementoImpressao.querySelector('.pdf-footer');
 
-      // Função para calcular a distância do elemento até o topo do container de impressão
-      const obterTopoRelativo = (elementoIndividual, conteiner) => {
-        const retanguloIndividual = elementoIndividual.getBoundingClientRect();
-        const retanguloConteiner = conteiner.getBoundingClientRect();
-        return retanguloIndividual.top - retanguloConteiner.top;
-      };
+      exibicoesOriginaisGuarnicoes = blocosGuarnicao.map(b => b.style.display);
+      exibicoesOriginaisTurnos = blocosTurno.map(t => t.style.display);
 
-      elementosParaEvitar.forEach(elementoIndividual => {
-        const topoCalculado = obterTopoRelativo(elementoIndividual, elementoImpressao);
-        const alturaCalculada = elementoIndividual.offsetHeight;
-
-        const paginaInicioCalculada = Math.floor(topoCalculado / ALTURA_PAGINA_A4);
-        const paginaFimCalculada = Math.floor((topoCalculado + alturaCalculada) / ALTURA_PAGINA_A4);
-
-        // Se o elemento começar em uma página e terminar na outra, adiciona o espaçador antes dele
-        if (paginaInicioCalculada !== paginaFimCalculada) {
-          // Adicionamos um recuo de 35px no topo da nova página para que o cabeçalho do turno desça um pouco
-          const MARGEM_TOPO_NOVA_PAGINA = 35;
-          const espacoRestanteCalculado = (paginaInicioCalculada + 1) * ALTURA_PAGINA_A4 - topoCalculado + MARGEM_TOPO_NOVA_PAGINA;
-
-          const divEspacadora = document.createElement('div');
-          divEspacadora.className = 'espacador-impressao-pdf';
-          divEspacadora.style.height = `${espacoRestanteCalculado}px`;
-          divEspacadora.style.width = '100%';
-          divEspacadora.style.backgroundColor = 'transparent';
-          divEspacadora.style.margin = '0';
-          divEspacadora.style.padding = '0';
-          divEspacadora.style.border = 'none';
-
-          elementoIndividual.parentNode.insertBefore(divEspacadora, elementoIndividual);
-          espacadoresCriadosParaQuebra.push(divEspacadora);
-        }
-      });
-
-      const capturaDeTela = await html2canvas(elementoImpressao, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 900 // Force fixed width to match A4 rendering exactly
-      });
-
-      const dadosDaImagem = capturaDeTela.toDataURL('image/png');
+      const EQUIPES_POR_PAGINA = 3;
+      const totalPaginas = Math.max(1, Math.ceil(blocosGuarnicao.length / EQUIPES_POR_PAGINA));
 
       const documentoPdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        compress: true
       });
 
-      const larguraDoPdf = documentoPdf.internal.pageSize.getWidth(); // 210
-      const alturaDoPdf = (capturaDeTela.height * larguraDoPdf) / capturaDeTela.width;
+      const larguraA4Mm = documentoPdf.internal.pageSize.getWidth(); // 210
+      const alturaA4Mm = documentoPdf.internal.pageSize.getHeight(); // 297
 
-      let posicao = 0;
+      for (let p = 0; p < totalPaginas; p++) {
+        setExportProgress({ current: p + 1, total: totalPaginas });
+        const inicio = p * EQUIPES_POR_PAGINA;
+        const fim = inicio + EQUIPES_POR_PAGINA;
 
-      documentoPdf.addImage(dadosDaImagem, 'PNG', 0, posicao, larguraDoPdf, alturaDoPdf);
+        // Se houver guarnições, exibe apenas as da fatia atual (até 3 equipes por página A4)
+        if (blocosGuarnicao.length > 0) {
+          blocosGuarnicao.forEach((bloco, idx) => {
+            if (idx >= inicio && idx < fim) {
+              bloco.style.display = exibicoesOriginaisGuarnicoes[idx] || '';
+            } else {
+              bloco.style.display = 'none';
+            }
+          });
 
-      let alturaRestante = alturaDoPdf - documentoPdf.internal.pageSize.getHeight();
+          // Ocultar blocos de turno cujas guarnições não estão visíveis nesta página
+          blocosTurno.forEach((turnoBlock) => {
+            const possuiGuarnicaoVisivel = Array.from(turnoBlock.querySelectorAll('.bloco-guarnicao')).some(b => b.style.display !== 'none');
+            turnoBlock.style.display = possuiGuarnicaoVisivel ? '' : 'none';
+          });
+        }
 
-      while (alturaRestante >= 0) {
-        posicao = alturaRestante - alturaDoPdf;
-        documentoPdf.addPage();
-        documentoPdf.addImage(dadosDaImagem, 'PNG', 0, posicao, larguraDoPdf, alturaDoPdf);
-        alturaRestante -= documentoPdf.internal.pageSize.getHeight();
+        // Rodapé institucional: exibir apenas na última página (ou página única) para evitar quebra/duplicação
+        if (pdfFooter) {
+          pdfFooter.style.display = (p === totalPaginas - 1) ? '' : 'none';
+        }
+
+        // Se houver mais de uma página, adiciona badge indicadora elegante no cabeçalho
+        let badgeParte = null;
+        if (totalPaginas > 1) {
+          badgeParte = document.createElement('div');
+          badgeParte.className = 'badge-parte-temporaria';
+          badgeParte.style.marginTop = '1rem';
+          badgeParte.style.textAlign = 'center';
+          badgeParte.innerHTML = `
+            <span style="
+              display: inline-block;
+              background: #0f172a;
+              color: #ffffff;
+              font-size: 0.75rem;
+              font-weight: 800;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              padding: 4px 14px;
+              border-radius: 9999px;
+            ">
+              PÁGINA ${p + 1} DE ${totalPaginas} (EQUIPES ${inicio + 1} A ${Math.min(fim, blocosGuarnicao.length)})
+            </span>
+          `;
+          const headerContainer = elementoImpressao.querySelector('.header-institucional') || elementoImpressao.firstElementChild;
+          if (headerContainer) {
+            headerContainer.appendChild(badgeParte);
+          }
+        }
+
+        const capturaDeTela = await html2canvas(elementoImpressao, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 900
+        });
+
+        if (badgeParte && badgeParte.parentNode) {
+          badgeParte.parentNode.removeChild(badgeParte);
+        }
+
+        // Compressão JPEG de alta qualidade (88%): reduz tamanho de 35MB para <500KB sem perda perceptível de qualidade
+        const dadosDaImagem = capturaDeTela.toDataURL('image/jpeg', 0.88);
+        const alturaDoPdf = (capturaDeTela.height * larguraA4Mm) / capturaDeTela.width;
+
+        if (p > 0) {
+          documentoPdf.addPage();
+        }
+
+        // Se a altura calculada ultrapassar 297mm por poucos pixels, ajusta a escala para não cortar nada
+        const fatorEscala = alturaDoPdf > alturaA4Mm ? (alturaA4Mm / alturaDoPdf) : 1;
+        const larguraFinal = larguraA4Mm * fatorEscala;
+        const alturaFinal = alturaDoPdf * fatorEscala;
+        const xOffset = (larguraA4Mm - larguraFinal) / 2;
+
+        documentoPdf.addImage(dadosDaImagem, 'JPEG', xOffset, 0, larguraFinal, alturaFinal, undefined, 'FAST');
       }
 
       const dataFormatadaParaNomeArquivo = formatDate(date).replace(/\//g, '-');
       documentoPdf.save(`Escala_do_dia_${dataFormatadaParaNomeArquivo}.pdf`);
     } catch (erro) {
       console.error('Erro ao gerar PDF:', erro);
-      alert('Houve um erro ao gerar o PDF.');
+      alert('Houve um erro ao gerar o PDF da escala.');
     } finally {
       setIsExportingPdf(false);
+      setExportProgress(null);
+
+      // Remover badges residuais
+      const badgesResiduais = elementoImpressao.querySelectorAll('.badge-parte-temporaria');
+      badgesResiduais.forEach(b => b.remove());
 
       // Restaurar largura original do container
       elementoImpressao.style.width = larguraOriginal;
@@ -155,17 +196,34 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
       // Restaurar visibilidade dos elementos no-print
       const elementosSemImpressao = elementoImpressao.querySelectorAll('.no-print');
       elementosSemImpressao.forEach((el, index) => {
-        if (exibicoesOriginais[index] !== undefined) {
-          el.style.display = exibicoesOriginais[index];
+        if (exibicoesOriginaisNoPrint[index] !== undefined) {
+          el.style.display = exibicoesOriginaisNoPrint[index];
         }
       });
 
-      // Remover espaçadores temporários
-      espacadoresCriadosParaQuebra.forEach(espacador => {
-        if (espacador && espacador.parentNode) {
-          espacador.parentNode.removeChild(espacador);
+      // Restaurar visibilidade de todos os blocos de guarnição e turnos
+      const blocosGuarnicao = Array.from(elementoImpressao.querySelectorAll('.bloco-guarnicao'));
+      blocosGuarnicao.forEach((bloco, idx) => {
+        if (exibicoesOriginaisGuarnicoes[idx] !== undefined) {
+          bloco.style.display = exibicoesOriginaisGuarnicoes[idx];
+        } else {
+          bloco.style.display = '';
         }
       });
+
+      const blocosTurno = Array.from(elementoImpressao.querySelectorAll('.shift-block'));
+      blocosTurno.forEach((turnoBlock, idx) => {
+        if (exibicoesOriginaisTurnos[idx] !== undefined) {
+          turnoBlock.style.display = exibicoesOriginaisTurnos[idx];
+        } else {
+          turnoBlock.style.display = '';
+        }
+      });
+
+      const pdfFooter = elementoImpressao.querySelector('.pdf-footer');
+      if (pdfFooter) {
+        pdfFooter.style.display = '';
+      }
     }
   };
 
@@ -361,7 +419,7 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
           @media print {
             @page {
               size: A4;
-              margin: 15mm;
+              margin: 10mm 15mm;
             }
             body {
               background: white !important;
@@ -380,7 +438,17 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               background: white !important;
             }
             .shift-block {
-              break-inside: avoid;
+              break-inside: auto;
+            }
+            .bloco-guarnicao {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              margin-bottom: 1.5rem !important;
+            }
+            .pdf-footer {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              margin-top: 2rem !important;
             }
           }
           
@@ -492,7 +560,11 @@ export function EscalaPublicacaoOficial({ patrols, date, cycle, onBack }) {
               opacity: isExporting ? 0.7 : 1
             }}
           >
-            <Download size={18} /> {isExportingPdf ? 'Gerando PDF...' : 'Exportar PDF'}
+            <Download size={18} /> {
+              isExportingPdf 
+                ? (exportProgress ? `Gerando PDF (${exportProgress.current}/${exportProgress.total})...` : 'Gerando PDF...') 
+                : 'Exportar PDF'
+            }
           </button>
         </div>
       </div>

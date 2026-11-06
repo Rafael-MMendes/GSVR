@@ -506,6 +506,20 @@ export function LoginScreen({ onLogin }) {
                 <KeyRound size={16} />
                 Primeiro Acesso — Criar Minha Senha
               </button>
+
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <a
+                  href="/manual-e-documentacao.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                    fontSize: '0.8rem', color: '#0284c7', textDecoration: 'none', fontWeight: 600
+                  }}
+                >
+                  <HelpCircle size={15} /> Precisa de ajuda? Acesse o Manual do Usuário
+                </a>
+              </div>
             </div>
           </form>
         )}

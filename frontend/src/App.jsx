@@ -24,11 +24,12 @@ import { Footer } from './components/Footer';
 import { QuantitativoGastosFT } from './components/QuantitativoGastosFT';
 import { MinhasEscalas } from './components/MinhasEscalas';
 import { SuperUserDashboard } from './components/SuperUserDashboard';
+import { DocsPortal } from './components/DocsPortal';
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
   UserPlus, Menu, X, Users2, ClipboardCheck, Shield, User, Layers,
-  FileSpreadsheet, Target, GitCompareArrows, CalendarCheck, Terminal
+  FileSpreadsheet, Target, GitCompareArrows, CalendarCheck, Terminal, BookOpen
 } from 'lucide-react';
 
 // ============================================================
@@ -322,6 +323,20 @@ function App() {
             </>
           )}
 
+          {/* Link direto para Documentação & Manual */}
+          <a
+            href="#"
+            className={`nav-link ${currentView === 'docs' ? 'active' : ''}`}
+            onClick={(e) => { e.preventDefault(); navigateTo('docs'); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.45rem', fontWeight: 600,
+              color: currentView === 'docs' ? '#38bdf8' : '#e2e8f0',
+              textDecoration: 'none', padding: '0.5rem 0.85rem', borderRadius: '8px'
+            }}
+          >
+            <BookOpen size={18} /> Documentação & Manual
+          </a>
+
           {/* Perfil do usuário */}
           <div className="nav-group">
             <span
@@ -346,6 +361,9 @@ function App() {
               <a href="#" className={`dropdown-item ${currentView === 'profile' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('profile'); }}>
                 <User size={16} /> Meu Perfil
               </a>
+              <a href="#" className={`dropdown-item ${currentView === 'docs' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('docs'); }}>
+                <BookOpen size={16} /> Documentação & Manual
+              </a>
               {isSuperuser && (
                 <a href="#" className={`dropdown-item ${currentView === 'superuser' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); navigateTo('superuser'); }} style={{ color: '#7c3aed', fontWeight: 700 }}>
                   <Terminal size={16} /> Painel Superuser
@@ -369,6 +387,7 @@ function App() {
         {currentView === 'minhas-escalas' && <MinhasEscalas user={user} />}
         {currentView === 'form' && <VolunteerForm userData={user} />}
         {currentView === 'profile' && <ProfilePage user={user} />}
+        {currentView === 'docs' && <DocsPortal />}
 
         {/* Rotas administrativas — protegidas por permissão */}
         {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
