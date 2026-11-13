@@ -11,6 +11,7 @@ A documentação está estruturada em 8 volumes modulares para facilitar a naveg
 
 | Volume | Documento | Descrição e Conteúdo |
 | :--- | :--- | :--- |
+| **00** | [Análise Técnica Completa do Sistema](file:///docs/ANALISE_TECNICA_COMPLETA_SISTEMA.md) | Relatório exaustivo de engenharia: levantamento de 90 APIs, 27 componentes, modelo de dados (25 tabelas, 5 triggers), segurança RBAC/MFA, infraestrutura e diagnóstico técnico priorizado. |
 | **01** | [01. Visão Geral e Negócio](file:///docs/01-visao-geral.md) | Contexto operacional do 9º BPM, conceito do SVR, ciclos de 16 a 15, cotas de 8 serviços, regras de voluntariado e composição de guarnições. |
 | **02** | [02. Arquitetura e Stack](file:///docs/02-arquitetura-e-stack.md) | Visão sistêmica, stack tecnológica (React 18 + Vite, Express 5 + Node.js 21, PostgreSQL 16, Docker Compose), diagramas de comunicação e fluxos de dados. |
 | **03** | [03. Modelagem de Dados](file:///docs/03-modelo-de-dados.md) | DDL completo, diagrama Entidade-Relacionamento (ER), tabelas relacionais, integridade referencial, triggers de validação e views analíticas. |

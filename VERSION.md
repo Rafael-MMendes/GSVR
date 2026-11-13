@@ -1,3 +1,56 @@
+## v1.39.0 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Refatoração e Modularização Arquitetural de Prioridade Crítica (`backend/server.js`)**:
+  - **[Decomposição Estrutural do Monolito Backend]**: O arquivo monolítico `backend/server.js` (anteriormente com ~4.700 linhas acumulando 92 rotas REST, configurações, regras de negócio e persistência) foi completamente refatorado em uma arquitetura limpa, desacoplada e modular baseada no padrão Controller-Route do Express 5:
+    - `backend/controllers/`: 14 controladores desacoplados por domínio de negócio (`authController`, `adminController`, `userController`, `rbacController`, `mySchedulesController`, `volunteerController`, `efetivoController`, `opmController`, `cicloController`, `servicoController`, `scheduleController`, `reportController`, `financeiroController`, `importController`).
+    - `backend/routes/`: 14 roteadores especializados mais o agregador central `routes/index.js` montado sob `/api/`.
+    - `backend/middleware/`: Extração dos middlewares de autenticação e RBAC (`auth.js`), limitadores de taxa (`rateLimiter.js`), manipulação de uploads de arquivos e avatares (`upload.js`, `uploadValidation.js`).
+    - `backend/utils/helpers.js`: Centralização de formatadores de data, helpers de militares, sanitização textual e auditoria.
+    - `backend/server.js`: Reduzido para ~90 linhas elegantes dedicadas unicamente à inicialização da aplicação, cabeçalhos de segurança Helmet, CORS e tratamento global de erros.
+  - **[Suíte de Testes Automatizados com 100% de Paridade (`backend/test_modular_routes.js`)]**:
+    - Implementação de auditoria algorítmica de todas as 92 rotas mapeadas no Express 5.
+    - Testes HTTP reais cobrindo tratamento de rota 404, bloqueio 401 Unauthorized para rotas protegidas sem token (`/api/me`, `/api/admin/audit-logs`, `/api/my-schedules`), validação estrita de CPF pela Receita Federal (rejeição de 11 dígitos iguais) e validação de primeiro acesso e 2FA/TOTP.
+    - Integração dos testes automatizados no pipeline de deploy contínuo (`deploy_ssh.py`), executando a suíte dentro do container `ft-backend` em cada publicação.
+
+---
+
+## v1.38.3 — 2026-11-09
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Resolução de Erro na Exclusão de Requerimento com Escalas Associadas (`DELETE /api/volunteers/:id`)**:
+  - **[Desvinculação Segura de Escalas Planejadas]**: Correção da restrição de chave estrangeira `escala_planejamento_id_disponibilidade_fkey` para `ON DELETE SET NULL` no banco de dados PostgreSQL e atualização da rota `DELETE /api/volunteers/:id` em `backend/server.js`. Agora, ao excluir um requerimento cujas disponibilidades já tenham sido utilizadas no planejamento ou histórico da escala, o sistema desvincula com segurança a referência (`id_disponibilidade = NULL`), preservando o registro histórico da escala (`id_militar`) e permitindo a exclusão ou reimportação do requerimento sem violação de integridade referencial.
+  - **[Tratamento e Feedback no Frontend (`RequerimentosAdmin.jsx`)]**: Adicionado tratamento de erro humanizado e validação na ação de exclusão, exibindo alertas descritivos ao operador em vez de falhas genéricas.
+- **Correção da Fragmentação de Requerimentos SVR em Múltiplos Ciclos (`RequirementImporter.js` e `RequerimentosAdmin.jsx`)**:
+  - **[Mapeamento Cronológico Baseado em Datas Reais do Ciclo]**: Reformulação da função `fragmentarComCiclosExplicitos` para ordenar os ciclos selecionados por `data_inicio ASC` e associar cada dia do mês diretamente ao ciclo correspondente via verificação do intervalo `[data_inicio, data_fim]`. Isso elimina a falha onde a ordem de seleção dos checkboxes no frontend (que exibe ciclos em ordem decrescente) invertia as metades do mês, enviando os dias 01–15 para o ciclo seguinte e os dias 16–31 para o ciclo anterior, fazendo com que o requerimento importado não aparecesse na grade visual.
+  - **[Ordenação Automática no Frontend (`RequerimentosAdmin.jsx`)]**: A seleção de múltiplos ciclos no modal de importação agora mantém a lista de ciclos sempre ordenada cronologicamente, com instrução visual clara ao operador (`dias 01 a 15 no ciclo anterior · dias 16 a 31 no ciclo corrente`).
+  - **[Saneamento e Migração no Banco de Dados]**: Executada migração transacional no banco PostgreSQL para redistribuir e realocar 3.903 disponibilidades de 59 militares (incluindo o requerimento do SGT WDSON) que haviam sido invertidas entre o Ciclo 7 (Outubro/Novembro) e o Ciclo 8 (Novembro/Dezembro), restaurando imediatamente a visualização completa na grade de requerimentos.
+  - **[Limpeza Cirúrgica de Registros Fora dos Limites do Ciclo]**: Adicionada limpeza automática em `upsertRequerimentoFragmento` para impedir a persistência de datas fora do intervalo do ciclo alvo.
+- **Resolução de Expiração de Sessão / Token Inválido na Importação de Requerimentos (`RequerimentosAdmin.jsx`)**:
+  - **[Renovação Transparente de Token JWT com Fila de Requisições (`axiosSetup.js`)]**: Implementação de interceptor centralizado no Axios com suporte a renovação silenciosa via Refresh Token (`/api/auth/refresh`). Ao receber status 401 (`TOKEN_INVALID`), as requisições em voo são pausadas em uma fila de espera (`failedQueue`), o token de acesso é atualizado automaticamente sem intervenção do usuário, e a requisição original (incluindo upload multipart de formulários e PDFs) é reenviada com sucesso.
+  - **[Calibração de Validade do Access Token no Backend]**: Ajuste da constante `JWT_EXPIRES_IN` em `backend/server.js` de 15 minutos para 2 horas (`process.env.JWT_EXPIRES_IN || '2h'`), proporcionando estabilidade para longas sessões de trabalho administrativo (criação e edição de escalas, importações em lote de voluntários) mantendo a segurança de longo prazo com refresh tokens de 7 dias.
+  - **[Desacoplamento do Interceptor de Logout em `App.jsx`]**: Remoção da rejeição imediata de erros 401 em `App.jsx`, substituindo por evento unificado `auth:logout` acionado exclusivamente quando o refresh token estiver expirado ou revogado.
+  - **[Tratamento Amigável de Mensagens de Erro em `RequerimentosAdmin.jsx`]**: Normalização da extração de mensagens de erro para que objetos JSON retornados pelo backend sejam exibidos de forma clara e amigável ao operador, eliminando caixas de alerta com JSON serializado cru.
+
+---
+
+## v1.38.2 — 2026-11-07
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Resolução de Conectividade Externa ("Erro ao conectar ao servidor") e Resiliência Multi-Origem (LAN + WAN)**:
+  - **[Resolução Dinâmica de URL de API (`apiConfig.js`)]**: Substituição das referências estáticas `import.meta.env.VITE_API_URL` por módulo centralizado `frontend/src/utils/apiConfig.js`. O sistema agora detecta dinamicamente a origem da navegação (`window.location`), mapeando automaticamente acessos internos (`gsvr.192.168.1.18.nip.io` -> `api.192.168.1.18.nip.io`) e acessos externos via IP público/porta redirecionada (`gsvr.45.234.245.204.nip.io:36419` -> `api.45.234.245.204.nip.io:36419`), sem tentar conectar em IPs privados inacessíveis pela internet.
+  - **[Redundância de Proxy Reverso no Nginx Proxy Manager]**: Inclusão de proxy reverso `/api/` no host do frontend (`1.conf`) repassando diretamente para o serviço backend (`192.168.1.18:3001`), permitindo requisições na mesma origem tanto em rede local quanto externa.
+  - **[Suporte a Trust Proxy no Backend Express]**: Configuração de `app.set('trust proxy', 1)` em `backend/server.js`, garantindo correta identificação dos IPs de clientes externos em cabeçalhos `X-Forwarded-For` para auditoria e rate limiting.
+  - **[Certificado SSL Wildcard com SANs Externos]**: Emissão e atualização de certificado SSL cobrindo domínios internos e externos (`*.192.168.1.18.nip.io`, `*.45.234.245.204.nip.io`, IPs e subdomínios dos serviços).
+
+---
+
 ## v1.38.1 — 2026-11-06
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

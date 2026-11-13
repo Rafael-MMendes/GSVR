@@ -4,7 +4,7 @@ import time
 import paramiko
 
 def deploy():
-    hostname = '192.168.1.104'
+    hostname = '192.168.1.18'
     username = 'vps_9bpm'
     password = 'asdf1234'
     remote_base = '/home/vps_9bpm/projetos/GSVR - prod'
@@ -13,10 +13,28 @@ def deploy():
         ('backend/utils/cpf.js', f'{remote_base}/backend/utils/cpf.js'),
         ('backend/utils/totp.js', f'{remote_base}/backend/utils/totp.js'),
         ('backend/utils/audit.js', f'{remote_base}/backend/utils/audit.js'),
+        ('backend/utils/helpers.js', f'{remote_base}/backend/utils/helpers.js'),
+        ('backend/middleware/auth.js', f'{remote_base}/backend/middleware/auth.js'),
+        ('backend/middleware/rateLimiter.js', f'{remote_base}/backend/middleware/rateLimiter.js'),
+        ('backend/middleware/upload.js', f'{remote_base}/backend/middleware/upload.js'),
+        ('backend/middleware/uploadValidation.js', f'{remote_base}/backend/middleware/uploadValidation.js'),
         ('backend/scripts/provision_superuser.js', f'{remote_base}/backend/scripts/provision_superuser.js'),
         ('backend/migrations/001_auth_cpf_superuser.sql', f'{remote_base}/backend/migrations/001_auth_cpf_superuser.sql'),
         ('backend/db.js', f'{remote_base}/backend/db.js'),
         ('backend/server.js', f'{remote_base}/backend/server.js'),
+        ('backend/test_modular_routes.js', f'{remote_base}/backend/test_modular_routes.js'),
+    ]
+
+    # Incluir dinamicamente todos os controllers e rotas modularizados
+    for ctrl in os.listdir('backend/controllers'):
+        if ctrl.endswith('.js'):
+            files_to_sync.append((f'backend/controllers/{ctrl}', f'{remote_base}/backend/controllers/{ctrl}'))
+
+    for r in os.listdir('backend/routes'):
+        if r.endswith('.js'):
+            files_to_sync.append((f'backend/routes/{r}', f'{remote_base}/backend/routes/{r}'))
+
+    files_to_sync.extend([
         ('frontend/src/utils/cpf.js', f'{remote_base}/frontend/src/utils/cpf.js'),
         ('frontend/src/components/LoginScreen.jsx', f'{remote_base}/frontend/src/components/LoginScreen.jsx'),
         ('frontend/src/components/SuperUserDashboard.jsx', f'{remote_base}/frontend/src/components/SuperUserDashboard.jsx'),
@@ -26,6 +44,7 @@ def deploy():
         ('frontend/src/App.jsx', f'{remote_base}/frontend/src/App.jsx'),
         ('frontend/public/manual-e-documentacao.html', f'{remote_base}/frontend/public/manual-e-documentacao.html'),
         ('docs/README.md', f'{remote_base}/docs/README.md'),
+        ('docs/ANALISE_TECNICA_COMPLETA_SISTEMA.md', f'{remote_base}/docs/ANALISE_TECNICA_COMPLETA_SISTEMA.md'),
         ('docs/index.html', f'{remote_base}/docs/index.html'),
         ('docs/01-visao-geral.md', f'{remote_base}/docs/01-visao-geral.md'),
         ('docs/02-arquitetura-e-stack.md', f'{remote_base}/docs/02-arquitetura-e-stack.md'),
@@ -37,7 +56,7 @@ def deploy():
         ('docs/08-manual-do-usuario.md', f'{remote_base}/docs/08-manual-do-usuario.md'),
         ('README.md', f'{remote_base}/README.md'),
         ('VERSION.md', f'{remote_base}/VERSION.md')
-    ]
+    ])
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -105,6 +124,15 @@ def deploy():
         print("STDERR:", stderr.read().decode('utf-8', errors='replace').strip())
 
         time.sleep(3)
+
+        # 3.1 Executar Bateria de Testes Automatizados no Container ft-backend
+        print("\n--- 3.1. TESTES AUTOMATIZADOS DE REGRESSÃO NO BACKEND ---")
+        stdin, stdout, stderr = ssh.exec_command('docker exec ft-backend node test_modular_routes.js')
+        test_out = stdout.read().decode('utf-8', errors='replace').strip()
+        test_err = stderr.read().decode('utf-8', errors='replace').strip()
+        print(test_out)
+        if test_err:
+            print("[AVISO TESTE]:", test_err)
 
         # 4. Status dos containers
         print("\n--- 4. STATUS DOS CONTAINERS GSVR ---")
