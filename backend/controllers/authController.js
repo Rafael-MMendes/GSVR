@@ -5,7 +5,7 @@ const db = require('../db');
 const { cleanCPF, isValidCPF, formatCPF } = require('../utils/cpf');
 const { generateSecret, generateTOTP, verifyTOTP, getOtpAuthUrl } = require('../utils/totp');
 const { generateToken, hashToken, validatePasswordRules, auditLog } = require('../utils/helpers');
-const { issueSessionTokens, JWT_SECRET, BCRYPT_ROUNDS, REFRESH_EXPIRES_DAYS } = require('../middleware/auth');
+const { issueSessionTokens, JWT_SECRET, JWT_EXPIRES_IN, BCRYPT_ROUNDS, REFRESH_EXPIRES_DAYS, getUserRoles, getUserPermissions } = require('../middleware/auth');
 
 const authController = {};
 

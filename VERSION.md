@@ -1,3 +1,16 @@
+## v1.41.5 — 2026-11-16
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção na Promoção/Rebaixamento de Administrador e Auditoria de Imports/URLs (`backend/controllers/userController.js`, `backend/controllers/authController.js`)**:
+  - Corrigido `ReferenceError: getUserRoles is not defined` em `userController.js` (que impedia `PUT /api/usuarios/:id/admin`, `PUT /api/usuarios/:id/status`, `DELETE /api/usuarios/:id` e `GET /api/me` de concluir) importando `getUserRoles`, `getUserPermissions` e `invalidateUserAuthCache` de `../middleware/auth`.
+  - Corrigidas as importações ausentes `JWT_EXPIRES_IN`, `getUserRoles` e `getUserPermissions` de `../middleware/auth` em `authController.js`.
+  - Revisadas todas as URLs e chamadas CRUD do frontend (`apiConfig.js`, `axiosSetup.js` e todos os componentes), confirmando preservação dinâmica de protocolo, host e porta (incluindo `:36419` no acesso externo `gsvr.*.nip.io:36419` e porta padrão no acesso interno `gsvr.192.168.1.18.nip.io`).
+  - Adicionados testes de regressão em `backend/tests/userAdmin.test.js` (27/27 testes passando).
+
+---
+
 ## v1.41.4 — 2026-11-13
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com
