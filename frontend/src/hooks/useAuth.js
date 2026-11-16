@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL } from '../utils/apiConfig';
 const ACCESS_TOKEN_KEY = 'ft_access_token';
 const REFRESH_TOKEN_KEY = 'ft_refresh_token';
 const USER_KEY = 'ft_user';

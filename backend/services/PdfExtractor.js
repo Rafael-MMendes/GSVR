@@ -247,12 +247,22 @@ function processMarksLine(line, shiftCode, data) {
   // Posições 1 a 31 = dias
   for (let pos = 1; pos < chars.length && pos <= 31; pos++) {
     const ch = chars[pos];
-    if (ch && ch.toUpperCase() === 'X') {
+    const upper = ch ? ch.toUpperCase() : '';
+    if (upper === 'X' || upper === 'S') {
       const dayStr = String(pos).padStart(2, '0');
       if (!data.availability[dayStr]) data.availability[dayStr] = [];
       // Evita duplicata do mesmo turno no mesmo dia
       if (!data.availability[dayStr].some((s) => s.shift === shiftCode)) {
-        data.availability[dayStr].push({ shift: shiftCode, motorista: isMotorist });
+        if (upper === 'S') {
+          data.availability[dayStr].push({
+            shift: shiftCode,
+            motorista: isMotorist,
+            marcado_disponivel: false,
+            marcado_servico_ordinario: true
+          });
+        } else {
+          data.availability[dayStr].push({ shift: shiftCode, motorista: isMotorist });
+        }
       }
     }
   }

@@ -18,7 +18,7 @@ router.put('/usuarios/:id/status', authenticate, authorize('usuarios:bloquear'),
 router.put('/usuarios/:id/reset-first-access', authenticate, authorize('usuarios:reset'), userController.resetFirstAccess);
 router.put('/usuarios/:id/admin', authenticate, authorize('usuarios:admin'), userController.updateUserAdmin);
 router.put('/usuarios/:id/senha', authenticate, authorize('usuarios:reset'), userController.updateUserPassword);
-router.get('/usuarios/:id/permissoes', userController.getUserPermissionsDirect);
-router.put('/usuarios/:id/permissoes', userController.updateUserPermissionsDirect);
+router.get('/usuarios/:id/permissoes', authenticate, authorize('usuarios:admin'), userController.getUserPermissionsDirect);
+router.put('/usuarios/:id/permissoes', authenticate, authorize('usuarios:admin'), userController.updateUserPermissionsDirect);
 
 module.exports = router;

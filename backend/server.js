@@ -28,7 +28,30 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Middlewares Globais
-app.use(cors());
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://192.168.1.18:5173',
+  'https://gsvr.192.168.1.18.nip.io',
+  'https://gsvr.45.234.245.204.nip.io:36419',
+  'http://gsvr.45.234.245.204.nip.io:36419'
+];
+const envOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...envOrigins]);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permite requisições sem Origin (curl, mobile apps, healthcheck, server-to-server)
+    if (!origin || allowedOrigins.has(origin) || /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.1\.\d+|gsvr\.[\d.]+\.nip\.io)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origem não autorizada pelo CORS: ${origin}`));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Briefcase, Plus, Edit2, ShieldAlert, Check, X } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function TiposServicoManager() {
   const [tipos, setTipos] = useState([]);

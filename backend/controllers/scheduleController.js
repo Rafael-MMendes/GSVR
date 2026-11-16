@@ -42,15 +42,16 @@ scheduleController.getSchedules = async (req, res, next) => {
         COALESCE(e.numero_ordem, e.matricula) AS numero_ordem,
         r_lat.id_requerimento AS volunteer_id,
         COALESCE(ts.carga_horaria, 6) AS carga_horaria,
-        (
-          SELECT COUNT(*)
-          FROM SERVICOS_EXECUTADOS se
-          WHERE se.id_militar = ep.id_militar
-            AND se.id_ciclo   = ep.id_ciclo
-        ) AS service_count
+        COALESCE(srv_counts.service_count, 0) AS service_count
       FROM ESCALA_PLANEJAMENTO ep
       JOIN EFETIVO e
         ON ep.id_militar = e.id_militar
+      LEFT JOIN (
+        SELECT id_militar, COUNT(*)::int AS service_count
+        FROM SERVICOS_EXECUTADOS
+        WHERE id_ciclo = $1
+        GROUP BY id_militar
+      ) srv_counts ON srv_counts.id_militar = ep.id_militar
       LEFT JOIN LATERAL (
         SELECT r.id_requerimento
         FROM REQUERIMENTOS r
@@ -77,7 +78,7 @@ scheduleController.getSchedules = async (req, res, next) => {
       seenEscalas.add(row.id_escala);
 
       const patrolName = row.patrol_name || 'GSVR';
-      const roleIndex = PATROL_ROLES.indexOf(row.funcao);
+      const roleIndex = ROLES.indexOf(row.funcao);
       const slot = roleIndex >= 0 ? roleIndex : 0;
       
       // Localiza guarnição existente que corresponda ao id_guarnicao (ou nome + horário) E que tenha o slot correspondente vago
@@ -188,7 +189,7 @@ scheduleController.createSchedule = async (req, res, next) => {
           const member = patrol.members[i];
           if (!member || !member.id_militar) continue;
 
-          const funcao = PATROL_ROLES[i] || 'Patrulheiro';
+          const funcao = ROLES[i] || 'Patrulheiro';
 
           // Verifica se o militar está cadastrado no efetivo (FK id_militar)
           const militarOkRes = await client.query(
@@ -355,6 +356,100 @@ scheduleController.deletePatrol = async (req, res, next) => {
   } catch (e) {
     console.error('[API] Erro interno ao excluir guarnição:', e);
     res.status(500).json({ error: "Erro interno ao processar exclusão: " + e.message });
+  }
+};
+
+/**
+ * POST /schedules/suggest
+ * Sugere automaticamente guarnições para um dia/ciclo com base em:
+ * - Meta diária de equipes (METAS_ALOCACAO) ou parâmetro qtd_equipes
+ * - Disponibilidade ativa no dia
+ * - Teto legal de 8 serviços no ciclo (executados + planejados)
+ * - Equidade (prioriza quem tem menos serviços no ciclo)
+ * - Requisito de motorista habilitado no slot 1
+ */
+scheduleController.suggestSchedule = async (req, res) => {
+  try {
+    const { date, id_ciclo, turno = '07:00 ÀS 13:00', qtd_equipes } = req.body;
+    if (!date || !id_ciclo) {
+      return res.status(400).json({ error: 'Data e Ciclo são obrigatórios.' });
+    }
+
+    const metaRow = await db.get(
+      'SELECT qtd_equipes_planejadas FROM METAS_ALOCACAO WHERE id_ciclo = $1 AND data = $2',
+      [id_ciclo, date]
+    );
+    const targetTeams = Math.min(Math.max(parseInt(qtd_equipes || metaRow?.qtd_equipes_planejadas || 1, 10), 1), 10);
+
+    // Busca voluntários disponíveis na data com contagem de serviços executados + planejados no ciclo
+    const { rows: candidates } = await db.query(`
+      SELECT DISTINCT ON (e.id_militar)
+        e.id_militar,
+        r.id_requerimento AS id,
+        e.nome_guerra AS name,
+        e.nome_completo,
+        e.posto_graduacao AS rank,
+        e.telefone AS phone,
+        e.motorista,
+        COALESCE(e.numero_ordem, e.matricula) AS numero_ordem,
+        dr.motorista AS motorista_turno,
+        COALESCE(exec_c.cnt, 0) AS exec_count,
+        COALESCE(plan_c.cnt, 0) AS plan_count
+      FROM DISPONIBILIDADE_REQUERIMENTO dr
+      JOIN REQUERIMENTOS r ON dr.id_requerimento = r.id_requerimento
+      JOIN EFETIVO e ON r.id_militar = e.id_militar
+      LEFT JOIN (
+        SELECT id_militar, COUNT(*)::int AS cnt FROM SERVICOS_EXECUTADOS WHERE id_ciclo = $1 GROUP BY id_militar
+      ) exec_c ON exec_c.id_militar = e.id_militar
+      LEFT JOIN (
+        SELECT id_militar, COUNT(*)::int AS cnt FROM ESCALA_PLANEJAMENTO WHERE id_ciclo = $1 GROUP BY id_militar
+      ) plan_c ON plan_c.id_militar = e.id_militar
+      WHERE r.id_ciclo = $1
+        AND dr.dia_mes = $2
+        AND dr.marcado_disponivel = TRUE
+        AND dr.ativo = TRUE
+        AND e.status_ativo = TRUE
+        AND (COALESCE(exec_c.cnt, 0) + COALESCE(plan_c.cnt, 0)) < 8
+        AND ($3::text = 'Todos' OR LOWER(TRIM(dr.horario_turno)) = LOWER(TRIM($3)))
+      ORDER BY e.id_militar, (COALESCE(exec_c.cnt, 0) + COALESCE(plan_c.cnt, 0)) ASC
+    `, [id_ciclo, date, turno]);
+
+    // Ordena por menor total de serviços no ciclo para garantir equidade
+    candidates.sort((a, b) => (a.exec_count + a.plan_count) - (b.exec_count + b.plan_count));
+
+    const usedIds = new Set();
+    const patrols = [];
+    const shiftDisplay = turno === 'Todos' ? '07:00 às 13:00' : turno.toLowerCase().replace('às', 'às');
+
+    for (let t = 0; t < targetTeams; t++) {
+      const motorista = candidates.find(c =>
+        !usedIds.has(c.id_militar) && (c.motorista_turno || c.motorista === 'Sim' || c.motorista === true)
+      );
+      if (motorista) usedIds.add(motorista.id_militar);
+
+      const remaining = candidates.filter(c => !usedIds.has(c.id_militar));
+      const comandante = remaining[0] || null;
+      if (comandante) usedIds.add(comandante.id_militar);
+
+      const patrulheiro = candidates.find(c => !usedIds.has(c.id_militar)) || null;
+      if (patrulheiro) usedIds.add(patrulheiro.id_militar);
+
+      if (!comandante && !motorista && !patrulheiro) break;
+
+      patrols.push({
+        id: `p_${Date.now()}_${t}`,
+        name: 'GSVR',
+        duration: '6h',
+        timeSpan: shiftDisplay,
+        publicado: true,
+        members: [comandante, motorista, patrulheiro]
+      });
+    }
+
+    res.json({ success: true, date, id_ciclo, suggested: patrols, totalCandidates: candidates.length });
+  } catch (e) {
+    console.error('[API] Error suggesting schedule:', e);
+    res.status(500).json({ error: 'Erro ao gerar sugestão automática: ' + e.message });
   }
 };
 

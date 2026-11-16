@@ -233,6 +233,8 @@ mySchedulesController.getMySchedules = async (req, res, next) => {
         ep.funcao,
         ep.observacoes,
         ep.publicado,
+        ep.ciente_em,
+        ep.ciente_ip,
         ts.id_tipo_servico,
         ts.descricao as tipo_servico,
         ts.carga_horaria,
@@ -340,6 +342,8 @@ mySchedulesController.getMyScheduleById = async (req, res, next) => {
         ep.funcao,
         ep.observacoes,
         ep.publicado,
+        ep.ciente_em,
+        ep.ciente_ip,
         ts.id_tipo_servico,
         ts.descricao as tipo_servico,
         ts.carga_horaria,
@@ -442,6 +446,178 @@ mySchedulesController.getMyScheduleById = async (req, res, next) => {
     console.error('[API] Erro ao detalhar escala do usuário:', e);
     res.status(500).json({ success: false, error: { message: e.message } });
   }
+};
+
+/**
+ * POST /my-schedules/:id/ciente (M14)
+ * Registra confirmação de ciência do militar na escala planejada.
+ */
+mySchedulesController.confirmarCiente = async (req, res, next) => {
+  try {
+    const militar = await getMilitarFromUser(req.user);
+    if (!militar) return res.status(403).json({ error: 'Usuário sem vínculo de efetivo.' });
+
+    const escalaId = parseInt(req.params.id, 10);
+    if (!escalaId) return res.status(400).json({ error: 'ID de escala inválido.' });
+
+    const escala = await db.get(
+      'SELECT id_escala, id_militar, ciente_em FROM ESCALA_PLANEJAMENTO WHERE id_escala = $1 AND id_militar = $2',
+      [escalaId, militar.id_militar]
+    );
+    if (!escala) {
+      return res.status(403).json({ error: 'Escala não encontrada ou não pertence ao militar autenticado.' });
+    }
+
+    const clientIp = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim().slice(0, 45);
+    const { rows } = await db.query(
+      `UPDATE ESCALA_PLANEJAMENTO
+       SET ciente_em = COALESCE(ciente_em, CURRENT_TIMESTAMP),
+           ciente_ip = COALESCE(ciente_ip, $2)
+       WHERE id_escala = $1
+       RETURNING id_escala, ciente_em, ciente_ip`,
+      [escalaId, clientIp || null]
+    );
+
+    res.json({ success: true, ...rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+/**
+ * POST /my-schedules/:id/permuta (M15)
+ * Solicita substituição/permuta para uma escala futura.
+ */
+mySchedulesController.solicitarPermuta = async (req, res, next) => {
+  try {
+    const militar = await getMilitarFromUser(req.user);
+    if (!militar) return res.status(403).json({ error: 'Usuário sem vínculo de efetivo.' });
+
+    const escalaId = parseInt(req.params.id, 10);
+    const { id_militar_substituto, motivo } = req.body || {};
+    if (!escalaId || !motivo || !String(motivo).trim()) {
+      return res.status(400).json({ error: 'Escala e motivo da permuta são obrigatórios.' });
+    }
+
+    const escala = await db.get(
+      'SELECT id_escala, id_ciclo, id_militar FROM ESCALA_PLANEJAMENTO WHERE id_escala = $1 AND id_militar = $2',
+      [escalaId, militar.id_militar]
+    );
+    if (!escala) {
+      return res.status(403).json({ error: 'Escala não encontrada ou não pertence ao militar autenticado.' });
+    }
+
+    const pendente = await db.get(
+      "SELECT id_permuta FROM SOLICITACOES_PERMUTA WHERE id_escala = $1 AND status = 'PENDENTE'",
+      [escalaId]
+    );
+    if (pendente) {
+      return res.status(409).json({ error: 'Já existe uma solicitação de permuta pendente para esta escala.' });
+    }
+
+    const substId = id_militar_substituto ? parseInt(id_militar_substituto, 10) : null;
+    const { rows } = await db.query(
+      `INSERT INTO SOLICITACOES_PERMUTA
+        (id_escala, id_ciclo, id_militar_solicitante, id_militar_substituto, motivo, status)
+       VALUES ($1, $2, $3, $4, $5, 'PENDENTE')
+       RETURNING *`,
+      [escalaId, escala.id_ciclo, militar.id_militar, substId, String(motivo).trim()]
+    );
+
+    res.status(201).json({ success: true, permuta: rows[0] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+/**
+ * GET /permutas (M15)
+ * Lista solicitações de permuta (próprias do militar ou todas para aprovadores).
+ */
+mySchedulesController.listPermutas = async (req, res, next) => {
+  try {
+    const { ciclo_id, status, scope } = req.query;
+    const militar = await getMilitarFromUser(req.user);
+    const isAdminOrApprover = req.user?.roles?.some(r => ['SUPERUSER', 'ADMIN', 'GERENTE'].includes(r))
+      || req.user?.permissions?.includes('permuta:aprovar');
+
+    const params = [];
+    let where = ' WHERE 1=1';
+
+    if (!(scope === 'all' && isAdminOrApprover)) {
+      if (!militar) return res.json([]);
+      params.push(militar.id_militar);
+      where += ` AND (sp.id_militar_solicitante = $${params.length} OR sp.id_militar_substituto = $${params.length})`;
+    }
+
+    if (ciclo_id) {
+      params.push(parseInt(ciclo_id, 10));
+      where += ` AND sp.id_ciclo = $${params.length}`;
+    }
+    if (status) {
+      params.push(status);
+      where += ` AND sp.status = $${params.length}`;
+    }
+
+    const { rows } = await db.query(`
+      SELECT sp.*,
+             TO_CHAR(ep.data_servico, 'YYYY-MM-DD') AS data_servico,
+             ep.nome_recurso, ep.funcao, ep.horario_servico,
+             sol.posto_graduacao AS solicitante_posto, sol.nome_guerra AS solicitante_nome, sol.matricula AS solicitante_matricula,
+             sub.posto_graduacao AS substituto_posto, sub.nome_guerra AS substituto_nome, sub.matricula AS substituto_matricula
+      FROM SOLICITACOES_PERMUTA sp
+      JOIN ESCALA_PLANEJAMENTO ep ON sp.id_escala = ep.id_escala
+      JOIN EFETIVO sol ON sp.id_militar_solicitante = sol.id_militar
+      LEFT JOIN EFETIVO sub ON sp.id_militar_substituto = sub.id_militar
+      ${where}
+      ORDER BY sp.created_at DESC
+    `, params);
+
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+/**
+ * PUT /permutas/:id/responder (M15)
+ * Aprova ou rejeita uma solicitação de permuta e, se aprovada com substituto, atualiza ESCALA_PLANEJAMENTO.
+ */
+mySchedulesController.responderPermuta = async (req, res, next) => {
+  try {
+    const idPermuta = parseInt(req.params.id, 10);
+    const { status, observacao_aprovador, id_militar_substituto } = req.body || {};
+    if (!idPermuta || !['APROVADA', 'REJEITADA'].includes(status)) {
+      return res.status(400).json({ error: 'Status inválido. Use APROVADA ou REJEITADA.' });
+    }
+
+    const permuta = await db.get('SELECT * FROM SOLICITACOES_PERMUTA WHERE id_permuta = $1', [idPermuta]);
+    if (!permuta) return res.status(404).json({ error: 'Solicitação de permuta não encontrada.' });
+    if (permuta.status !== 'PENDENTE') {
+      return res.status(409).json({ error: 'Esta solicitação já foi processada.' });
+    }
+
+    const finalSubstituto = id_militar_substituto ? parseInt(id_militar_substituto, 10) : permuta.id_militar_substituto;
+    if (status === 'APROVADA' && !finalSubstituto) {
+      return res.status(400).json({ error: 'Informe um militar substituto para aprovar a permuta.' });
+    }
+
+    await db.run(
+      `UPDATE SOLICITACOES_PERMUTA
+       SET status = $1,
+           observacao_aprovador = $2,
+           id_militar_substituto = $3,
+           aprovado_por = $4,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id_permuta = $5`,
+      [status, observacao_aprovador || null, finalSubstituto || null, req.user?.id || null, idPermuta]
+    );
+
+    if (status === 'APROVADA' && finalSubstituto) {
+      await db.run(
+        `UPDATE ESCALA_PLANEJAMENTO
+         SET id_militar = $1, ciente_em = NULL, ciente_ip = NULL
+         WHERE id_escala = $2`,
+        [finalSubstituto, permuta.id_escala]
+      );
+    }
+
+    res.json({ success: true, id_permuta: idPermuta, status, id_militar_substituto: finalSubstituto });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 module.exports = mySchedulesController;

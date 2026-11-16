@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, Info, ArrowRight } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function EfetivoImport({ onComplete }) {
   const [file, setFile] = useState(null);

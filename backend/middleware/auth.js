@@ -2,26 +2,53 @@
 
 const jwt = require('jsonwebtoken');
 const db = require('../db');
+const cache = require('../utils/cache');
 const { formatCPF } = require('../utils/cpf');
 const { generateToken, hashToken, normalizeRank, auditLog } = require('../utils/helpers');
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+if (IS_PROD && !process.env.JWT_SECRET) {
+  throw new Error('[FATAL] JWT_SECRET é obrigatório quando NODE_ENV=production.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'ft_jwt_secret_dev_2026_change_in_prod';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '2h';
 const REFRESH_EXPIRES_DAYS = 7;
 const BCRYPT_ROUNDS = 12;
+const AUTH_CACHE_TTL_MS = 30000;
+
+function invalidateUserAuthCache(userId) {
+  if (userId) {
+    cache.del(`auth:roles:${userId}`);
+    cache.del(`auth:perms:${userId}`);
+  } else {
+    cache.clearPrefix('auth:');
+  }
+}
 
 async function getUserRoles(userId) {
+  const cacheKey = `auth:roles:${userId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const { rows } = await db.query(`
     SELECT r.nome FROM user_roles ur JOIN roles r ON ur.role_id = r.id WHERE ur.user_id = $1
   `, [userId]);
-  return rows.map(r => r.nome);
+  const roles = rows.map(r => r.nome);
+  cache.set(cacheKey, roles, AUTH_CACHE_TTL_MS);
+  return roles;
 }
 
 async function getUserPermissions(userId) {
+  const cacheKey = `auth:perms:${userId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const roles = await getUserRoles(userId);
   if (roles.includes('SUPERUSER')) {
     const allPerms = await db.query('SELECT code FROM permissions');
-    return allPerms.rows.map(p => p.code);
+    const allCodes = allPerms.rows.map(p => p.code);
+    cache.set(cacheKey, allCodes, AUTH_CACHE_TTL_MS);
+    return allCodes;
   }
 
   // 1. Buscar permissões via Roles
@@ -52,7 +79,9 @@ async function getUserPermissions(userId) {
     }
   });
 
-  return Array.from(permissionsSet);
+  const result = Array.from(permissionsSet);
+  cache.set(cacheKey, result, AUTH_CACHE_TTL_MS);
+  return result;
 }
 
 async function authenticate(req, res, next) {
@@ -160,7 +189,9 @@ module.exports = {
   BCRYPT_ROUNDS,
   getUserRoles,
   getUserPermissions,
+  invalidateUserAuthCache,
   authenticate,
   authorize,
   issueSessionTokens
 };
+

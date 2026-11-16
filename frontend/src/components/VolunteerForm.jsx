@@ -43,7 +43,7 @@ const SHIFTS = [
   "01:00 ÀS 07:00"
 ];
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 const EMPTY_FORM = { numero_ordem: '', name: '', rank: 'Soldado PM', phone: '', motorista: 'Não', availability: {} };
 

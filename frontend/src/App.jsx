@@ -1,30 +1,36 @@
-import { useState, useEffect } from 'react';
+import { API_URL } from './utils/apiConfig';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import axios from 'axios';
+import './utils/axiosSetup';
 import './index.css';
+import { ToastProvider } from './components/common/ToastProvider';
 import { VolunteerForm } from './components/VolunteerForm';
 import { LoginScreen } from './components/LoginScreen';
-import { AdminDashboardV2 } from './components/AdminDashboardV2';
-import { HistoricoMilitar } from './components/HistoricoMilitar';
-import { AnalyticsDashboard } from './components/AnalyticsDashboard';
-import { RequerimentosAdmin } from './components/RequerimentosAdmin';
-import { FinanceiroDashboard } from './components/FinanceiroDashboard';
-import { OpmManager } from './components/OpmManager';
-import { CicloManager } from './components/CicloManager';
-import { MetasAlocacaoManager } from './components/MetasAlocacaoManager';
-import { EfetivoImport } from './components/EfetivoImport';
-import { ServicosImport } from './components/ServicosImport';
-import { EfetivoManager } from './components/EfetivoManager';
-import { ServicosExecutadosManager } from './components/ServicosExecutadosManager';
-import { UserManager } from './components/UserManager';
-import { ProfilePage } from './components/ProfilePage';
-import { RolesManager } from './components/RolesManager';
-import { TiposServicoManager } from './components/TiposServicoManager';
-import { ConferenciaOperacional } from './components/ConferenciaOperacional';
 import { Footer } from './components/Footer';
-import { QuantitativoGastosFT } from './components/QuantitativoGastosFT';
-import { MinhasEscalas } from './components/MinhasEscalas';
-import { SuperUserDashboard } from './components/SuperUserDashboard';
-import { DocsPortal } from './components/DocsPortal';
+
+const lazyNamed = (loader, name) => lazy(() => loader().then(m => ({ default: m[name] })));
+
+const AdminDashboardV2 = lazyNamed(() => import('./components/AdminDashboardV2'), 'AdminDashboardV2');
+const HistoricoMilitar = lazyNamed(() => import('./components/HistoricoMilitar'), 'HistoricoMilitar');
+const AnalyticsDashboard = lazyNamed(() => import('./components/AnalyticsDashboard'), 'AnalyticsDashboard');
+const RequerimentosAdmin = lazyNamed(() => import('./components/RequerimentosAdmin'), 'RequerimentosAdmin');
+const FinanceiroDashboard = lazyNamed(() => import('./components/FinanceiroDashboard'), 'FinanceiroDashboard');
+const OpmManager = lazyNamed(() => import('./components/OpmManager'), 'OpmManager');
+const CicloManager = lazyNamed(() => import('./components/CicloManager'), 'CicloManager');
+const MetasAlocacaoManager = lazyNamed(() => import('./components/MetasAlocacaoManager'), 'MetasAlocacaoManager');
+const EfetivoImport = lazyNamed(() => import('./components/EfetivoImport'), 'EfetivoImport');
+const ServicosImport = lazyNamed(() => import('./components/ServicosImport'), 'ServicosImport');
+const EfetivoManager = lazyNamed(() => import('./components/EfetivoManager'), 'EfetivoManager');
+const ServicosExecutadosManager = lazyNamed(() => import('./components/ServicosExecutadosManager'), 'ServicosExecutadosManager');
+const UserManager = lazyNamed(() => import('./components/UserManager'), 'UserManager');
+const ProfilePage = lazyNamed(() => import('./components/ProfilePage'), 'ProfilePage');
+const RolesManager = lazyNamed(() => import('./components/RolesManager'), 'RolesManager');
+const TiposServicoManager = lazyNamed(() => import('./components/TiposServicoManager'), 'TiposServicoManager');
+const ConferenciaOperacional = lazyNamed(() => import('./components/ConferenciaOperacional'), 'ConferenciaOperacional');
+const QuantitativoGastosFT = lazyNamed(() => import('./components/QuantitativoGastosFT'), 'QuantitativoGastosFT');
+const MinhasEscalas = lazyNamed(() => import('./components/MinhasEscalas'), 'MinhasEscalas');
+const SuperUserDashboard = lazyNamed(() => import('./components/SuperUserDashboard'), 'SuperUserDashboard');
+const DocsPortal = lazyNamed(() => import('./components/DocsPortal'), 'DocsPortal');
 import {
   LayoutDashboard, Users, BarChart2, FileText, LogOut, DollarSign,
   Building2, Calendar, ChevronDown, Settings, Database, Activity,
@@ -58,19 +64,14 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
-  // Configura interceptor para logout automático em caso de 401
+  // Listener para logout centralizado (disparado quando o refresh token expirar ou falhar)
   useEffect(() => {
-    const interceptor = axios.interceptors.response.use(
-      response => response,
-      error => {
-        if (error.response?.status === 401) {
-          console.warn("Session expired or unauthorized. Logging out...");
-          handleLogout();
-        }
-        return Promise.reject(error);
-      }
-    );
-    return () => axios.interceptors.response.eject(interceptor);
+    const onAuthLogout = () => {
+      console.warn("Sessão expirada ou encerrada. Redirecionando para login...");
+      handleLogout();
+    };
+    window.addEventListener('auth:logout', onAuthLogout);
+    return () => window.removeEventListener('auth:logout', onAuthLogout);
   }, []);
 
   // Determina a view inicial após login/restauração de sessão
@@ -111,7 +112,7 @@ function App() {
       const refreshToken = localStorage.getItem('ft_refresh_token');
       if (refreshToken) {
         await axios.post(
-          `${(import.meta.env.VITE_API_URL || 'http://localhost:3001')}/api/auth/logout`,
+          `${API_URL}/auth/logout`,
           { refresh_token: refreshToken }
         );
       }
@@ -157,7 +158,7 @@ function App() {
   const initials = (user.nome_guerra || user.nome_completo || 'US').substring(0, 2).toUpperCase();
 
   return (
-    <>
+    <ToastProvider>
       <nav className="navbar">
         <div className="navbar-brand">
           <img src="/brasao_9bpm.png" alt="Brasão 9º BPM" />
@@ -384,33 +385,35 @@ function App() {
       </nav>
 
       <main>
-        {currentView === 'minhas-escalas' && <MinhasEscalas user={user} />}
-        {currentView === 'form' && <VolunteerForm userData={user} />}
-        {currentView === 'profile' && <ProfilePage user={user} />}
-        {currentView === 'docs' && <DocsPortal />}
+        <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Carregando módulo...</div>}>
+          {currentView === 'minhas-escalas' && <MinhasEscalas user={user} />}
+          {currentView === 'form' && <VolunteerForm userData={user} />}
+          {currentView === 'profile' && <ProfilePage user={user} />}
+          {currentView === 'docs' && <DocsPortal />}
 
-        {/* Rotas administrativas — protegidas por permissão */}
-        {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
-        {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
-        {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin user={user} />}
-        {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
-        {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
-        {currentView === 'quantitativo-gastos' && (hasPermission('financeiro:read') || isAdmin) && <QuantitativoGastosFT />}
-        {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
-        {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
-        {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
-        {currentView === 'metas' && hasPermission('ciclos:read') && <MetasAlocacaoManager />}
-        {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
-        {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
-        {currentView === 'import-servicos' && isAdmin && <ServicosImport onBack={() => navigateTo('servicos')} />}
-        {currentView === 'servicos' && isAdmin && <ServicosExecutadosManager />}
-        {currentView === 'conferencia' && (isAdmin || isGerente) && <ConferenciaOperacional />}
-        {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
-        {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}
-        {currentView === 'superuser' && isSuperuser && <SuperUserDashboard user={user} />}
+          {/* Rotas administrativas — protegidas por permissão */}
+          {currentView === 'admin-v2' && (isAdmin || isGerente) && <AdminDashboardV2 />}
+          {currentView === 'escalas-planejadas' && (isAdmin || isGerente) && <HistoricoMilitar />}
+          {currentView === 'requerimentos' && (isAdmin || isGerente) && <RequerimentosAdmin user={user} />}
+          {currentView === 'analytics' && isAdmin && <AnalyticsDashboard />}
+          {currentView === 'financeiro' && hasPermission('financeiro:read') && <FinanceiroDashboard />}
+          {currentView === 'quantitativo-gastos' && (hasPermission('financeiro:read') || isAdmin) && <QuantitativoGastosFT />}
+          {currentView === 'opm' && hasPermission('opm:read') && <OpmManager />}
+          {currentView === 'tipos-servico' && isAdmin && <TiposServicoManager />}
+          {currentView === 'ciclo' && hasPermission('ciclos:read') && <CicloManager />}
+          {currentView === 'metas' && hasPermission('ciclos:read') && <MetasAlocacaoManager />}
+          {currentView === 'efetivo' && hasPermission('efetivo:read') && <EfetivoManager />}
+          {currentView === 'import-efetivo' && hasPermission('efetivo:import') && <EfetivoImport />}
+          {currentView === 'import-servicos' && isAdmin && <ServicosImport onBack={() => navigateTo('servicos')} />}
+          {currentView === 'servicos' && isAdmin && <ServicosExecutadosManager />}
+          {currentView === 'conferencia' && (isAdmin || isGerente) && <ConferenciaOperacional />}
+          {currentView === 'usuarios' && hasPermission('usuarios:admin') && <UserManager />}
+          {currentView === 'roles' && hasPermission('usuarios:admin') && <RolesManager />}
+          {currentView === 'superuser' && isSuperuser && <SuperUserDashboard user={user} />}
+        </Suspense>
       </main>
       <Footer />
-    </>
+    </ToastProvider>
   );
 }
 

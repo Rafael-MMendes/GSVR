@@ -1,3 +1,115 @@
+## v1.41.4 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção na Importação de Serviços Executados (`backend/controllers/servicoController.js`)**:
+  - Adicionadas as importações ausentes `normalizeKey` e `padCpf` de `../utils/helpers` em `servicoController.js`, corrigindo o erro `Falha processar arquivo: normalizeKey is not defined` durante a pré-visualização e importação de planilhas `.xlsx`/`.xls`.
+  - Adicionada suíte de testes de regressão em `backend/tests/servicoImport.test.js` cobrindo `importServicosPreview` e `importServicos` (25/25 testes passando).
+
+---
+
+## v1.41.3 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Grade de Disponibilidade Unificada nos Modais de Edição e Cancelamento (`RequerimentosAdmin.jsx`)**:
+  - Aplicado o componente `AvailabilityGridCard.jsx` (com visualização de Serviço Executado, Disponível, Serviço Ordinário `S` em laranja e Desistência) também nos modais **Novo/Editar Requerimento** e **Cancelar Disponibilidade**.
+  - Ampliada a largura dos modais (`maxWidth: 1080px`) para exibição confortável do card e da grade completa.
+  - Mantidas integralmente todas as funcionalidades existentes (`toggleShift`, edição de observação por turno via botão direito, `handleSave`, `toggleCancelShiftSelection` e `confirmCancelAvailability`).
+
+---
+
+## v1.41.2 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Grade de Disponibilidade Unificada & Serviço Ordinário (`S`) em Laranja**:
+  - Extraído o componente compartilhado `frontend/src/components/common/AvailabilityGridCard.jsx` com o mesmo layout visual de `RelatorioIndividual.jsx`.
+  - Adicionado suporte visual à coluna `marcado_servico_ordinario = true` exibindo os quadrados na cor laranja (`#f97316`) com a letra `S` em cada turno marcado, além da legenda `Serviço Ordinário (S)`.
+  - Atualizados `RelatorioIndividual.jsx` e `RequerimentosAdmin.jsx` (modal de visualização, preservando todas as ações existentes: Ver, Editar, Desistir e Excluir).
+
+---
+
+## v1.41.1 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Importação de PDFs — Marcações `S` / `s` como Serviço Ordinário (`PdfExtractor` & `RequirementImporter`)**:
+  - `backend/services/PdfExtractor.js` agora reconhece `S` e `s` na grade de disponibilidade (posições 1–31) marcando `marcado_servico_ordinario: true` e `marcado_disponivel: false`, mantendo intacta toda a lógica existente para `X` / `x`.
+  - `backend/services/RequirementImporter.js` (`upsertRequerimentoFragmento`) persiste `marcado_disponivel` e `marcado_servico_ordinario` na tabela `DISPONIBILIDADE_REQUERIMENTO`.
+  - Adicionada verificação `IF NOT EXISTS` para `marcado_servico_ordinario` em `backend/db.js` e novos testes unitários em `PdfExtractor.test.js` e `RequirementImporter.test.js`.
+
+---
+
+## v1.41.0 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Segurança & Infraestrutura (M01–M04)**:
+  - Protegidos todos os roteadores administrativos e operacionais com `authenticate` e `authorize(...)` (`adminRoutes`, `userRoutes`, `opmRoutes`, `reportRoutes`, `efetivoRoutes`, `cicloRoutes`, `financeiroRoutes`, `scheduleRoutes`, `servicoRoutes`, `volunteerRoutes`).
+  - Removido fallback inseguro de `JWT_SECRET` em `NODE_ENV=production` e aplicada allowlist restrita de `CORS` em `backend/server.js`.
+  - Adicionado endpoint `GET /api/health`, `docker-compose.prod.yml` e script `backend/scripts/backup_db.sh`.
+- **Performance, Cache & Code Splitting (M05–M07, M11)**:
+  - Otimizada query `getSchedules` substituindo subconsulta correlacionada por `LEFT JOIN` agregado e adicionado índice composto `idx_servicos_militar_ciclo` (`003_evolution_features.sql`).
+  - Criado `backend/utils/cache.js` (`TtlCache`) aplicado a RBAC (`auth.js`, com invalidação em `rbacController`/`userController`), `opmController` e `financeiroController`.
+  - Implementada paginação retrocompatível (`?page=&limit=`) em `GET /api/servicos` e lazy loading (`React.lazy` + `Suspense`) em `frontend/src/App.jsx`.
+- **UX, Acessibilidade & Arquitetura Frontend (M09, M10, M12, M18)**:
+  - Criados `frontend/src/components/common/ToastProvider.jsx` (`useToast`) e `frontend/src/services/api.js` tipado com JSDoc.
+  - Adicionados atributos `aria-label` nos controles de `PatrolCard.jsx` e `ScheduleSidebar.jsx`, e script `"typecheck"` em `frontend/package.json`.
+- **Novas Funcionalidades (M13–M17)**:
+  - **M13 (Auto-Escala Inteligente)**: `POST /api/schedules/suggest` e botão "Sugerir Escala Automática" em `AdminDashboardV2`.
+  - **M14 (Ciência Digital)**: `POST /api/my-schedules/:id/ciente` com `ciente_em`/`ciente_ip` em `MinhasEscalas.jsx`.
+  - **M15 (Permutas Digitais)**: `SOLICITACOES_PERMUTA`, `POST /api/my-schedules/:id/permuta`, `GET /api/permutas`, `PUT /api/permutas/:id/responder` e `PermutasPanel.jsx`.
+  - **M16 (Conferência Digital)**: `POST /api/servicos/conferencia-digital` integrado em `ConferenciaOperacional.jsx`.
+  - **M17 (Equidade & Orçamento)**: `GET /api/reports/equidade-orcamento` e `EquidadeOrcamentoPanel.jsx` em `AnalyticsDashboard.jsx`.
+
+---
+
+## v1.40.0 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Decomposição Modular de `AdminDashboardV2.jsx` (2.801 → 946 linhas)**:
+  - Extraídos os subcomponentes coesos em `frontend/src/components/admin-dashboard/`: `ScheduleSidebar.jsx`, `PatrolCard.jsx`, `VolunteerSelectionModal.jsx`, `MilitarDetailsModal.jsx` e `theme.js`.
+  - Extraídos helpers compartilhados em `frontend/src/utils/scheduleHelpers.js`, eliminando duplicação de construção de dias do ciclo.
+- **Suíte de Testes Unitários (`CycleEngine` & `PdfExtractor`)**:
+  - Criados `backend/tests/CycleEngine.test.js` e `backend/tests/PdfExtractor.test.js` utilizando `node:test` nativo (`npm test`), cobrindo 18 casos de teste (viradas de ano, anos bissextos, fragmentação de disponibilidade, 5 estratégias de extração de PDF e mapeamento canônico de turnos).
+- **Migrações Estruturadas de DDL & Expurgo de Arquivos Órfãos**:
+  - Implementado runner transacional `backend/scripts/migrate.js` (`npm run migrate` / `npm run migrate:status`) com tabela `schema_migrations` e verificação de checksum SHA-256, acompanhado da migração `002_baseline_integrity.sql`.
+  - Expurgados 24 arquivos órfãos não roteados de `backend/` (incluindo `server.monolith.backup.js` e scripts temporários de depuração/SQL).
+- **Tipagem Estática Progressiva com TypeScript**:
+  - Adicionados `frontend/tsconfig.json`, `frontend/src/types/gsvr.types.ts` e `backend/types/domain.d.ts`, com anotações JSDoc tipadas nos módulos extraídos.
+
+---
+
+## v1.39.2 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de `ReferenceError: PATROL_ROLES is not defined` na API de Escalas (`backend/controllers/scheduleController.js`)**:
+  - **[Causa Raiz]**: Na modularização do backend (`v1.39.0`), a constante foi declarada como `ROLES` no topo de `scheduleController.js`, porém `getSchedules` e `createSchedule` continuaram referenciando `PATROL_ROLES`, gerando erro HTTP 500 sempre que havia escalas salvas no banco (e o `catch` de `loadSchedule` em `AdminDashboardV2.jsx` assumia array vazio).
+  - **[Correção]**: Substituídas as referências `PATROL_ROLES` por `ROLES` em `getSchedules` e `createSchedule`.
+
+---
+
+## v1.39.1 — 2026-11-13
+**Autor:** Alan Kleber
+**Email:** alan.kms@gmail.com
+
+### Mudanças:
+- **Correção de Race Condition no Filtro por Ciclo Ativo (`frontend/src/components/ServicosExecutadosManager.jsx`)**:
+  - **[Causa Raiz]**: Na montagem do componente, `fetchServicos()` era disparado imediatamente com `filterCiclo` vazio (`GET /api/servicos` sem filtros, retornando todos os 2.824 registros de todos os ciclos), enquanto `fetchData()` ainda carregava `/ciclos`. Quando `fetchData()` selecionava o ciclo ativo (`id_ciclo = 7`), a segunda requisição filtrada (275 registros) retornava mais rápido e era sobrescrita pela primeira requisição sem filtro que chegava depois.
+  - **[Correção]**: Adicionado controle `filtersReady` para aguardar a definição do ciclo inicial antes da primeira busca em `/api/servicos`, além de `AbortController` e contador sequencial (`fetchRequestIdRef`) para cancelar requisições anteriores e impedir que respostas obsoletas sobrescrevam filtros mais recentes.
+
+---
+
 ## v1.39.0 — 2026-11-13
 **Autor:** Alan Kleber
 **Email:** alan.kms@gmail.com

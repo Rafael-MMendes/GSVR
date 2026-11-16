@@ -7,7 +7,9 @@ import {
 } from 'lucide-react';
 import { compareByRank, normalizeOpm } from '../utils/formatters';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
+import { servicoApi } from '../services/api';
+import { useToast } from './common/ToastProvider';
 
 const STATUS_CONFIG = {
   OK:     { label: 'Conforme',  color: '#10b981', bg: '#f0fdf4', border: '#bbf7d0', icon: CheckCircle  },
@@ -26,6 +28,7 @@ const formatDateDisplay = (dateValue) => {
 };
 
 export function ConferenciaOperacional() {
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [ciclos, setCiclos] = useState([]);
   const [selectedCiclo, setSelectedCiclo] = useState('');
@@ -43,6 +46,19 @@ export function ConferenciaOperacional() {
       ...prev,
       [groupName]: !prev[groupName]
     }));
+  };
+
+  const handleConferenciaDigital = async (idEscala, statusPresenca) => {
+    try {
+      await servicoApi.conferenciaDigital({ items: [{ id_escala: idEscala, status_presenca: statusPresenca }] });
+      toast.success(`Presença (${statusPresenca}) registrada digitalmente!`);
+      if (selectedCiclo) {
+        const res = await axios.get(`${API_URL}/reports/conferencia?ciclo_id=${selectedCiclo}`);
+        setData(res.data);
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Erro ao registrar conferência digital.');
+    }
   };
 
   // Fetch cycles on mount
@@ -646,7 +662,29 @@ export function ConferenciaOperacional() {
                                           {r.guarnicao_executada || <span style={{ color: '#cbd5e1' }}>—</span>}
                                         </td>
                                         <td style={{ padding: '0.75rem 1rem' }}>
-                                          <StatusBadge status={r.status_conferencia} />
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            <StatusBadge status={r.status_conferencia} />
+                                            {r.id_escala && (r.status_conferencia === 'Futuro' || r.status_conferencia === 'Falta') && (
+                                              <>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleConferenciaDigital(r.id_escala, 'Presente')}
+                                                  title="Confirmar presença digital (M16)"
+                                                  style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '6px', border: '1px solid #10b981', background: '#ecfdf5', color: '#065f46', cursor: 'pointer', fontWeight: 700 }}
+                                                >
+                                                  ✓ Presente
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleConferenciaDigital(r.id_escala, 'Falta')}
+                                                  title="Registrar falta digital (M16)"
+                                                  style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '6px', border: '1px solid #ef4444', background: '#fef2f2', color: '#991b1b', cursor: 'pointer', fontWeight: 700 }}
+                                                >
+                                                  ✗ Falta
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
                                         </td>
                                       </tr>
                                     );

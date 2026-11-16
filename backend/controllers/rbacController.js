@@ -1,6 +1,7 @@
 'use strict';
 const db = require('../db');
 const { auditLog } = require('../utils/helpers');
+const { invalidateUserAuthCache } = require('../middleware/auth');
 
 const rbacController = {};
 
@@ -118,6 +119,7 @@ rbacController.updateUserRoles = async (req, res, next) => {
       [req.params.id]
     );
     await db.run('UPDATE users SET is_admin=$1 WHERE id=$2', [rows.length > 0 ? 1 : 0, req.params.id]);
+    invalidateUserAuthCache(req.params.id);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, error: { message: e.message } }); }
 };

@@ -1,32 +1,61 @@
 'use strict';
 const XLSX = require('xlsx');
 const db = require('../db');
-const { formatDateToISO, isFeriado, auditLog, normalizeRank } = require('../utils/helpers');
+const { formatDateToISO, isFeriado, auditLog, normalizeRank, normalizeKey, padCpf } = require('../utils/helpers');
 const { recalculateMetas } = require('../services/ScaleOptimizationService');
 
 const servicoController = {};
 
 /**
  * GET /servicos
+ * Suporta paginação opcional via ?page=1&limit=50 (retrocompatível: sem page/limit retorna array direto)
  */
 servicoController.getServicos = async (req, res, next) => {
   try {
-    const { ciclo_id, militar_id, data_inicio, data_fim } = req.query;
-    let q = `
-      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao, TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo
+    const { ciclo_id, militar_id, data_inicio, data_fim, page, limit } = req.query;
+    const baseFrom = `
       FROM SERVICOS_EXECUTADOS se
       JOIN EFETIVO e ON se.id_militar = e.id_militar
       JOIN CICLOS c ON se.id_ciclo = c.id_ciclo
       WHERE 1=1
     `;
+    let where = '';
     const params = [];
-    if (ciclo_id) { params.push(ciclo_id); q += ` AND se.id_ciclo = $${params.length}`; }
-    if (militar_id) { params.push(militar_id); q += ` AND se.id_militar = $${params.length}`; }
-    if (data_inicio) { params.push(data_inicio); q += ` AND se.data_execucao >= $${params.length}`; }
-    if (data_fim) { params.push(data_fim); q += ` AND se.data_execucao <= $${params.length}`; }
-    
-    q += ' ORDER BY se.data_execucao DESC';
-    const { rows } = await db.query(q, params);
+    if (ciclo_id) { params.push(ciclo_id); where += ` AND se.id_ciclo = $${params.length}`; }
+    if (militar_id) { params.push(militar_id); where += ` AND se.id_militar = $${params.length}`; }
+    if (data_inicio) { params.push(data_inicio); where += ` AND se.data_execucao >= $${params.length}`; }
+    if (data_fim) { params.push(data_fim); where += ` AND se.data_execucao <= $${params.length}`; }
+
+    const selectCols = `
+      SELECT se.*, e.nome_guerra, e.matricula, e.posto_graduacao,
+             TO_CHAR(c.data_inicio, 'DD/MM/YYYY') || ' a ' || TO_CHAR(c.data_fim, 'DD/MM/YYYY') as periodo_ciclo
+    `;
+
+    if (page !== undefined || limit !== undefined) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 50));
+      const offset = (pageNum - 1) * limitNum;
+
+      const countRes = await db.get(`SELECT COUNT(*)::int AS total ${baseFrom} ${where}`, params);
+      const total = countRes ? countRes.total : 0;
+
+      const dataParams = [...params, limitNum, offset];
+      const { rows } = await db.query(
+        `${selectCols} ${baseFrom} ${where} ORDER BY se.data_execucao DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        dataParams
+      );
+      return res.json({
+        data: rows,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limitNum))
+        }
+      });
+    }
+
+    const { rows } = await db.query(`${selectCols} ${baseFrom} ${where} ORDER BY se.data_execucao DESC`, params);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -517,6 +546,102 @@ servicoController.importServicos = async (req, res, next) => {
     console.error('[FATAL IMPORT ERROR]', e);
     res.status(500).json({ error: "Falha processar arquivo: " + e.message });
   }
+};
+
+/**
+ * POST /servicos/conferencia-digital (M16)
+ * Registra presença/falta digital diretamente a partir de escalas planejadas.
+ * Aceita { id_escala, status_presenca } ou { items: [{ id_escala, status_presenca }] }.
+ */
+servicoController.conferenciaDigital = async (req, res, next) => {
+  try {
+    const rawItems = Array.isArray(req.body?.items)
+      ? req.body.items
+      : (req.body?.id_escala ? [{ id_escala: req.body.id_escala, status_presenca: req.body.status_presenca }] : []);
+
+    if (rawItems.length === 0) {
+      return res.status(400).json({ error: 'Informe ao menos uma escala para conferência digital.' });
+    }
+
+    const validStatuses = new Set(['Presente', 'Falta', 'Justificada', 'Permuta']);
+    const results = [];
+    const affectedCiclos = new Set();
+
+    for (const item of rawItems) {
+      const idEscala = parseInt(item.id_escala, 10);
+      const statusPresenca = validStatuses.has(item.status_presenca) ? item.status_presenca : 'Presente';
+      if (!idEscala) continue;
+
+      const escala = await db.get(`
+        SELECT ep.id_escala, ep.id_ciclo, ep.id_militar, ep.data_servico, ep.id_tipo_servico,
+               ep.nome_recurso, ts.carga_horaria, ts.valor_remuneracao, o.sigla AS opm_sigla
+        FROM ESCALA_PLANEJAMENTO ep
+        JOIN CICLOS c ON ep.id_ciclo = c.id_ciclo
+        LEFT JOIN OPM o ON c.id_opm = o.id_opm
+        LEFT JOIN TIPOS_SERVICO ts ON ep.id_tipo_servico = ts.id_tipo_servico
+        WHERE ep.id_escala = $1
+      `, [idEscala]);
+
+      if (!escala) continue;
+
+      const dataStr = formatDateToISO(escala.data_servico);
+      const dateObj = new Date(`${dataStr}T12:00:00`);
+      const diaSemana = dateObj.getDay();
+      const ehFeriado = isFeriado(dateObj);
+      const isExtraDay = (diaSemana === 0 || diaSemana === 5 || diaSemana === 6 || ehFeriado);
+      const carga = escala.carga_horaria || (isExtraDay ? 8 : 6);
+      const valor = statusPresenca === 'Falta'
+        ? 0
+        : (escala.valor_remuneracao || (isExtraDay ? 250.00 : 192.03));
+
+      const existing = await db.get(
+        'SELECT id_execucao FROM SERVICOS_EXECUTADOS WHERE id_militar = $1 AND data_execucao = $2',
+        [escala.id_militar, dataStr]
+      );
+
+      let idExecucao;
+      if (existing) {
+        await db.run(
+          'UPDATE SERVICOS_EXECUTADOS SET status_presenca = $1, valor_remuneracao = $2, guarnicao = COALESCE(guarnicao, $3) WHERE id_execucao = $4',
+          [statusPresenca, valor, escala.nome_recurso, existing.id_execucao]
+        );
+        idExecucao = existing.id_execucao;
+      } else {
+        const ins = await db.run(
+          `INSERT INTO SERVICOS_EXECUTADOS
+            (id_ciclo, id_militar, data_execucao, dia_semana, eh_feriado, carga_horaria, valor_remuneracao, status_presenca, id_tipo_servico, opm_origem, guarnicao)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [
+            escala.id_ciclo,
+            escala.id_militar,
+            dataStr,
+            diaSemana,
+            ehFeriado,
+            carga,
+            valor,
+            statusPresenca,
+            escala.id_tipo_servico || null,
+            escala.opm_sigla || null,
+            escala.nome_recurso || null
+          ]
+        );
+        idExecucao = ins.lastID;
+      }
+
+      affectedCiclos.add(escala.id_ciclo);
+      results.push({ id_escala: idEscala, id_execucao: idExecucao, status_presenca: statusPresenca });
+    }
+
+    for (const cid of affectedCiclos) {
+      await recalculateMetas(cid);
+    }
+
+    if (req.user?.id) {
+      await auditLog(req.user.id, 'CONFERENCIA_DIGITAL', 'SERVICOS_EXECUTADOS', null, { count: results.length, results });
+    }
+
+    res.json({ success: true, processed: results.length, results });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 module.exports = servicoController;

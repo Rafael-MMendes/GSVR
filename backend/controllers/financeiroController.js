@@ -1,7 +1,9 @@
 'use strict';
 const db = require('../db');
 const { formatDateToISO } = require('../utils/helpers');
+const { TtlCache } = require('../utils/cache');
 
+const tiposCache = new TtlCache(60_000);
 const financeiroController = {};
 
 /**
@@ -9,7 +11,10 @@ const financeiroController = {};
  */
 financeiroController.getTiposServico = async (req, res, next) => {
   try {
+    const cached = tiposCache.get('tipos:all');
+    if (cached) return res.json(cached);
     const { rows } = await db.query('SELECT * FROM TIPOS_SERVICO ORDER BY ativo DESC, carga_horaria ASC');
+    tiposCache.set('tipos:all', rows);
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -24,6 +29,7 @@ financeiroController.createTipoServico = async (req, res, next) => {
       'INSERT INTO TIPOS_SERVICO (descricao, carga_horaria, valor_remuneracao, ativo) VALUES ($1, $2, $3, $4) RETURNING *',
       [descricao, carga_horaria, valor_remuneracao, ativo ?? true]
     );
+    tiposCache.clearAll();
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -39,6 +45,7 @@ financeiroController.updateTipoServico = async (req, res, next) => {
       'UPDATE TIPOS_SERVICO SET descricao = $1, carga_horaria = $2, valor_remuneracao = $3, ativo = $4 WHERE id_tipo_servico = $5 RETURNING *',
       [descricao, carga_horaria, valor_remuneracao, ativo, id]
     );
+    tiposCache.clearAll();
     res.json(rows[0]);
   } catch (e) { res.status(500).json({ error: e.message }); }
 };

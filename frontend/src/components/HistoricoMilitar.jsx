@@ -4,7 +4,7 @@ import { Calendar, Search, Shield, Filter, Clock, ChevronDown, User, CheckCircle
 import { RelatorioIndividual } from './RelatorioIndividual';
 import { compareByRank } from '../utils/formatters';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function HistoricoMilitar() {
   const [data, setData] = useState([]);

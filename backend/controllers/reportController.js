@@ -346,4 +346,101 @@ reportController.getConferencia = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /reports/equidade-orcamento (M17)
+ * Retorna indicadores executivos de equidade (distribuição de serviços por militar) e previsão orçamentária do ciclo.
+ */
+reportController.getEquidadeOrcamento = async (req, res, next) => {
+  try {
+    let { ciclo_id } = req.query;
+    if (!ciclo_id) {
+      const active = await db.get("SELECT id_ciclo FROM CICLOS WHERE ativo = true OR status = 'Aberto' ORDER BY ativo DESC, id_ciclo DESC LIMIT 1");
+      if (!active) return res.status(404).json({ error: 'Nenhum ciclo encontrado.' });
+      ciclo_id = active.id_ciclo;
+    }
+
+    const ciclo = await db.get(`
+      SELECT c.id_ciclo, c.data_inicio, c.data_fim, c.valor_total_previsto, c.status, o.sigla AS opm_sigla
+      FROM CICLOS c
+      LEFT JOIN OPM o ON c.id_opm = o.id_opm
+      WHERE c.id_ciclo = $1
+    `, [ciclo_id]);
+    if (!ciclo) return res.status(404).json({ error: 'Ciclo não encontrado.' });
+
+    const execStats = await db.get(`
+      SELECT
+        COUNT(*)::int AS total_servicos_executados,
+        COUNT(DISTINCT id_militar)::int AS militares_executados,
+        COALESCE(SUM(valor_remuneracao), 0)::float AS gasto_executado
+      FROM SERVICOS_EXECUTADOS
+      WHERE id_ciclo = $1
+    `, [ciclo_id]);
+
+    const planStats = await db.get(`
+      SELECT
+        COUNT(*)::int AS total_servicos_planejados,
+        COUNT(CASE WHEN ep.data_servico > CURRENT_DATE THEN 1 END)::int AS servicos_futuros_planejados,
+        COALESCE(SUM(
+          CASE WHEN ep.data_servico > CURRENT_DATE THEN
+            COALESCE(ts.valor_remuneracao, CASE WHEN EXTRACT(DOW FROM ep.data_servico) IN (0,5,6) THEN 250.00 ELSE 192.03 END)
+          ELSE 0 END
+        ), 0)::float AS projecao_futura
+      FROM ESCALA_PLANEJAMENTO ep
+      LEFT JOIN TIPOS_SERVICO ts ON ep.id_tipo_servico = ts.id_tipo_servico
+      WHERE ep.id_ciclo = $1
+    `, [ciclo_id]);
+
+    const { rows: distRows } = await db.query(`
+      SELECT e.id_militar, e.posto_graduacao, e.nome_guerra, e.matricula,
+             COUNT(se.id_execucao)::int AS qtd_executada,
+             COALESCE(SUM(se.valor_remuneracao), 0)::float AS valor_recebido
+      FROM EFETIVO e
+      LEFT JOIN SERVICOS_EXECUTADOS se ON se.id_militar = e.id_militar AND se.id_ciclo = $1
+      WHERE e.ativo = true
+      GROUP BY e.id_militar, e.posto_graduacao, e.nome_guerra, e.matricula
+      ORDER BY qtd_executada DESC, e.nome_guerra ASC
+    `, [ciclo_id]);
+
+    const faixas = { zero: 0, de_1_a_3: 0, de_4_a_6: 0, de_7_a_8: 0, acima_8: 0 };
+    distRows.forEach(r => {
+      if (r.qtd_executada === 0) faixas.zero++;
+      else if (r.qtd_executada <= 3) faixas.de_1_a_3++;
+      else if (r.qtd_executada <= 6) faixas.de_4_a_6++;
+      else if (r.qtd_executada <= 8) faixas.de_7_a_8++;
+      else faixas.acima_8++;
+    });
+
+    const teto = parseFloat(ciclo.valor_total_previsto || 0);
+    const executado = execStats?.gasto_executado || 0;
+    const futuro = planStats?.projecao_futura || 0;
+    const projetadoTotal = executado + futuro;
+
+    res.json({
+      ciclo: {
+        id_ciclo: ciclo.id_ciclo,
+        opm_sigla: ciclo.opm_sigla,
+        data_inicio: ciclo.data_inicio,
+        data_fim: ciclo.data_fim,
+        status: ciclo.status
+      },
+      orcamento: {
+        teto_previsto: teto,
+        gasto_executado: executado,
+        projecao_futura_planejada: futuro,
+        total_projetado: projetadoTotal,
+        saldo_projetado: teto - projetadoTotal,
+        percentual_consumido: teto > 0 ? Number(((executado / teto) * 100).toFixed(2)) : 0,
+        percentual_projetado: teto > 0 ? Number(((projetadoTotal / teto) * 100).toFixed(2)) : 0
+      },
+      equidade: {
+        total_efetivo_ativo: distRows.length,
+        militares_com_servico: execStats?.militares_executados || 0,
+        faixas_distribuicao: faixas,
+        top_servicos: distRows.slice(0, 10),
+        menos_servicos: [...distRows].sort((a, b) => a.qtd_executada - b.qtd_executada).slice(0, 10)
+      }
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
 module.exports = reportController;

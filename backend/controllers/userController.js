@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const db = require('../db');
 const { cleanCPF, isValidCPF, formatCPF } = require('../utils/cpf');
 const { validatePasswordRules, auditLog, normalizeRank } = require('../utils/helpers');
-const { BCRYPT_ROUNDS } = require('../middleware/auth');
+const { BCRYPT_ROUNDS, getUserRoles, getUserPermissions, invalidateUserAuthCache } = require('../middleware/auth');
 const { AVATARS_DIR } = require('../middleware/upload');
 
 const userController = {};
@@ -178,6 +178,7 @@ userController.deleteUser = async (req, res, next) => {
 
     await db.run('DELETE FROM users WHERE id = $1', [targetId]);
     auditLog(req.user.id, 'USER_DELETED', { target_user_id: targetId, cpf: user.cpf, ip: req.ip });
+    require('../middleware/auth').invalidateUserAuthCache(targetId);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -271,6 +272,7 @@ userController.updateUserAdmin = async (req, res, next) => {
     }
 
     auditLog(req.user.id, 'USER_ROLE_ADMIN_TOGGLED', { target_user_id: targetId, is_admin, ip: req.ip });
+    require('../middleware/auth').invalidateUserAuthCache(targetId);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 };
@@ -353,6 +355,7 @@ userController.updateUserPermissionsDirect = async (req, res, next) => {
       console.error('[Audit] Erro ao registrar log de permissão:', auditErr);
     }
 
+    require('../middleware/auth').invalidateUserAuthCache(userId);
     res.json({ success: true });
   } catch (e) {
     console.error('[DB] Erro ao atualizar permissão:', e.message);

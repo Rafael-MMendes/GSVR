@@ -1,106 +1,77 @@
-version: '3.8'
-
 services:
-  # Base Database
   postgres:
     image: postgres:16-alpine
-    container_name: ft-postgres-prod
-    restart: always
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-escala_ft}
-    volumes:
-      - pgdata_prod:/var/lib/postgresql/data
-    networks:
-      - ft-backend-net
-
-  # Database Admin
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: ft-pgadmin-prod
+    container_name: ft-postgres
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@mil.al.gov.br}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS:-admin123}
-    ports:
-      - "5050:80"
-    depends_on:
-      - postgres
-    networks:
-      - ft-backend-net
-
-  # Container Admin
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: ft-portainer-prod
-    restart: always
-    security_opt:
-      - no-new-privileges:true
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obrigatoria em producao}
+      POSTGRES_DB: ${DB_NAME:-escala_ft}
     volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - portainer_data_prod:/data
-    ports:
-      - "9000:9000"
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-escala_ft}" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
-      - ft-frontend-net
+      - ft-network
 
-  # API Backend with hot reload
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ft-backend-prod
-    restart: always
-    command: node --watch server.js
+    container_name: ft-backend
+    restart: unless-stopped
+    command: node server.js
     environment:
       DB_HOST: postgres
       DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD obrigatoria em producao}
       DB_NAME: ${DB_NAME:-escala_ft}
       DB_PORT: 5432
       PORT: 3001
-      NODE_ENV: development
-    depends_on:
-      - postgres
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET obrigatorio em producao}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://gsvr.192.168.1.18.nip.io,http://192.168.1.18:5173,https://gsvr.45.234.245.204.nip.io:36419}
     ports:
       - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     volumes:
-      - ./backend:/usr/src/app
-      - backend_node_modules:/usr/src/app/node_modules
+      - ./backend/uploads:/usr/src/app/uploads
     networks:
-      - ft-backend-net
-      - ft-frontend-net
+      - ft-network
+      - nginx-npm_default
 
-  # Web Frontend with hot reload
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    container_name: ft-frontend-prod
-    restart: always
-    command: npm run dev -- --host 0.0.0.0
-    environment:
-      VITE_API_URL: http://localhost:3001
+      dockerfile: Dockerfile.prod
+    container_name: ft-frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5173:80"
     depends_on:
-      - backend
-    volumes:
-      - ./frontend:/usr/src/app
-      - frontend_node_modules:/usr/src/app/node_modules
+      backend:
+        condition: service_healthy
     networks:
-      - ft-frontend-net
-
-networks:
-  ft-frontend-net:
-    driver: bridge
-  ft-backend-net:
-    internal: true
+      - ft-network
+      - nginx-npm_default
 
 volumes:
-  pgdata_prod:
-  portainer_data_prod:
-  backend_node_modules:
-  frontend_node_modules:
+  pgdata:
+    external: true
+    name: gsvr-prod_pgdata
+
+networks:
+  ft-network:
+    driver: bridge
+  nginx-npm_default:
+    external: true

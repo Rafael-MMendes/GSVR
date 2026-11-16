@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Building2, Plus, Edit2, Trash2, X, Check, MapPin, Phone, Mail } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function OpmManager() {
   const [opms, setOpms] = useState([]);

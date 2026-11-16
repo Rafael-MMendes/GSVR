@@ -129,6 +129,15 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
         [idReq, diasDatas]
       );
     }
+    // Remove também quaisquer datas espúrias que estejam fora dos limites deste ciclo
+    await db.query(
+      `DELETE FROM DISPONIBILIDADE_REQUERIMENTO d
+        USING CICLOS c
+        WHERE d.id_requerimento = $1
+          AND c.id_ciclo = $2
+          AND (d.dia_mes < c.data_inicio OR d.dia_mes > c.data_fim)`,
+      [idReq, idCiclo]
+    );
   } else {
     const r = await db.run(
       'INSERT INTO REQUERIMENTOS (id_militar, id_ciclo, numero_requerimento) VALUES ($1, $2, $3)',
@@ -142,11 +151,13 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
     for (const shiftObj of shifts) {
       const turno = shiftObj.shift || shiftObj;
       const isMot = !!shiftObj.motorista;
+      const isOrdinario = !!shiftObj.marcado_servico_ordinario;
+      const isDisponivel = isOrdinario ? false : (shiftObj.marcado_disponivel !== false);
       await db.run(
         `INSERT INTO DISPONIBILIDADE_REQUERIMENTO
-           (id_requerimento, dia_mes, horario_turno, marcado_disponivel, ativo, motorista)
-         VALUES ($1, $2, $3, TRUE, TRUE, $4)`,
-        [idReq, diaStr, turno, isMot]
+           (id_requerimento, dia_mes, horario_turno, marcado_disponivel, marcado_servico_ordinario, ativo, motorista)
+         VALUES ($1, $2, $3, $4, $5, TRUE, $6)`,
+        [idReq, diaStr, turno, isDisponivel, isOrdinario, isMot]
       );
       diasInseridos++;
     }
@@ -179,12 +190,41 @@ async function upsertRequerimentoFragmento(db, idMilitar, idCiclo, diasMap, nume
  *   warnings: string[]
  * }}
  */
-function fragmentarComCiclosExplicitos(availability, refYear, refMonth, ciclosIds, engine) {
+/**
+ * Fragmenta o mapa de disponibilidade nos ciclos explicitamente informados pelo usuário.
+ *
+ * Mapeia cada dia de forma resiliente usando as datas reais (data_inicio / data_fim)
+ * dos ciclos cadastrados no banco de dados, sendo totalmente imune à ordem de seleção.
+ *
+ * @param {object} availability  - { "1": [shifts], "16": [shifts], ... } (chaves = dia DD)
+ * @param {number} refYear
+ * @param {number} refMonth
+ * @param {Array<{ id_ciclo: number, data_inicio: string|Date, data_fim: string|Date, status: string }>} ciclos
+ * @param {CycleEngine} engine
+ * @returns {{
+ *   fragmentos: Array<{ idCiclo: number, diasMap: Object }>,
+ *   ignorados: Array<number>,
+ *   warnings: string[]
+ * }}
+ */
+function fragmentarComCiclosExplicitos(availability, refYear, refMonth, ciclos, engine) {
   const pad = (n) => String(n).padStart(2, '0');
   const maxDias = daysInMonth(refYear, refMonth);
 
-  // Mapas por índice de ciclo
-  const mapas = ciclosIds.map(() => ({}));
+  // Normaliza e ordena os ciclos cronologicamente (data_inicio ASC)
+  const sortedCiclos = [...ciclos].map(c => ({
+    idCiclo: Number(c.id_ciclo),
+    data_inicio: c.data_inicio ? String(c.data_inicio).split('T')[0] : '',
+    data_fim: c.data_fim ? String(c.data_fim).split('T')[0] : '',
+    status: c.status
+  })).sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
+
+  // Mapas por id de ciclo
+  const mapas = {};
+  for (const c of sortedCiclos) {
+    mapas[c.idCiclo] = {};
+  }
+
   const ignorados = [];
   const warnings  = [];
 
@@ -207,20 +247,35 @@ function fragmentarComCiclosExplicitos(availability, refYear, refMonth, ciclosId
 
     const dateKey = `${refYear}-${pad(refMonth)}-${pad(dia)}`;
 
-    if (ciclosIds.length === 1) {
-      // Caso simples: 1 ciclo recebe tudo
-      mapas[0][dateKey] = shifts;
+    if (sortedCiclos.length === 1) {
+      // Caso de 1 ciclo selecionado: associa diretamente
+      mapas[sortedCiclos[0].idCiclo][dateKey] = shifts;
     } else {
-      // 2 ciclos: fragmenta pelo diaInicio do engine
-      const segmento = engine.getSegmento(dia); // 'anterior' ou 'corrente'
-      const idx = segmento === 'anterior' ? 0 : 1;
-      mapas[idx][dateKey] = shifts;
+      // 2 ou mais ciclos: associa pela faixa real de datas [data_inicio, data_fim]
+      const matching = sortedCiclos.find(c => {
+        return (!c.data_inicio || dateKey >= c.data_inicio) && (!c.data_fim || dateKey <= c.data_fim);
+      });
+
+      if (matching) {
+        mapas[matching.idCiclo][dateKey] = shifts;
+      } else {
+        // Fallback robusto pelo corte de diaInicio do engine:
+        // segmento 'anterior' (dia < diaInicio) -> ciclo cronologicamente anterior
+        // segmento 'corrente' (dia >= diaInicio) -> ciclo cronologicamente corrente
+        const segmento = engine ? engine.getSegmento(dia) : (dia < 16 ? 'anterior' : 'corrente');
+        const target = segmento === 'anterior' ? sortedCiclos[0] : sortedCiclos[sortedCiclos.length - 1];
+        if (target) {
+          mapas[target.idCiclo][dateKey] = shifts;
+        } else {
+          ignorados.push(dia);
+        }
+      }
     }
   }
 
-  const fragmentos = ciclosIds.map((idCiclo, i) => ({
-    idCiclo,
-    diasMap: mapas[i],
+  const fragmentos = sortedCiclos.map(c => ({
+    idCiclo: c.idCiclo,
+    diasMap: mapas[c.idCiclo],
   })).filter(f => Object.keys(f.diasMap).length > 0);
 
   return { fragmentos, ignorados, warnings };
@@ -341,11 +396,11 @@ async function processFile({
     if (dup) warnings.push(IMPORT_ERRORS.DUPLICATE_FILE);
   }
 
-  // Verifica ciclos no banco
+  // Verifica ciclos no banco e carrega limites de datas
   const ciclosNoBanco = [];
   for (const idCiclo of ciclosIds) {
     const ciclo = await db.get(
-      'SELECT id_ciclo, status FROM CICLOS WHERE id_ciclo = $1',
+      'SELECT id_ciclo, data_inicio, data_fim, status FROM CICLOS WHERE id_ciclo = $1',
       [idCiclo]
     );
     if (!ciclo) {
@@ -361,7 +416,7 @@ async function processFile({
     availability,
     refYear,
     refMonth,
-    ciclosIds,
+    ciclosNoBanco,
     engine
   );
 
@@ -473,4 +528,4 @@ function _fail(code, stage, extra = {}) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-module.exports = { processFile, IMPORT_ERRORS, upsertRequerimentoFragmento };
+module.exports = { processFile, IMPORT_ERRORS, upsertRequerimentoFragmento, fragmentarComCiclosExplicitos };

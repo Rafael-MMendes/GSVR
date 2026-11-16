@@ -280,3 +280,4 @@ module.exports = {
   isEmpty,
   auditLog
 };
+

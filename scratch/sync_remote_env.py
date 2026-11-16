@@ -2,7 +2,7 @@ import paramiko
 
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('192.168.1.104', username='vps_9bpm', password='asdf1234')
+ssh.connect('192.168.1.18', username='vps_9bpm', password='asdf1234')
 
 # 1. Checar .env raiz e frontend/.env no servidor
 files = [
@@ -17,7 +17,7 @@ for f in files:
 
 # 2. Atualizar IP nos .env no servidor
 update_cmd = (
-    'sed -i "s/192.168.1.[0-9]*/192.168.1.104/g" '
+    'sed -i "s/192.168.1.[0-9]*/192.168.1.18/g" '
     '"/home/vps_9bpm/projetos/GSVR - prod/.env" '
     '"/home/vps_9bpm/projetos/GSVR - prod/frontend/.env"'
 )

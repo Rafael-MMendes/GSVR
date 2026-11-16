@@ -14,16 +14,29 @@ def deploy():
         ('backend/utils/totp.js', f'{remote_base}/backend/utils/totp.js'),
         ('backend/utils/audit.js', f'{remote_base}/backend/utils/audit.js'),
         ('backend/utils/helpers.js', f'{remote_base}/backend/utils/helpers.js'),
+        ('backend/utils/cache.js', f'{remote_base}/backend/utils/cache.js'),
         ('backend/middleware/auth.js', f'{remote_base}/backend/middleware/auth.js'),
         ('backend/middleware/rateLimiter.js', f'{remote_base}/backend/middleware/rateLimiter.js'),
         ('backend/middleware/upload.js', f'{remote_base}/backend/middleware/upload.js'),
         ('backend/middleware/uploadValidation.js', f'{remote_base}/backend/middleware/uploadValidation.js'),
         ('backend/scripts/provision_superuser.js', f'{remote_base}/backend/scripts/provision_superuser.js'),
-        ('backend/migrations/001_auth_cpf_superuser.sql', f'{remote_base}/backend/migrations/001_auth_cpf_superuser.sql'),
+        ('backend/scripts/migrate.js', f'{remote_base}/backend/scripts/migrate.js'),
+        ('backend/scripts/backup_db.sh', f'{remote_base}/backend/scripts/backup_db.sh'),
+        ('docker-compose.prod.yml', f'{remote_base}/docker-compose.prod.yml'),
+        ('backend/package.json', f'{remote_base}/backend/package.json'),
+        ('backend/types/domain.d.ts', f'{remote_base}/backend/types/domain.d.ts'),
         ('backend/db.js', f'{remote_base}/backend/db.js'),
         ('backend/server.js', f'{remote_base}/backend/server.js'),
         ('backend/test_modular_routes.js', f'{remote_base}/backend/test_modular_routes.js'),
     ]
+
+    for mig in os.listdir('backend/migrations'):
+        if mig.endswith('.sql'):
+            files_to_sync.append((f'backend/migrations/{mig}', f'{remote_base}/backend/migrations/{mig}'))
+
+    for t in os.listdir('backend/tests'):
+        if t.endswith('.js'):
+            files_to_sync.append((f'backend/tests/{t}', f'{remote_base}/backend/tests/{t}'))
 
     # Incluir dinamicamente todos os controllers e rotas modularizados
     for ctrl in os.listdir('backend/controllers'):
@@ -34,14 +47,31 @@ def deploy():
         if r.endswith('.js'):
             files_to_sync.append((f'backend/routes/{r}', f'{remote_base}/backend/routes/{r}'))
 
+    for svc in os.listdir('backend/services'):
+        if svc.endswith('.js'):
+            files_to_sync.append((f'backend/services/{svc}', f'{remote_base}/backend/services/{svc}'))
+
+    for comp in os.listdir('frontend/src/components'):
+        if comp.endswith(('.jsx', '.js', '.css')):
+            files_to_sync.append((f'frontend/src/components/{comp}', f'{remote_base}/frontend/src/components/{comp}'))
+
+    for subcomp in os.listdir('frontend/src/components/admin-dashboard'):
+        if subcomp.endswith(('.jsx', '.js', '.css')):
+            files_to_sync.append((f'frontend/src/components/admin-dashboard/{subcomp}', f'{remote_base}/frontend/src/components/admin-dashboard/{subcomp}'))
+
+    for commoncomp in os.listdir('frontend/src/components/common'):
+        if commoncomp.endswith(('.jsx', '.js', '.css')):
+            files_to_sync.append((f'frontend/src/components/common/{commoncomp}', f'{remote_base}/frontend/src/components/common/{commoncomp}'))
+
     files_to_sync.extend([
+        ('frontend/package.json', f'{remote_base}/frontend/package.json'),
+        ('frontend/tsconfig.json', f'{remote_base}/frontend/tsconfig.json'),
+        ('frontend/src/types/gsvr.types.ts', f'{remote_base}/frontend/src/types/gsvr.types.ts'),
+        ('frontend/src/services/api.js', f'{remote_base}/frontend/src/services/api.js'),
         ('frontend/src/utils/cpf.js', f'{remote_base}/frontend/src/utils/cpf.js'),
-        ('frontend/src/components/LoginScreen.jsx', f'{remote_base}/frontend/src/components/LoginScreen.jsx'),
-        ('frontend/src/components/SuperUserDashboard.jsx', f'{remote_base}/frontend/src/components/SuperUserDashboard.jsx'),
-        ('frontend/src/components/UserManager.jsx', f'{remote_base}/frontend/src/components/UserManager.jsx'),
-        ('frontend/src/components/DocsPortal.jsx', f'{remote_base}/frontend/src/components/DocsPortal.jsx'),
-        ('frontend/src/components/Footer.jsx', f'{remote_base}/frontend/src/components/Footer.jsx'),
+        ('frontend/src/utils/scheduleHelpers.js', f'{remote_base}/frontend/src/utils/scheduleHelpers.js'),
         ('frontend/src/App.jsx', f'{remote_base}/frontend/src/App.jsx'),
+        ('docs/DIAGNOSTICO_OTIMIZACAO_EVOLUCAO.md', f'{remote_base}/docs/DIAGNOSTICO_OTIMIZACAO_EVOLUCAO.md'),
         ('frontend/public/manual-e-documentacao.html', f'{remote_base}/frontend/public/manual-e-documentacao.html'),
         ('docs/README.md', f'{remote_base}/docs/README.md'),
         ('docs/ANALISE_TECNICA_COMPLETA_SISTEMA.md', f'{remote_base}/docs/ANALISE_TECNICA_COMPLETA_SISTEMA.md'),
@@ -117,6 +147,16 @@ def deploy():
         if err:
             print("STDERR:", err.strip())
 
+        # 2.1 Executar Migrações DDL Estruturadas (schema_migrations)
+        print("\n--- 2.1. MIGRAÇÕES DDL ESTRUTURADAS (migrate.js) ---")
+        stdin, stdout, stderr = ssh.exec_command('docker exec ft-backend node scripts/migrate.js')
+        mig_out = stdout.read().decode('utf-8', errors='replace').strip()
+        mig_err = stderr.read().decode('utf-8', errors='replace').strip()
+        if mig_out:
+            print(mig_out)
+        if mig_err:
+            print("[AVISO MIGRATE]:", mig_err)
+
         # 3. Reiniciar containers ft-backend e ft-frontend
         print("\n--- 3. REINICIANDO CONTAINERS (ft-backend & ft-frontend) ---")
         stdin, stdout, stderr = ssh.exec_command('docker restart ft-backend ft-frontend')
@@ -126,13 +166,22 @@ def deploy():
         time.sleep(3)
 
         # 3.1 Executar Bateria de Testes Automatizados no Container ft-backend
-        print("\n--- 3.1. TESTES AUTOMATIZADOS DE REGRESSÃO NO BACKEND ---")
-        stdin, stdout, stderr = ssh.exec_command('docker exec ft-backend node test_modular_routes.js')
+        print("\n--- 3.1. TESTES AUTOMATIZADOS (UNITÁRIOS + REGRESSÃO DE ROTAS) ---")
+        stdin, stdout, stderr = ssh.exec_command('docker exec ft-backend npm test && docker exec ft-backend node test_modular_routes.js')
         test_out = stdout.read().decode('utf-8', errors='replace').strip()
         test_err = stderr.read().decode('utf-8', errors='replace').strip()
         print(test_out)
         if test_err:
             print("[AVISO TESTE]:", test_err)
+
+        # 3.2 Validar Build do Frontend (Vite)
+        print("\n--- 3.2. VALIDAÇÃO DE BUILD DO FRONTEND (Vite) ---")
+        stdin, stdout, stderr = ssh.exec_command('docker exec ft-frontend npx vite build --outDir /tmp/dist-test')
+        fe_out = stdout.read().decode('utf-8', errors='replace').strip()
+        fe_err = stderr.read().decode('utf-8', errors='replace').strip()
+        print(fe_out)
+        if fe_err:
+            print("[AVISO VITE]:", fe_err)
 
         # 4. Status dos containers
         print("\n--- 4. STATUS DOS CONTAINERS GSVR ---")

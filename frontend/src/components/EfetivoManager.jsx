@@ -4,7 +4,7 @@ import { Users, Plus, Edit2, Trash2, Search, User, CreditCard, Shield, MapPin, P
 import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 import { EfetivoImport } from './EfetivoImport';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function EfetivoManager() {
   const [efetivo, setEfetivo] = useState([]);

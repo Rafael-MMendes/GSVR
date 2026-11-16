@@ -3,7 +3,7 @@ import os
 import time
 
 def upload_files():
-    hostname = '192.168.1.104'
+    hostname = '192.168.1.18'
     username = 'vps_9bpm'
     password = 'asdf1234'
     

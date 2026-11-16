@@ -139,7 +139,15 @@ const server = app.listen(TEST_PORT, async () => {
       { method: 'GET', path: '/api/financeiro/detalhado' },
       { method: 'POST', path: '/api/import/volunteers/files' },
       { method: 'POST', path: '/api/import/preview' },
-      { method: 'GET', path: '/api/import/logs' }
+      { method: 'GET', path: '/api/import/logs' },
+      { method: 'GET', path: '/api/health' },
+      { method: 'POST', path: '/api/schedules/suggest' },
+      { method: 'POST', path: '/api/my-schedules/:id/ciente' },
+      { method: 'POST', path: '/api/my-schedules/:id/permuta' },
+      { method: 'GET', path: '/api/permutas' },
+      { method: 'PUT', path: '/api/permutas/:id/responder' },
+      { method: 'POST', path: '/api/servicos/conferencia-digital' },
+      { method: 'GET', path: '/api/reports/equidade-orcamento' }
     ];
 
     let missing = 0;
@@ -209,6 +217,19 @@ const server = app.listen(TEST_PORT, async () => {
     assert.strictEqual(rMe.status, 401, 'Deve retornar 401 sem token');
     assert.strictEqual(rMe.data.error.code, 'UNAUTHORIZED');
     console.log('✅ Middleware authenticate bloqueia requisição não autenticada com 401.');
+
+    // 2.2b Rotas recém-protegidas sem token -> 401 UNAUTHORIZED (M01)
+    for (const protectedPath of ['/api/efetivo', '/api/servicos', '/api/schedules', '/api/admin/migrate-fix', '/api/usuarios/1/permissoes']) {
+      const rUnauth = await makeRequest('GET', protectedPath);
+      assert.strictEqual(rUnauth.status, 401, `Rota ${protectedPath} deve retornar 401 sem token`);
+    }
+    console.log('✅ Regressão M01: Todas as rotas sensíveis recém-protegidas retornam 401 sem token.');
+
+    // 2.2c Health check público -> 200 OK (M04)
+    const rHealth = await makeRequest('GET', '/api/health');
+    assert.strictEqual(rHealth.status, 200, 'GET /api/health deve retornar 200');
+    assert.strictEqual(rHealth.data.status, 'ok');
+    console.log('✅ GET /api/health responde 200 OK com status do banco.');
 
     // 2.3 Rota de login com credenciais ausentes -> 400
     const rLoginBad = await makeRequest('POST', '/api/login', {});

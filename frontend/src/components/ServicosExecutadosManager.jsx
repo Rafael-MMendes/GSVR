@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ClipboardCheck, Plus, Trash2, Search, Filter, CheckCircle, XCircle, Clock, Edit2, X, FileSpreadsheet, Check, Calendar, Users } from 'lucide-react';
 import { compareByRank } from '../utils/formatters';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 // Função para formatar data vinda do banco de forma segura
 const formatDateDisplay = (dateValue) => {
@@ -50,6 +50,9 @@ export function ServicosExecutadosManager() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sortConfig, setSortConfig] = useState({ key: 'data_execucao', direction: 'desc' });
   const [activeTab, setActiveTab] = useState('list'); // 'list' ou 'guarnicao'
+  const [filtersReady, setFiltersReady] = useState(false);
+  const fetchRequestIdRef = useRef(0);
+  const abortControllerRef = useRef(null);
 
   const [formData, setFormData] = useState({
     id_ciclo: '',
@@ -64,11 +67,13 @@ export function ServicosExecutadosManager() {
 
   useEffect(() => {
     fetchData();
+    return () => abortControllerRef.current?.abort();
   }, []);
 
   useEffect(() => {
+    if (!filtersReady) return;
     fetchServicos();
-  }, [filterCiclo, filterMilitar, filterDataInicio, filterDataFim]);
+  }, [filtersReady, filterCiclo, filterMilitar, filterDataInicio, filterDataFim]);
 
   const fetchData = async () => {
     try {
@@ -96,10 +101,17 @@ export function ServicosExecutadosManager() {
       }
     } catch (e) {
       console.error('Erro ao carregar dados:', e);
+    } finally {
+      setFiltersReady(true);
     }
   };
 
   const fetchServicos = async () => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++fetchRequestIdRef.current;
+
     setLoading(true);
     setSelectedIds(new Set());
     try {
@@ -109,12 +121,17 @@ export function ServicosExecutadosManager() {
       if (filterDataInicio) params.data_inicio = filterDataInicio;
       if (filterDataFim) params.data_fim = filterDataFim;
 
-      const res = await axios.get(`${API_URL}/servicos`, { params });
-      setServicos(res.data);
+      const res = await axios.get(`${API_URL}/servicos`, { params, signal: controller.signal });
+      if (requestId === fetchRequestIdRef.current) {
+        setServicos(res.data);
+      }
     } catch (e) {
+      if (axios.isCancel(e) || e.name === 'CanceledError' || e.name === 'AbortError') return;
       console.error('Erro ao carregar serviços:', e);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 

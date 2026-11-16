@@ -1,3 +1,4 @@
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FileText, Calendar, Building, DollarSign, Activity, ChevronDown, ChevronRight, User } from 'lucide-react';
@@ -46,7 +47,7 @@ export const RelatorioOperacional = () => {
   const fetchRelatorios = async () => {
     try {
       setLoading(true);
-      const urlBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const urlBase = getApiBaseUrl();
       
       const [resAgregado, resCompleto] = await Promise.all([
         axios.get(`${urlBase}/api/relatorios/operacional-agregado`),

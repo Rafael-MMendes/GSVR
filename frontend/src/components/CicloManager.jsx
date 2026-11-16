@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Calendar, Plus, Edit2, Trash2, X, Check, Building2, Users, ClipboardCheck, AlertCircle, Activity, DollarSign } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 // Função para formatar data vinda do banco (Postgres) de forma segura
 // Funções para formatar datas e períodos

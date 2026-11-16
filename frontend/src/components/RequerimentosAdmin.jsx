@@ -3,7 +3,9 @@ import axios from 'axios';
 import { Search, Trash2, Plus, Eye, X, FolderOpen, Upload, FileText, Ban, Edit2, Info } from 'lucide-react';
 import { maskPhone, formatPhone, compareByRank, MILITARY_RANK_ORDER } from '../utils/formatters';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
+import { PermutasPanel } from './common/PermutasPanel';
+import { AvailabilityGridCard } from './common/AvailabilityGridCard';
 
 const ranks = MILITARY_RANK_ORDER;
 
@@ -46,6 +48,8 @@ export function RequerimentosAdmin({ user }) {
   const [editingVolunteer, setEditingVolunteer] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingVolunteer, setViewingVolunteer] = useState(null);
+  const [viewGridDisp, setViewGridDisp] = useState([]);
+  const [viewGridLoading, setViewGridLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'rank', direction: 'asc' });
@@ -74,9 +78,19 @@ export function RequerimentosAdmin({ user }) {
 
   const toggleImportCycle = (id) => {
     setImportCycles(prev => {
-      if (prev.includes(id)) return prev.filter(c => c !== id);
-      if (prev.length >= 2) return prev; // limite de 2
-      return [...prev, id];
+      let next;
+      if (prev.includes(id)) {
+        next = prev.filter(c => c !== id);
+      } else if (prev.length >= 2) {
+        return prev;
+      } else {
+        next = [...prev, id];
+      }
+      return next.sort((a, b) => {
+        const cA = months.find(m => m.id_ciclo === a);
+        const cB = months.find(m => m.id_ciclo === b);
+        return (cA?.data_inicio || '').localeCompare(cB?.data_inicio || '');
+      });
     });
   };
 
@@ -209,7 +223,9 @@ export function RequerimentosAdmin({ user }) {
       fetchVolunteers();
     } catch (e) {
       console.error(e);
-      alert('Erro ao excluir requerimento.');
+      const rawErr = e.response?.data?.error ?? e.response?.data?.message ?? e.message ?? e;
+      const errMsg = typeof rawErr === 'string' ? rawErr : (rawErr?.message || JSON.stringify(rawErr));
+      alert('Erro ao excluir requerimento: ' + errMsg);
     }
   };
 
@@ -257,7 +273,7 @@ export function RequerimentosAdmin({ user }) {
     } catch (e) {
       console.error(e);
       const rawErr = e.response?.data?.error ?? e.response?.data?.message ?? e.message ?? e;
-      const errMsg = typeof rawErr === 'string' ? rawErr : JSON.stringify(rawErr);
+      const errMsg = typeof rawErr === 'string' ? rawErr : (rawErr?.message || JSON.stringify(rawErr));
       alert('Erro ao importar PDFs: ' + errMsg);
     } finally {
       setImporting(false);
@@ -266,6 +282,7 @@ export function RequerimentosAdmin({ user }) {
 
   const openAddModal = () => {
     setEditingVolunteer(null);
+    setViewGridDisp([]);
     setFormData({
       numero_ordem: '',
       name: '',
@@ -303,6 +320,25 @@ export function RequerimentosAdmin({ user }) {
     }
   }, [formData.numero_ordem, editingVolunteer, efetivo]);
 
+  const fetchGridForVolunteer = async (volunteer) => {
+    setViewGridDisp([]);
+    const cycleId = activeCycle?.id_ciclo || selectedMonth;
+    if (volunteer?.id_militar && cycleId) {
+      setViewGridLoading(true);
+      try {
+        const res = await axios.get(
+          `${API_URL}/reports/disponibilidade-grid?id_militar=${volunteer.id_militar}&ciclo_id=${cycleId}`
+        );
+        setViewGridDisp(Array.isArray(res.data) ? res.data : []);
+      } catch (e) {
+        console.error('Erro ao carregar grade de disponibilidade:', e);
+        setViewGridDisp([]);
+      } finally {
+        setViewGridLoading(false);
+      }
+    }
+  };
+
   const openEditModal = (volunteer) => {
     setEditingVolunteer(volunteer);
     setFormData({
@@ -316,17 +352,20 @@ export function RequerimentosAdmin({ user }) {
       availability_completa: volunteer.availability_completa || {}
     });
     setShowModal(true);
+    fetchGridForVolunteer(volunteer);
   };
 
   const openViewModal = (volunteer) => {
     setViewingVolunteer(volunteer);
     setShowViewModal(true);
+    fetchGridForVolunteer(volunteer);
   };
 
   const openCancelModal = (volunteer) => {
     setCancelingItem(volunteer);
     setCancelingSelection({}); // Começa com seletores em branco conforme solicitado
     setShowCancelModal(true);
+    fetchGridForVolunteer(volunteer);
   };
 
   const toggleCancelShiftSelection = (day, shift) => {
@@ -708,7 +747,7 @@ export function RequerimentosAdmin({ user }) {
         }}>
           <div style={{
             background: 'white', borderRadius: '12px', padding: '1.5rem',
-            maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto'
+            maxWidth: '1080px', width: '95%', maxHeight: '90vh', overflowY: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0 }}>{editingVolunteer ? 'Editar Requerimento' : 'Novo Requerimento'}</h3>
@@ -830,92 +869,55 @@ export function RequerimentosAdmin({ user }) {
               />
             </div>
 
-            <h4 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Disponibilidade (Grade)</h4>
-            <div className="responsive-table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.8rem' }}>
-                <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
-                    <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {cycleDays.map((dayObj, idx) => {
-                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
-                      return (
-                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
-                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
-                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {SHIFTS.map((shift, sIdx) => (
-                    <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
-                      <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {cycleDays.map(dayObj => {
-                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
-                        const dayStr = String(dayObj.day);
-                        const isSelected = (formData.availability[dateKey] || formData.availability[dayStr] || []).some(s =>
-                          (typeof s === 'object' ? s.turno === shift : s === shift)
-                        );
+            <AvailabilityGridCard
+              gridDisp={viewGridDisp}
+              cycleDays={cycleDays}
+              turnos={SHIFTS}
+              compact
+              onCellClick={(dateKey, shift) => toggleShift(dateKey, shift)}
+              onCellContextMenu={(e, dateKey, shift) => openShiftObsModal(e, dateKey, shift)}
+              getCellOverride={({ dateKey, dayStr, turno, cell }) => {
+                const shiftList = formData.availability[dateKey] || formData.availability[dayStr] || [];
+                const currentShiftData = shiftList.find(s => (typeof s === 'object' ? s.turno === turno : s === turno));
+                const isSelected = Boolean(currentShiftData);
+                const hasObs = typeof currentShiftData === 'object' && Boolean(currentShiftData.observacoes);
 
-                        const currentShiftData = (formData.availability[dateKey] || formData.availability[dayStr] || []).find(s =>
-                          (typeof s === 'object' ? s.turno === shift : s === shift)
-                        );
-                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
+                const completeData = formData.availability_completa?.[dateKey] || formData.availability_completa?.[dayStr] || [];
+                const shiftInfo = Array.isArray(completeData)
+                  ? completeData.find(item => (typeof item === 'object' ? item.turno === turno : item === turno))
+                  : null;
+                const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
 
-                        const completeData = formData.availability_completa?.[dateKey] || formData.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
-                          (typeof item === 'object' ? item.turno === shift : item === shift)
-                        ) : null;
-
-                        const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
-
-                        let bgColor = 'transparent';
-                        let textColor = 'transparent';
-                        let label = '·';
-
-                        if (isSelected) {
-                          bgColor = 'var(--primary)';
-                          textColor = 'white';
-                          label = 'X';
-                        } else if (isCancelado) {
-                          bgColor = 'var(--danger)';
-                          textColor = 'white';
-                          label = 'X';
-                        }
-
-                        return (
-                          <td
-                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            onClick={() => toggleShift(dateKey, shift)}
-                            onContextMenu={(e) => openShiftObsModal(e, dateKey, shift)}
-                            style={{
-                              textAlign: 'center',
-                              cursor: 'pointer',
-                              backgroundColor: bgColor,
-                              color: textColor,
-                              border: '1px solid #e2e8f0',
-                              fontWeight: 'bold',
-                              position: 'relative'
-                            }}
-                            title={isSelected ? `Ativo${hasObs ? ': ' + currentShiftData.observacoes : ''} (Botão direito para editar observação)` : (isCancelado ? `Cancelado${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}` : '')}
-                          >
-                            {label}
-                            {isSelected && hasObs && (
-                              <div style={{
-                                position: 'absolute', top: 0, right: 0,
-                                width: '6px', height: '6px',
-                                background: '#fbbf24', borderRadius: '50%', margin: '2px'
-                              }} />
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                if (isSelected) {
+                  return {
+                    bg: '#2563eb',
+                    border: '#1d4ed8',
+                    color: '#fff',
+                    symbol: '✕',
+                    hasObs,
+                    clickable: true,
+                    title: `Disponível${hasObs ? ': ' + currentShiftData.observacoes : ''} (Clique para alternar; botão direito para observação)`
+                  };
+                }
+                if (cell?.teve_execucao) {
+                  return { bg: '#059669', border: '#047857', color: '#fff', symbol: '✕', clickable: true, title: 'Serviço executado' };
+                }
+                if (cell?.marcado_servico_ordinario === true) {
+                  return { bg: '#f97316', border: '#ea580c', color: '#fff', symbol: 'S', clickable: true, title: 'Serviço Ordinário (S)' };
+                }
+                if (isCancelado || cell?.ativo === false) {
+                  return {
+                    bg: '#dc2626',
+                    border: '#b91c1c',
+                    color: '#fff',
+                    symbol: '✕',
+                    clickable: true,
+                    title: `Desistência${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}`
+                  };
+                }
+                return null;
+              }}
+            />
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn btn-outline" onClick={() => setShowModal(false)}>Cancelar</button>
@@ -939,7 +941,7 @@ export function RequerimentosAdmin({ user }) {
         }}>
           <div style={{
             background: 'white', borderRadius: '12px', padding: '1.5rem',
-            maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto'
+            maxWidth: '1080px', width: '95%', maxHeight: '90vh', overflowY: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0 }}>Detalhes do Requerimento</h3>
@@ -964,110 +966,13 @@ export function RequerimentosAdmin({ user }) {
               <div><strong>Motorista:</strong><br />{(viewingVolunteer.motorista_req || viewingVolunteer.motorista === 'Sim') ? 'Sim' : 'Não'}</div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h4 style={{ margin: 0 }}>Grade de Disponibilidade</h4>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#059669' }} /> Executado
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#2563eb' }} /> Disponível
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '3px', background: '#dc2626' }} /> Desistência
-                </span>
+            {viewGridLoading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+                Carregando grade de disponibilidade...
               </div>
-            </div>
-
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white', borderBottom: 'none' }}>
-                    <th style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {cycleDays.map((dayObj, idx) => {
-                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
-                      return (
-                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ background: 'var(--primary)', color: 'white', padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
-                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75, letterSpacing: '0.02em' }}>{dayObj.monthShort}</div>}
-                          <div style={{ fontSize: '0.75rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {SHIFTS.map((shift, sIdx) => (
-                    <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
-                      <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {cycleDays.map(dayObj => {
-                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
-                        const dayStr = String(dayObj.day);
-                        const isSelected = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).some(s =>
-                          (typeof s === 'object' ? s.turno === shift : s === shift)
-                        );
-                        const currentShiftData = (viewingVolunteer.availability?.[dateKey] || viewingVolunteer.availability?.[dayStr] || []).find(s =>
-                          (typeof s === 'object' ? s.turno === shift : s === shift)
-                        );
-                        const hasObs = typeof currentShiftData === 'object' && currentShiftData.observacoes;
-                        const completeData = viewingVolunteer.availability_completa?.[dateKey] || viewingVolunteer.availability_completa?.[dayStr] || [];
-                        const shiftInfo = Array.isArray(completeData) ? completeData.find(item =>
-                          (typeof item === 'object' ? item.turno === shift : item === shift)
-                        ) : null;
-                        const isCancelado = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.ativo === false;
-                        const teveExecucao = shiftInfo && typeof shiftInfo === 'object' && shiftInfo.teve_execucao === true;
-
-                        let bgColor = '#f8fafc';
-                        let borderStyle = '1px dashed #e2e8f0';
-                        let textColor = 'transparent';
-                        let label = '·';
-                        let titleText = '';
-
-                        if (teveExecucao) {
-                          bgColor = '#059669';
-                          borderStyle = '1px solid #047857';
-                          textColor = 'white';
-                          label = '✕';
-                          titleText = 'Serviço executado';
-                        } else if (isCancelado) {
-                          bgColor = '#dc2626';
-                          borderStyle = '1px solid #b91c1c';
-                          textColor = 'white';
-                          label = '✕';
-                          titleText = `Desistência${shiftInfo?.observacoes ? ': ' + shiftInfo.observacoes : ''}`;
-                        } else if (isSelected) {
-                          bgColor = '#2563eb';
-                          borderStyle = '1px solid #1d4ed8';
-                          textColor = 'white';
-                          label = '✕';
-                          titleText = `Disponível${hasObs ? ': ' + currentShiftData.observacoes : ''}`;
-                        }
-
-                        return (
-                          <td
-                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            style={{ 
-                              textAlign: 'center', 
-                              backgroundColor: bgColor, 
-                              color: textColor, 
-                              border: borderStyle, 
-                              fontWeight: 'bold', 
-                              position: 'relative',
-                              padding: '0.25rem 0'
-                            }}
-                            title={titleText}
-                          >
-                            {label}
-                            {isSelected && hasObs && (
-                              <div style={{ position: 'absolute', top: 0, right: 0, width: '6px', height: '6px', background: '#fbbf24', borderRadius: '50%', margin: '2px' }} />
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            ) : (
+              <AvailabilityGridCard gridDisp={viewGridDisp} cycleDays={cycleDays} turnos={SHIFTS} compact />
+            )}
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
               <button className="btn btn-primary" onClick={() => setShowViewModal(false)}>Fechar</button>
@@ -1157,7 +1062,7 @@ export function RequerimentosAdmin({ user }) {
                     ✓ {importCycles.length} ciclo(s) selecionado(s)
                     {importCycles.length === 2 && (
                       <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: '0.4rem' }}>
-                        — dias &lt; diaInicio → 1º ciclo · dias ≥ diaInicio → 2º ciclo
+                        — dias 01 a 15 no ciclo anterior · dias 16 a 31 no ciclo corrente
                       </span>
                     )}
                   </div>
@@ -1403,7 +1308,7 @@ export function RequerimentosAdmin({ user }) {
         }}>
           <div style={{
             background: 'white', borderRadius: '12px', padding: '1.5rem',
-            maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto',
+            maxWidth: '1080px', width: '95%', maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
             animation: 'slideUp 0.3s ease-out',
             color: 'var(--danger)' // Fonte em vermelho conforme solicitado
@@ -1443,74 +1348,50 @@ export function RequerimentosAdmin({ user }) {
             </div>
 
             {/* Grade de Disponibilidade */}
-            <h4 style={{ marginBottom: '0.5rem', fontSize: '0.95rem' }}>Selecione os turnos para cancelar:</h4>
-            <div className="responsive-table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', marginBottom: '1.5rem' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px', fontSize: '0.75rem' }}>
-                <thead>
-                  <tr style={{ background: 'var(--primary)', color: 'white' }}>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', minWidth: '120px' }}>HORÁRIO:</th>
-                    {cycleDays.map((dayObj, idx) => {
-                      const showMonth = idx === 0 || cycleDays[idx - 1].month !== dayObj.month;
-                      return (
-                        <th key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`} style={{ padding: '0.3rem 0.2rem', textAlign: 'center', width: '28px', lineHeight: 1.1 }}>
-                          {showMonth && <div style={{ fontSize: '0.55rem', opacity: 0.75 }}>{dayObj.monthShort}</div>}
-                          <div style={{ fontSize: '0.7rem' }}>{String(dayObj.day).padStart(2, '0')}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {SHIFTS.map((shift, sIdx) => (
-                    <tr key={shift} style={{ background: sIdx % 2 === 0 ? 'var(--card-bg)' : 'rgba(0,0,0,0.02)' }}>
-                      <td style={{ padding: '0.5rem', fontWeight: 600, color: 'var(--text-muted)' }}>{shift}</td>
-                      {cycleDays.map(dayObj => {
-                        const dateKey = `${dayObj.year}-${String(dayObj.month).padStart(2, '0')}-${String(dayObj.day).padStart(2, '0')}`;
-                        const dayStr = String(dayObj.day);
-                        const availabilityData = cancelingItem.availability_completa?.[dateKey] || cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dateKey] || cancelingItem.availability?.[dayStr] || [];
+            <div style={{ marginBottom: '1.5rem' }}>
+              <AvailabilityGridCard
+                gridDisp={viewGridDisp}
+                cycleDays={cycleDays}
+                turnos={SHIFTS}
+                compact
+                title="Selecione os turnos para cancelar"
+                onCellClick={(dateKey, shift) => toggleCancelShiftSelection(dateKey, shift)}
+                getCellOverride={({ dateKey, dayStr, turno, cell }) => {
+                  const availabilityData = cancelingItem.availability_completa?.[dateKey] || cancelingItem.availability_completa?.[dayStr] || cancelingItem.availability?.[dateKey] || cancelingItem.availability?.[dayStr] || [];
+                  const isAtivo = Array.isArray(availabilityData)
+                    ? availabilityData.some(item => {
+                      const t = typeof item === 'string' ? item : item.turno;
+                      const ativo = typeof item === 'string' ? true : item.ativo;
+                      return t === turno && ativo !== false;
+                    })
+                    : false;
+                  const isCancelado = Array.isArray(availabilityData)
+                    ? availabilityData.some(item => {
+                      const t = typeof item === 'string' ? item : item.turno;
+                      const ativo = typeof item === 'string' ? true : item.ativo;
+                      return t === turno && ativo === false;
+                    })
+                    : false;
+                  const isSelectedToCancel = (cancelingSelection[dateKey] || cancelingSelection[dayStr])?.includes(turno);
 
-                        const isAtivo = Array.isArray(availabilityData)
-                          ? availabilityData.some(item => {
-                            const turno = typeof item === 'string' ? item : item.turno;
-                            const ativo = typeof item === 'string' ? true : item.ativo;
-                            return turno === shift && ativo !== false;
-                          })
-                          : false;
-
-                        const isCancelado = Array.isArray(availabilityData)
-                          ? availabilityData.some(item => {
-                            const turno = typeof item === 'string' ? item : item.turno;
-                            const ativo = typeof item === 'string' ? true : item.ativo;
-                            return turno === shift && ativo === false;
-                          })
-                          : false;
-
-                        const isSelectedToCancel = (cancelingSelection[dateKey] || cancelingSelection[dayStr])?.includes(shift);
-
-                        return (
-                          <td
-                            key={`${dayObj.year}-${dayObj.month}-${dayObj.day}`}
-                            onClick={() => isAtivo && toggleCancelShiftSelection(dateKey, shift)}
-                            style={{
-                              textAlign: 'center',
-                              cursor: isAtivo ? 'pointer' : 'default',
-                              backgroundColor: (isCancelado || isSelectedToCancel) ? 'var(--danger)' : (isAtivo ? '#e0f2fe' : 'transparent'),
-                              color: (isCancelado || isSelectedToCancel) ? 'white' : (isAtivo ? '#0369a1' : 'transparent'),
-                              border: '1px solid #e2e8f0',
-                              fontWeight: 'bold',
-                              transition: 'all 0.1s ease',
-                              opacity: isCancelado ? 0.6 : 1
-                            }}
-                            title={isCancelado ? 'Já Cancelado' : (isAtivo ? 'Clique para cancelar' : '')}
-                          >
-                            {(isCancelado || isSelectedToCancel) ? 'X' : (isAtivo ? '✓' : '')}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  if (isSelectedToCancel) {
+                    return { bg: '#dc2626', border: '#b91c1c', color: '#fff', symbol: '✕', clickable: true, title: 'Selecionado para cancelar (Clique para desmarcar)' };
+                  }
+                  if (isCancelado || cell?.ativo === false) {
+                    return { bg: '#dc2626', border: '#b91c1c', color: '#fff', symbol: '✕', opacity: 0.6, clickable: false, title: 'Já Cancelado' };
+                  }
+                  if (cell?.teve_execucao) {
+                    return { bg: '#059669', border: '#047857', color: '#fff', symbol: '✕', clickable: false, title: 'Serviço executado' };
+                  }
+                  if (cell?.marcado_servico_ordinario === true) {
+                    return { bg: '#f97316', border: '#ea580c', color: '#fff', symbol: 'S', clickable: false, title: 'Serviço Ordinário (S)' };
+                  }
+                  if (isAtivo) {
+                    return { bg: '#2563eb', border: '#1d4ed8', color: '#fff', symbol: '✕', clickable: true, title: 'Disponível — Clique para cancelar' };
+                  }
+                  return null;
+                }}
+              />
             </div>
 
             {/* Campo de Observação */}
@@ -1616,6 +1497,7 @@ export function RequerimentosAdmin({ user }) {
           </div>
         </div>
       )}
+      <PermutasPanel cicloId={activeCycle?.id_ciclo} efetivo={efetivo} />
     </div>
   );
 }

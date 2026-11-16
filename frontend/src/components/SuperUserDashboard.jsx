@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { formatCPF } from '../utils/cpf';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function SuperUserDashboard() {
   const [activeTab, setActiveTab] = useState('diagnostics'); // 'diagnostics', 'audit', 'mfa-setup'

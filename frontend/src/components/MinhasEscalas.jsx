@@ -8,7 +8,9 @@ import {
   Info, Users, DollarSign, ArrowUpRight
 } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
+import { myScheduleApi } from '../services/api';
+import { useToast } from './common/ToastProvider';
 
 const getCycleDays = (dataInicio, dataFim) => {
   if (!dataInicio || !dataFim) {
@@ -31,6 +33,11 @@ const getCycleDays = (dataInicio, dataFim) => {
 };
 
 export function MinhasEscalas({ user }) {
+  const toast = useToast();
+  const [cienteLoading, setCienteLoading] = useState(false);
+  const [showPermutaBox, setShowPermutaBox] = useState(false);
+  const [permutaMotivo, setPermutaMotivo] = useState('');
+  const [permutaSending, setPermutaSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState({
@@ -1532,26 +1539,109 @@ export function MinhasEscalas({ user }) {
               padding: '1rem 1.75rem',
               borderTop: '1px solid #f1f5f9',
               display: 'flex',
-              justifyContent: 'flex-end',
+              flexDirection: 'column',
+              gap: '0.75rem',
               background: '#f8fafc',
               borderBottomLeftRadius: '20px',
               borderBottomRightRadius: '20px'
             }}>
-              <button
-                onClick={handleCloseDetail}
-                style={{
-                  background: '#1e3a5f',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '0.55rem 1.25rem',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Fechar
-              </button>
+              {showPermutaBox && detailEscala && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={permutaMotivo}
+                    onChange={(e) => setPermutaMotivo(e.target.value)}
+                    placeholder="Motivo da permuta / substituição..."
+                    style={{ flex: 1, minWidth: '200px', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                  />
+                  <button
+                    type="button"
+                    disabled={permutaSending}
+                    onClick={async () => {
+                      if (!permutaMotivo.trim()) { toast.error('Informe o motivo da permuta.'); return; }
+                      setPermutaSending(true);
+                      try {
+                        await myScheduleApi.solicitarPermuta(detailEscala.id_escala, { motivo: permutaMotivo.trim() });
+                        toast.success('Solicitação de permuta enviada para aprovação!');
+                        setPermutaMotivo('');
+                        setShowPermutaBox(false);
+                      } catch (err) {
+                        toast.error(err?.response?.data?.error || 'Erro ao solicitar permuta.');
+                      } finally { setPermutaSending(false); }
+                    }}
+                    style={{ background: '#0D3878', color: '#fff', border: 'none', padding: '0.5rem 0.9rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.83rem', cursor: 'pointer' }}
+                  >
+                    {permutaSending ? 'Enviando...' : 'Enviar Permuta'}
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {detailEscala && (
+                    <button
+                      type="button"
+                      disabled={cienteLoading || Boolean(detailEscala.ciente_em)}
+                      onClick={async () => {
+                        setCienteLoading(true);
+                        try {
+                          const res = await myScheduleApi.confirmarCiente(detailEscala.id_escala);
+                          setDetailEscala(prev => ({ ...prev, ciente_em: res.ciente_em }));
+                          toast.success('Ciência da escala confirmada!');
+                        } catch (err) {
+                          toast.error(err?.response?.data?.error || 'Erro ao confirmar ciência.');
+                        } finally { setCienteLoading(false); }
+                      }}
+                      style={{
+                        background: detailEscala.ciente_em ? '#dcfce7' : '#10b981',
+                        color: detailEscala.ciente_em ? '#166534' : '#ffffff',
+                        border: 'none',
+                        padding: '0.55rem 1rem',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: detailEscala.ciente_em ? 'default' : 'pointer'
+                      }}
+                    >
+                      {detailEscala.ciente_em ? '✓ Ciência Confirmada' : (cienteLoading ? 'Confirmando...' : 'Confirmar Ciência')}
+                    </button>
+                  )}
+                  {detailEscala && detailEscala.situacao !== 'Realizada' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPermutaBox(v => !v)}
+                      style={{
+                        background: '#eff6ff',
+                        color: '#1d4ed8',
+                        border: '1px solid #bfdbfe',
+                        padding: '0.55rem 1rem',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Solicitar Permuta
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleCloseDetail}
+                  style={{
+                    background: '#1e3a5f',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.55rem 1.25rem',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>

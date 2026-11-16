@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { cleanCPF, formatCPF, isValidCPF } from '../utils/cpf';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function LoginScreen({ onLogin }) {
   // Modos da tela: 'login', 'first-access-step1', 'first-access-step2', 'mfa', 'forgot'

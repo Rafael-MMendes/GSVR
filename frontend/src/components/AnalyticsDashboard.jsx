@@ -5,7 +5,8 @@ import { compareByRank } from '../utils/formatters';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
+import { EquidadeOrcamentoPanel } from './common/EquidadeOrcamentoPanel';
 const MAX_SERVICES = 8;
 
 // Função para formatar data vinda do banco de forma segura
@@ -962,6 +963,9 @@ export function AnalyticsDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Painel Executivo: Equidade & Previsão Orçamentária (M17) */}
+      <EquidadeOrcamentoPanel cicloId={selectedCiclo === 'all' ? undefined : selectedCiclo} />
 
       {/* Abas de Navegação */}
       <div className="tab-bar">

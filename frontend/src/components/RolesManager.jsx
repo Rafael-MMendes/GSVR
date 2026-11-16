@@ -5,7 +5,7 @@ import {
   Key, Users, ChevronDown, ChevronRight, Save, Layers
 } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 const MODULO_LABELS = {
   efetivo: 'Efetivo', ciclos: 'Ciclos', escalas: 'Escalas',

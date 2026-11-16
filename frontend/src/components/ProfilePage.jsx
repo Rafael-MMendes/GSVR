@@ -5,7 +5,7 @@ import {
   Shield, Star, Eye, EyeOff, RefreshCw, Trash2, Edit3, Save, X
 } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 function Alert({ type, message, onClose }) {
   const color = type === 'success' ? { bg: '#f0fdf4', border: '#86efac', text: '#166534' }
@@ -190,7 +190,7 @@ export function ProfilePage({ user }) {
   );
 
   const initials = (profile?.nome_guerra || profile?.nome_completo || user?.nome_guerra || 'US').substring(0, 2).toUpperCase();
-  const avatarSrc = profile?.avatar_url ? `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${profile.avatar_url}` : null;
+  const avatarSrc = profile?.avatar_url ? `${getApiBaseUrl()}${profile.avatar_url}` : null;
 
   const roleColors = { ADMIN: '#dc2626', GERENTE: '#d97706', MILITAR: '#1e3a5f' };
 

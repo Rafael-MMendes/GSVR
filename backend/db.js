@@ -410,6 +410,9 @@ async function setupDB() {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='motorista') THEN
               ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN motorista BOOLEAN DEFAULT FALSE;
             END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='disponibilidade_requerimento' AND column_name='marcado_servico_ordinario') THEN
+              ALTER TABLE DISPONIBILIDADE_REQUERIMENTO ADD COLUMN marcado_servico_ordinario BOOLEAN DEFAULT FALSE;
+            END IF;
 
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='requerimentos' AND column_name='id_usuario_criacao') THEN
               ALTER TABLE REQUERIMENTOS ADD COLUMN id_usuario_criacao INTEGER REFERENCES users(id);

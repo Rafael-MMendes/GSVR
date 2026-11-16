@@ -5,7 +5,7 @@ ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 try:
     print("Conectando via SSH...")
-    ssh.connect('192.168.1.104', username='vps_9bpm', password='asdf1234', timeout=10)
+    ssh.connect('192.168.1.18', username='vps_9bpm', password='asdf1234', timeout=10)
     
     sftp = ssh.open_sftp()
     

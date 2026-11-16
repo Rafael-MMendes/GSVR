@@ -3,9 +3,12 @@ const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
 
-router.get('/reports/operacional-detalhado', reportController.getOperacionalDetalhado);
-router.get('/reports/disponibilidade-grid', reportController.getDisponibilidadeGrid);
-router.get('/reports/escalas-planejadas', reportController.getEscalasPlanejadas);
-router.get('/reports/conferencia', reportController.getConferencia);
+const { authenticate } = require('../middleware/auth');
+
+router.get('/reports/operacional-detalhado', authenticate, reportController.getOperacionalDetalhado);
+router.get('/reports/disponibilidade-grid', authenticate, reportController.getDisponibilidadeGrid);
+router.get('/reports/escalas-planejadas', authenticate, reportController.getEscalasPlanejadas);
+router.get('/reports/conferencia', authenticate, reportController.getConferencia);
+router.get('/reports/equidade-orcamento', authenticate, reportController.getEquidadeOrcamento);
 
 module.exports = router;

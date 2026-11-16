@@ -4,7 +4,7 @@ import { Shield, ShieldOff, RefreshCw, Search, User, AlertTriangle, Plus, Trash2
 import { compareByRank } from '../utils/formatters';
 import { formatCPF } from '../utils/cpf';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api';
+import { API_URL, getApiBaseUrl } from '../utils/apiConfig';
 
 export function UserManager() {
   const [usuarios, setUsuarios] = useState([]);

@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const db = require('../db');
 
 const authRoutes = require('./authRoutes');
 const adminRoutes = require('./adminRoutes');
@@ -17,6 +18,26 @@ const scheduleRoutes = require('./scheduleRoutes');
 const reportRoutes = require('./reportRoutes');
 const financeiroRoutes = require('./financeiroRoutes');
 const importRoutes = require('./importRoutes');
+
+// Endpoint público de Healthcheck
+router.get('/health', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({
+      status: 'ok',
+      db: 'connected',
+      uptime_seconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'error',
+      db: 'disconnected',
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Montagem de todos os módulos de rotas sob o roteador central /api
 router.use(authRoutes);
@@ -35,3 +56,4 @@ router.use(financeiroRoutes);
 router.use(importRoutes);
 
 module.exports = router;
+
